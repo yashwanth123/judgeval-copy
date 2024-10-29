@@ -20,8 +20,9 @@ class TestResult:
     metadata: Dict[str, Any] = None
 
 class TestCase(Generic[Input, Output], ABC):
-    """Base class for creating test cases"""
+    """Abstract base class for holding test case data"""
     
+    @abstractmethod
     def __init__(
         self,
         input: Input,
@@ -35,19 +36,25 @@ class TestCase(Generic[Input, Output], ABC):
         self.metadata = metadata or {}
         self.output: Optional[Output] = None
     
-    @abstractmethod
-    def measure(self) -> TestResult:
-        """
-        Measure the quality of the output against the expected result.
-        Must be implemented by subclasses.
-        
-        Returns:
-            TestResult comparing self.output against self.expected
-        """
-        pass
-    
     def __str__(self):
         return f"TestCase(name={self.name}, input={self.input}, expected={self.expected})"
+
+class TestEvaluation(Generic[Input, Output], ABC):
+    """Base class for implementing test evaluations"""
+    
+    @abstractmethod
+    def evaluate(self, test_case: TestCase[Input, Output]) -> TestResult:
+        """
+        Evaluate the quality of the test case output against its expected result.
+        Must be implemented by subclasses.
+        
+        Args:
+            test_case: The test case containing input, output and expected values
+            
+        Returns:
+            TestResult comparing the output against the expected
+        """
+        pass
 
 class TestRunner:
     """Handles running tests and calling APIs"""
@@ -55,8 +62,14 @@ class TestRunner:
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key
     
-    async def run(self, test_case: TestCase) -> TestResult:
-        """Run a single test case"""
+    async def run(self, test_case: TestCase, evaluation: TestEvaluation) -> TestResult:
+        """
+        Run a single test case with the given evaluation
+        
+        Args:
+            test_case: The test case to run
+            evaluation: The evaluation to assess the result
+        """
         try:
             # Call API and get response
             response = await self._call_api(test_case.input)
@@ -64,8 +77,8 @@ class TestRunner:
             # Store the output
             test_case.output = response
             
-            # Measure the result
-            result = test_case.measure()
+            # Evaluate the result using provided evaluation
+            result = evaluation.evaluate(test_case)
             
             return result
             
@@ -84,38 +97,27 @@ class TestRunner:
         return f"Dummy response for: {input}"
 
 # Example implementation for text comparison
-class TextComparisonTest(TestCase[str, str]):
-    """A simple test case for comparing text outputs"""
+class TextComparisonEvaluation(TestEvaluation[str, str]):
+    """A evaluation class for comparing text outputs"""
     
-    def __init__(
-        self,
-        input: str,
-        expected: str,
-        threshold: float = 0.8,
-        **kwargs
-    ):
-        super().__init__(input, expected, **kwargs)
-        self.threshold = threshold
-    
-    def measure(self) -> TestResult:
-        if not self.output:
+    def evaluate(self, test_case: TestCase[str, str]) -> TestResult:
+        if not test_case.output:
             return TestResult(
                 status=TestStatus.ERROR,
                 score=0.0,
-                message="No output to measure",
+                message="No output to evaluate",
                 metadata={"error": "No output available"}
             )
         
         # Simple exact match for now
-        matches = self.output.strip() == self.expected.strip()
+        matches = test_case.output.strip() == test_case.expected.strip()
         
         return TestResult(
             status=TestStatus.PASS if matches else TestStatus.FAIL,
             score=1.0 if matches else 0.0,
             message="Exact match" if matches else "Output does not match expected",
             metadata={
-                "output": self.output,
-                "expected": self.expected
+                "output": test_case.output,
+                "expected": test_case.expected
             }
         )
-
