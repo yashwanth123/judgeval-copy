@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import requests
 from typing import Generic, TypeVar, Optional, Any, Dict
 from enum import Enum
 
@@ -38,6 +39,21 @@ class TestCase(Generic[Input, Output], ABC):
     
     def __str__(self):
         return f"TestCase(name={self.name}, input={self.input}, expected={self.expected})"
+    
+    def __dict__(self) -> Dict[str, Any]:
+        """
+        Serialize the test case into a dictionary format.
+        
+        Returns:
+            Dictionary containing the test case data
+        """
+        return {
+            "name": self.name,
+            "input": self.input,
+            "expected": self.expected,
+            "output": self.output,
+            "metadata": self.metadata
+        }
 
 class TestEvaluation(Generic[Input, Output], ABC):
     """Base class for implementing test evaluations"""
@@ -59,10 +75,10 @@ class TestEvaluation(Generic[Input, Output], ABC):
 class TestRunner:
     """Handles running tests and calling APIs"""
     
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key
+    def __init__(self, local: bool = False):
+        self.local = local
     
-    async def run(self, test_case: TestCase, evaluation: TestEvaluation) -> TestResult:
+    def run(self, test_case: TestCase, evaluation: TestEvaluation) -> TestResult:
         """
         Run a single test case with the given evaluation
         
@@ -72,7 +88,7 @@ class TestRunner:
         """
         try:
             # Call API and get response
-            response = await self._call_api(test_case.input)
+            response = self._call_api(test_case.input)
             
             # Store the output
             test_case.output = response
@@ -90,11 +106,21 @@ class TestRunner:
                 metadata={"error": str(e)}
             )
     
-    async def _call_api(self, input: Any) -> Any:
+    def _call_api(self, input: Any) -> Any:
         """Make the actual API call"""
-        # TODO: Implement actual API call
-        # For now, just return a dummy response
-        return f"Dummy response for: {input}"
+        data = {
+            "testcase": TestCase.__dict__,
+            "testevaluation": TestEvaluation.__dict__,
+        }
+
+        if self.local:
+            response = requests.post("http://localhost:8000/evaluation", json=data)
+        else:
+            response = requests.post("http://my-fargate-alb-334054785.us-west-1.elb.amazonaws.com/evaluation", json=data)
+
+        if response.status_code == 200:
+            return response.json()
+        response.raise_for_status()
 
 # Example implementation for text comparison
 class TextComparisonEvaluation(TestEvaluation[str, str]):
