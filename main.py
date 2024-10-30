@@ -19,18 +19,56 @@ from pydantic import BaseModel
 
 # from some_module import load_metric, run_execution  # THESE COME FROM THE PROPRIETARY PACKAGE
 
-# TODO: I don't need both JudgevalRequestClass and CustomModelParameters
-class JudgevalRequestClass(BaseModel):
-    judge_model: str = "gpt-4o"
-    # Either pass in a model string, or pass in dictionary
-    custom_model: bool = False
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+import requests
+from typing import Generic, TypeVar, Optional, Any, Dict
+from enum import Enum
 
+Input = TypeVar('Input')
+Output = TypeVar('Output')
+
+class TestStatus(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL" 
+    ERROR = "ERROR"
+
+class TestResult(BaseModel):
+    """Stores the result of a test evaluation"""
+    status: TestStatus
+    score: float
+    message: str
+    metadata: Optional[Dict[str, Any]] = None
+
+class TestCase(BaseModel, Generic[Input, Output]):
+    """Base class for holding test case data"""
+    input: Input
+    expected: Output
+    name: Optional[str] = "unnamed_test"
+    metadata: Optional[Dict[str, Any]] = {}
+    output: Optional[Output] = None
+
+class TestEvaluation(BaseModel, Generic[Input, Output], ABC):
+    """Base class for implementing test evaluations"""
+    
+    @abstractmethod
+    def evaluate(self, test_case: TestCase[Input, Output]) -> TestResult:
+        """
+        Evaluate the quality of the test case output against its expected result.
+        Must be implemented by subclasses.
+        
+        Args:
+            test_case: The test case containing input, output and expected values
+            
+        Returns:
+            TestResult comparing the output against the expected
+        """
+        raise NotImplementedError
 
 class EvaluationRun(BaseModel):
-    testcase: dict
-    metric: str
-
-
+    """Stores test case and evaluation together for running"""
+    test_case: TestCase
+    evaluation: TestEvaluation
 
 app = FastAPI()
 
@@ -42,25 +80,22 @@ def read_root():
 def result_evaluation(experiment_id: int):
     # fetch result with id
     fake_db = None 
-    exp_result=  fake_db.get(experiment_id)
+    exp_result = fake_db.get(experiment_id)
     return {"result": exp_result}
 
-
 @app.post("/evaluate/")  # this post req gets hit with a json payload.
-def evaluate(inp: EvaluationRun):
+def evaluate(evaluation_run: EvaluationRun):
     """
-    Ideal input payload:
+    Endpoint to run evaluation using provided test case and evaluation
     """
-    # Params: testcase object and the metric (proprietary metric)
-    metric_name = inp.metric 
-    testcase = inp.testcase
-
-    judgment_metric = load_metric(metric_name)
-    result = run_execution(judgment_metric, testcase)
+    test_case = evaluation_run.test_case
+    evaluation = evaluation_run.evaluation
+    
+    result = evaluation.evaluate(test_case)
 
     return {
-        "score": result.score
-        # ...
+        "status": result.status.value,
+        "score": result.score,
+        "message": result.message,
+        "metadata": result.metadata
     }
-
-
