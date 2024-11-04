@@ -1,15 +1,3 @@
-"""
-Example server setup.
-
-NOTE this server would be set up inside of the proprietary (private) repo and never seen by public.
-
-You would call this server from the public repo by executing API requests to the routes inside of this server.
-
-e.g. (from the public repo)
-requests.post('{private_endpoint_url}/evaluate/', json={"testcase": {"input": "input", "expected": "expected"}, 
-                                     "metric": "metric"})
-"""
-
 import asyncio
 import os 
 import logging
@@ -28,74 +16,49 @@ from enum import Enum
 Input = TypeVar('Input')
 Output = TypeVar('Output')
 
-class TestStatus(str, Enum):
-    PASS = "PASS"
-    FAIL = "FAIL" 
-    ERROR = "ERROR"
-
-class TestResult(BaseModel):
-    """Stores the result of a test evaluation"""
-    status: TestStatus
-    score: float
-    message: str
-    metadata: Optional[Dict[str, Any]] = None
-
+    
 class TestCase(BaseModel, Generic[Input, Output]):
     """Base class for holding test case data"""
     input: Input
-    expected: Output
+    output: Output
     name: Optional[str] = "unnamed_test"
     metadata: Optional[Dict[str, Any]] = {}
-    output: Optional[Output] = None
 
-class TestEvaluation(BaseModel, Generic[Input, Output], ABC):
-    """Base class for implementing test evaluations"""
-    
-    @abstractmethod
-    def evaluate(self, test_case: TestCase[Input, Output]) -> TestResult:
-        """
-        Evaluate the quality of the test case output against its expected result.
-        Must be implemented by subclasses.
-        
-        Args:
-            test_case: The test case containing input, output and expected values
-            
-        Returns:
-            TestResult comparing the output against the expected
-        """
-        raise NotImplementedError
+class TestEvaluation(BaseModel):
+    """Stores information about the type of test evaluation to run"""
+    test_type: str
+    temperature: float
 
 class EvaluationRun(BaseModel):
     """Stores test case and evaluation together for running"""
     test_case: TestCase
-    evaluation: TestEvaluation
+    test_evaluation: TestEvaluation
 
 app = FastAPI()
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    return {
+        "message": "Welcome to Judgment Labs API",
+        "description": "An API for evaluating and testing AI models",
+        "endpoints": {
+            "/": "This welcome page",
+            "/evaluate": "POST endpoint for running model evaluations"
+        },
+        "documentation": "For full documentation, visit our docs at https://docs.judgmentlabs.ai"
+    }
 
-@app.get("/result/")
-def result_evaluation(experiment_id: int):
-    # fetch result with id
-    fake_db = None 
-    exp_result = fake_db.get(experiment_id)
-    return {"result": exp_result}
-
-@app.post("/evaluate/")  # this post req gets hit with a json payload.
-def evaluate(evaluation_run: EvaluationRun):
+@app.post("/evaluate")
+def runner(evaluation_run: EvaluationRun):
     """
     Endpoint to run evaluation using provided test case and evaluation
     """
     test_case = evaluation_run.test_case
-    evaluation = evaluation_run.evaluation
+    test_evaluation = evaluation_run.test_evaluation
     
-    result = evaluation.evaluate(test_case)
-
-    return {
-        "status": result.status.value,
-        "score": result.score,
-        "message": result.message,
-        "metadata": result.metadata
-    }
+    # Get the response and convert it to a dict
+    response = requests.get(f"https://api.judgmentlabs.ai/evaluate/{test_evaluation.test_type}/", json=evaluation_run.model_dump())
+    response_data = response.json()
+    
+    # Return a properly structured response
+    return response_data
