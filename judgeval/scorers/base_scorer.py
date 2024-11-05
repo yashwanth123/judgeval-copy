@@ -5,7 +5,6 @@ Scores `Example`s using ready-made Judgment evaluators.
 """
 
 from pydantic import BaseModel
-from enum import Enum
 
 from judgeval.constants import JudgmentMetric
 

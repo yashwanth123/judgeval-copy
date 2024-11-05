@@ -28,14 +28,9 @@ class Example(BaseModel):
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
     additional_metadata: Optional[Dict[str, Any]] = None
-    comments: Optional[str] = None
     tools_called: Optional[List[str]] = None
     expected_tools: Optional[List[str]] = None
-    reasoning: Optional[str] = None
     name: Optional[str] = None
-    _dataset_rank: Optional[int] = None
-    _dataset_alias: Optional[str] = None
-    _dataset_id: Optional[str] = None
 
     def __post_init__(self):
         # Ensure `context` is None or a list of strings
