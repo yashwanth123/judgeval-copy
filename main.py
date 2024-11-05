@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import requests
-from typing import Generic, TypeVar, Optional, Any, Dict
+from typing import Generic, TypeVar, Optional, Any, Dict, Union
 from enum import Enum
 
 Input = TypeVar('Input')
@@ -19,20 +19,33 @@ Output = TypeVar('Output')
     
 class TestCase(BaseModel, Generic[Input, Output]):
     """Base class for holding test case data"""
+    # TODO: Add additional parameters based on backend server configuration
     input: Input
     output: Output
     name: Optional[str] = "unnamed_test"
     metadata: Optional[Dict[str, Any]] = {}
 
-class TestEvaluation(BaseModel):
-    """Stores information about the type of test evaluation to run"""
+class BaseTestEvaluation(BaseModel):
+    """Base class for test evaluations that don't require measure implementation"""
+    # TODO: Add additional parameters based on backend server configuration
     test_type: str
     temperature: float
+
+class CustomTestEvaluation(BaseModel, ABC):
+    """Test evaluation that requires a measure implementation"""
+    # TODO: Add additional parameters based on backend server configuration
+    test_type: str
+    temperature: float
+    
+    @abstractmethod
+    def measure(self, input: Any, output: Any) -> float:
+        """Method that must be implemented to measure test results"""
+        pass
 
 class EvaluationRun(BaseModel):
     """Stores test case and evaluation together for running"""
     test_case: TestCase
-    test_evaluation: TestEvaluation
+    test_evaluation: Union[BaseTestEvaluation, CustomTestEvaluation]
 
 app = FastAPI()
 
@@ -50,15 +63,21 @@ def read_root():
 
 @app.post("/evaluate")
 def runner(evaluation_run: EvaluationRun):
-    """
-    Endpoint to run evaluation using provided test case and evaluation
-    """
     test_case = evaluation_run.test_case
     test_evaluation = evaluation_run.test_evaluation
     
-    # Get the response and convert it to a dict
-    response = requests.get(f"https://api.judgmentlabs.ai/evaluate/{test_evaluation.test_type}/", json=evaluation_run.model_dump())
-    response_data = response.json()
+    PROPRIETARY_TESTS = ["test1", "test2", "test3"]
     
-    # Return a properly structured response
-    return response_data
+    if test_evaluation.test_type in PROPRIETARY_TESTS:
+        
+        response = requests.get(
+            f"https://api.judgmentlabs.ai/evaluate/{test_evaluation.test_type}/",
+            json=evaluation_run.model_dump()
+        )
+        return response.json()
+        
+    elif isinstance(test_evaluation, CustomTestEvaluation):
+        result = test_evaluation.measure(test_case.input, test_case.output)
+        return {"result": result}
+    else:
+        raise ValueError("Invalid test evaluation type")
