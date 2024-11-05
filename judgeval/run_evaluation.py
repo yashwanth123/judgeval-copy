@@ -3,12 +3,13 @@ Infra to execute evaluation runs either locally or via Judgment API
 """
 
 import requests
+import pprint
 from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel
 
 from judgeval.data.example import Example
 from judgeval.scorers.custom_scorer import CustomScorer
-from judgeval.constants import JUDGMENT_EVAL_API_URL
+from judgeval.constants import *
 from judgeval.scorers.base_scorer import JudgmentScorer
 
 class EvaluationRun(BaseModel):
@@ -24,7 +25,7 @@ class EvaluationRun(BaseModel):
     """
     examples: List[Example]
     scorers: List[Union[JudgmentScorer, CustomScorer]]
-    model: str 
+    model: Union[str, List[str]]
     aggregator: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
@@ -47,14 +48,55 @@ def execute_api_eval(evaluation_run: EvaluationRun):
 
 def run_eval(evaluation_run: EvaluationRun):
     """
-    Executes an evaluation of an `Example` using a `Scorer`
+    Executes an evaluation of `Example`s using one or more `Scorer`s
     """
     
-    if isinstance(evaluation_run.scorer, JudgmentScorer):  # Use Judgment API to evaluate
-        return execute_api_eval(evaluation_run)
-    elif isinstance(evaluation_run.scorer, CustomScorer):  # Use custom scorer to evaluate
-        # run test locally
-        pass
-    else:
-        raise ValueError(f"Scorer type {evaluation_run.scorer} not recognized. Please use a valid scorer type, such as JudgmentScorer or CustomScorer.")
+    judgment_scorers = []
+    custom_scorers = []
+    for scorer in evaluation_run.scorers:
+        if isinstance(scorer, JudgmentScorer):
+            judgment_scorers.append(scorer)
+        else:
+            custom_scorers.append(scorer)
     
+    # Execute evaluation using Judgment API
+    if judgment_scorers:
+        response_data = execute_api_eval(evaluation_run)
+        pprint.pprint(response_data)
+    
+    # Run local tests
+    if custom_scorers:  # TODO
+        raise NotImplementedError
+
+
+if __name__ == "__main__":
+    example1 = Example(
+        input="What if these shoes don't fit?",
+        actual_output="We offer a 30-day full refund at no extra cost.",
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    )
+
+    example2 = Example(
+        input="How do I reset my password?",
+        actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        name="Password Reset",
+        context=["User Account"],
+        retrieval_context=["Password reset instructions"],
+        tools_called=["authentication"],
+        expected_tools=["authentication"],
+        additional_metadata={"difficulty": "medium"}
+    )
+
+    scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
+
+    eval_data = EvaluationRun(
+        examples=[example1, example2],
+        scorers=[scorer],
+        metadata={"batch": "test"},
+        model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
+        aggregator='QWEN'
+    )
+
+    run_eval(eval_data)
+
