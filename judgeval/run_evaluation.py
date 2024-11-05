@@ -1,6 +1,15 @@
 import requests
+from typing import List, Optional, Dict, Any, Union
+from pydantic import BaseModel
 
-from judgeval.core_classes import EvaluationRun, CustomTestEvaluation
+from judgeval.data.example import Example
+from judgeval.scorers.custom_scorer import CustomScorer
+from judgeval.scorers.base_scorer import JudgmentScorer
+
+class EvaluationRun(BaseModel):
+    """Stores example and evaluation together for running"""
+    example: Example
+    test_evaluation: Union[JudgmentScorer, CustomScorer]
 
 
 def runner(evaluation_run: EvaluationRun):
@@ -17,8 +26,8 @@ def runner(evaluation_run: EvaluationRun):
         )
         return response.json()
         
-    elif isinstance(test_evaluation, CustomTestEvaluation):
-        result = test_evaluation.measure(test_case.input, test_case.output)
+    elif isinstance(test_evaluation, CustomScorer):
+        result = test_evaluation.score(test_case.input, test_case.output)
         return {"result": result}
     else:
         raise ValueError("Invalid test evaluation type")
