@@ -5,12 +5,15 @@ Infra to execute evaluation runs either locally or via Judgment API
 import requests
 import pprint
 from typing import List, Optional, Dict, Any, Union
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from judgeval.data.example import Example
 from judgeval.scorers.custom_scorer import CustomScorer
 from judgeval.constants import *
+from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES
 from judgeval.scorers.base_scorer import JudgmentScorer
+
+ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
 
 class EvaluationRun(BaseModel):
     """
@@ -28,8 +31,46 @@ class EvaluationRun(BaseModel):
     model: Union[str, List[str]]
     aggregator: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    
+    @field_validator('examples')
+    def validate_examples(cls, v):
+        if not v:
+            raise ValueError("Examples cannot be empty.")
+        for ex in v:
+            if not isinstance(ex, Example):
+                raise ValueError(f"Invalid type for Example: {type(ex)}")
+        return v
 
-    # TODO add parsing to make sure that all fields are valid
+    @field_validator('scorers')
+    def validate_scorers(cls, v):
+        if not v:
+            raise ValueError("Scorers cannot be empty.")
+        for s in v:
+            if not isinstance(s, JudgmentScorer) and not isinstance(s, CustomScorer):
+                raise ValueError(f"Invalid type for Scorer: {type(s)}")
+        return v
+
+    @field_validator('model')
+    def validate_model(cls, v):
+        if not v:
+            raise ValueError("Model cannot be empty.")
+        if not isinstance(v, str) and not isinstance(v, list):
+            raise ValueError("Model must be a string or a list of strings.")
+        if isinstance(v, str) and v not in ACCEPTABLE_MODELS:
+            raise ValueError(f"Model name {v} not recognized.")
+        if isinstance(v, list):
+            for m in v:
+                if m not in ACCEPTABLE_MODELS:
+                    raise ValueError(f"Model name {m} not recognized.")
+        return v
+
+    @field_validator('aggregator', mode='before')
+    def validate_aggregator(cls, v):
+        if v is not None and not isinstance(v, str):
+            raise ValueError("Aggregator must be a string if provided.")
+        if v not in ACCEPTABLE_MODELS:
+            raise ValueError(f"Model name {v} not recognized.")
+        return v
 
 
 def execute_api_eval(evaluation_run: EvaluationRun):
@@ -70,6 +111,7 @@ def run_eval(evaluation_run: EvaluationRun):
 
 
 if __name__ == "__main__":
+    # Test using a proprietary Judgment Scorer
     example1 = Example(
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",

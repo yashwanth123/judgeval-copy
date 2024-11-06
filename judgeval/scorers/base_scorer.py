@@ -28,3 +28,6 @@ class JudgmentScorer(BaseModel):
             return JudgmentMetric[v.upper()].value
         raise ValueError(f"Invalid value for score_type: {v}")
     
+    def __str__(self):
+        return f"JudgmentScorer(threshold={self.threshold}, score_type={self.score_type})"
+    
