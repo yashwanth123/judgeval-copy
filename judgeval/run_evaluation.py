@@ -11,6 +11,7 @@ from judgeval.data.example import Example
 from judgeval.scorers.custom_scorer import CustomScorer
 from judgeval.constants import *
 from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES
+from judgeval.exceptions import JudgmentAPIError
 from judgeval.scorers.base_scorer import JudgmentScorer
 
 ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
@@ -76,15 +77,21 @@ class EvaluationRun(BaseModel):
 def execute_api_eval(evaluation_run: EvaluationRun):
     """
     Executes an evaluation of an `Example` using a `Scorer` via the Judgment API
-
-    TODO add error handling for failed responses
     """
-    # submit API request to execute test
-    response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump())
-    assert response.status_code == 200, f"Failed to execute evaluation run."
-
-    response_data = response.json()
-    return response_data
+    try:
+        # submit API request to execute test
+        response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump())
+        response_data = response.json()
+        
+        # Check if the response status code is not 2XX
+        if not response.ok:
+            error_message = response_data.get('message', 'An unknown error occurred.')
+            raise Exception(f"Error {response.status_code}: {error_message}")
+        return response_data
+    except requests.exceptions.RequestException as e:
+        raise JudgmentAPIError(f"An internal error occurred while executing the Judgment API request: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"An error occurred while executing the Judgment API request: {str(e)}")
 
 
 def run_eval(evaluation_run: EvaluationRun):
@@ -92,6 +99,7 @@ def run_eval(evaluation_run: EvaluationRun):
     Executes an evaluation of `Example`s using one or more `Scorer`s
     """
     
+    # Group JudgmentScorers and CustomScorers and evaluate them in async parallel
     judgment_scorers = []
     custom_scorers = []
     for scorer in evaluation_run.scorers:
