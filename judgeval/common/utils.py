@@ -21,11 +21,14 @@ from dotenv import load_dotenv
 from judgeval import async_together_client, together_client
 from judgeval.constants import *
 from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES as LITELLM_SUPPORTED_MODELS
-from judgeval.judges import CustomModelParameters
+
+class CustomModelParameters(pydantic.BaseModel):
+    model_name: str
+    secret_key: str
+    litellm_base_url: str
+    
 
 load_dotenv()
-
-MAX_WORKER_THREADS = 10
 
 def read_file(file_path: str) -> str:
     with open(file_path, "r", encoding='utf-8') as file:
@@ -52,6 +55,7 @@ def fetch_together_api_response(model: str, messages: List[Mapping], response_fo
             messages=messages,
         )
     return response.choices[0].message.content
+
 
 # @observe
 async def afetch_together_api_response(model: str, messages: List[Mapping], response_format: pydantic.BaseModel = None) -> str:
@@ -138,6 +142,7 @@ async def aquery_together_api_multiple_calls(models: List[str], messages: List[L
     await asyncio.gather(*tasks)
     return out
 
+
 @observe
 def fetch_litellm_api_response(model: str, messages: List[Mapping], response_format: pydantic.BaseModel = None) -> str:
     """
@@ -158,6 +163,7 @@ def fetch_litellm_api_response(model: str, messages: List[Mapping], response_for
             messages=messages,  
         )
     return response.choices[0].message.content
+
 
 def fetch_custom_litellm_api_response(custom_model_parameters: CustomModelParameters, messages: List[Mapping], response_format: pydantic.BaseModel = None) -> str:
     if response_format is not None:
@@ -215,6 +221,7 @@ async def afetch_litellm_api_response(model: str, messages: List[Mapping], respo
         )
     return response.choices[0].message.content
 
+
 async def afetch_custom_litellm_api_response(custom_model_parameters: CustomModelParameters, messages: List[Mapping], response_format: pydantic.BaseModel = None) -> str:
     """
     ASYNCHRONOUSLY Fetches a single response from the Litellm API for a given model and messages.
@@ -235,6 +242,7 @@ async def afetch_custom_litellm_api_response(custom_model_parameters: CustomMode
             base_url=custom_model_parameters.litellm_base_url,
         )
     return response.choices[0].message.content
+
 
 @observe
 def query_litellm_api_multiple_calls(models: List[str], messages: List[Mapping], response_formats: List[pydantic.BaseModel] = None) -> List[str]:
