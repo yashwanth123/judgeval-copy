@@ -37,4 +37,4 @@ TOGETHER_SUPPORTED_MODELS = {
     "MISTRAL_8x7B_INSTRUCT": "mistralai/Mixtral-8x7B-Instruct-v0.1",
 }
 
-
+MAX_WORKER_THREADS = 10
