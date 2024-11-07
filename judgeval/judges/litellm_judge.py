@@ -1,7 +1,7 @@
 from langfuse.decorators import observe
 import pydantic
 from typing import List, Union, Tuple, Mapping
-from judgment import *
+from judgeval import *
 from judgeval.judges.base_judge import judgevalBaseLLM
 from judgeval.common.utils import afetch_litellm_api_response, fetch_litellm_api_response
 
