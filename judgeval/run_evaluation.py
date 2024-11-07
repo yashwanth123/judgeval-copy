@@ -8,11 +8,14 @@ from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, field_validator
 
 from judgeval.data.example import Example
+from judgeval.scorers.score import *
 from judgeval.scorers.custom_scorer import CustomScorer
 from judgeval.constants import *
 from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES
-from judgeval.exceptions import JudgmentAPIError
+from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.scorers.base_scorer import JudgmentScorer
+from judgeval.playground import CustomFaithfulnessMetric
+from judgeval.judges.together_judge import TogetherModel
 
 ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
 
@@ -73,10 +76,12 @@ class EvaluationRun(BaseModel):
             raise ValueError(f"Model name {v} not recognized.")
         return v
 
+    class Config:
+        arbitrary_types_allowed = True
 
-def execute_api_eval(evaluation_run: EvaluationRun):
+def execute_api_eval(evaluation_run: EvaluationRun) -> Any:  # TODO add return type
     """
-    Executes an evaluation of an `Example` using a `Scorer` via the Judgment API
+    Executes an evaluation of a list of `Example`s using one or more `JudgmentScorer`s via the Judgment API
     """
     try:
         # submit API request to execute test
@@ -100,8 +105,8 @@ def run_eval(evaluation_run: EvaluationRun):
     """
     
     # Group JudgmentScorers and CustomScorers and evaluate them in async parallel
-    judgment_scorers = []
-    custom_scorers = []
+    judgment_scorers: List[JudgmentScorer] = []
+    custom_scorers: List[CustomScorer] = []
     for scorer in evaluation_run.scorers:
         if isinstance(scorer, JudgmentScorer):
             judgment_scorers.append(scorer)
@@ -114,8 +119,20 @@ def run_eval(evaluation_run: EvaluationRun):
         pprint.pprint(response_data)
     
     # Run local tests
-    if custom_scorers:  # TODO
-        raise NotImplementedError
+    if custom_scorers:  # List[CustomScorer]
+        results = asyncio.run(
+            a_execute_test_cases(
+                evaluation_run.examples,
+                custom_scorers,
+                ignore_errors=True,
+                skip_on_missing_params=True,
+                show_indicator=True,
+                use_cache=False,
+                throttle_value=0,
+                max_concurrent=100,
+            )
+        )
+        pprint.pprint(results)
 
 
 if __name__ == "__main__":
@@ -139,6 +156,11 @@ if __name__ == "__main__":
     )
 
     scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
+    # model = TogetherModel()
+    # scorer = CustomFaithfulnessMetric(
+    #     threshold=0.6,
+    #     model=model,
+    # )
 
     eval_data = EvaluationRun(
         examples=[example1, example2],
