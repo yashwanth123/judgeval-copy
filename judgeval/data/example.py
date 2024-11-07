@@ -4,8 +4,9 @@ Classes for representing examples in a dataset.
 
 
 from typing import Generic, TypeVar, Optional, Any, Dict, Union, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from enum import Enum
+
 
 Input = TypeVar('Input')
 Output = TypeVar('Output')
@@ -66,4 +67,3 @@ class Example(BaseModel):
                 raise TypeError(
                     "'expected_tools' must be None or a list of strings"
                 )
-
