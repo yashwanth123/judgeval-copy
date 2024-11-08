@@ -224,7 +224,7 @@ async def a_execute_test_cases(
             metric.verbose_mode = verbose_mode
 
     llm_test_case_counter = -1
-    test_results: List[TestResult] = []
+    test_results: List[TestResult] = [None for _ in range(len(test_cases))]
     tasks = []
 
     if show_indicator and _use_bar_indicator:
@@ -234,7 +234,7 @@ async def a_execute_test_cases(
             total=len(test_cases),
             bar_format="{desc}: |{bar}|{percentage:3.0f}% ({n_fmt}/{total_fmt}) [Time Taken: {elapsed}, {rate_fmt}{postfix}]",
         ) as pbar:
-            for test_case in test_cases:
+            for i, test_case in enumerate(test_cases):
                 with capture_evaluation_run("test case"):
                     if isinstance(test_case, Example):
                         if len(metrics) == 0:
@@ -250,6 +250,7 @@ async def a_execute_test_cases(
                             metrics=copied_llm_metrics,
                             test_case=test_case,
                             test_results=test_results,
+                            test_index=i,
                             count=llm_test_case_counter,
                             ignore_errors=ignore_errors,
                             skip_on_missing_params=skip_on_missing_params,
@@ -262,7 +263,7 @@ async def a_execute_test_cases(
                     await asyncio.sleep(throttle_value)
             await asyncio.gather(*tasks)
     else:
-        for test_case in test_cases:
+        for i, test_case in enumerate(test_cases):
             with capture_evaluation_run("test case"):
                 if isinstance(test_case, Example):
                     if len(metrics) == 0:
@@ -277,6 +278,7 @@ async def a_execute_test_cases(
                         metrics=copied_llm_metrics,
                         test_case=test_case,
                         test_results=test_results,
+                        test_index=i,
                         count=llm_test_case_counter,
                         ignore_errors=ignore_errors,
                         skip_on_missing_params=skip_on_missing_params,
@@ -296,6 +298,7 @@ async def a_execute_llm_test_cases(
     metrics: List[CustomScorer],
     test_case: Example,
     test_results: List[TestResult],
+    test_index: int,
     count: int,
     ignore_errors: bool,
     skip_on_missing_params: bool,
@@ -311,6 +314,7 @@ async def a_execute_llm_test_cases(
         test_case (Example): The test case to be evaluated.
         test_run_manager (TestRunManager): The manager handling the test run.
         test_results (List[Union[TestResult, MLLMExample]]): A list to store the results of the test cases.
+        test_index (int): The index of the test case in the test case list.
         count (int): The current count of test cases processed.
         test_run (TestRun): The test run configuration and metadata.
         ignore_errors (bool): Whether to ignore errors during the evaluation.
@@ -357,7 +361,7 @@ async def a_execute_llm_test_cases(
     if run_duration < 1:
         run_duration = 0
     api_test_case.update_run_duration(run_duration)   # Update API Test Case with execution time duration
-    test_results.append(create_test_result(api_test_case))  # Converts the outcomes of the executed test to a TestResult and saves it
+    test_results[test_index] = create_test_result(api_test_case)  # Converts the outcomes of the executed test to a TestResult and saves it
 
     if pbar is not None:
         pbar.update(1)
