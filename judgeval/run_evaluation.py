@@ -1,7 +1,3 @@
-"""
-Infra to execute evaluation runs either locally or via Judgment API
-"""
-
 import requests
 import pprint
 from typing import List, Optional, Dict, Any, Union
@@ -72,7 +68,7 @@ class EvaluationRun(BaseModel):
     def validate_aggregator(cls, v):
         if v is not None and not isinstance(v, str):
             raise ValueError("Aggregator must be a string if provided.")
-        if v not in ACCEPTABLE_MODELS:
+        if v is not None and v not in ACCEPTABLE_MODELS:
             raise ValueError(f"Model name {v} not recognized.")
         return v
 
@@ -99,6 +95,45 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> Any:  # TODO add return t
         raise ValueError(f"An error occurred while executing the Judgment API request: {str(e)}")
 
 
+def merge_results(api_results: List[TestResult], local_results: List[TestResult]) -> List[TestResult]:
+    """
+    Merges the results from the API and local evaluations
+
+    Args:
+        api_results (List[TestResult]): The results from the API evaluation
+        local_results (List[TestResult]): The results from the local evaluation
+    """
+    # Merge MetricData fields
+    if len(api_results) != len(local_results):
+        raise ValueError("The number of API and local results do not match.")
+    
+    # we expect that each TestResult in api and local have all the same fields besides metrics_data
+    for api_result, local_result in zip(api_results, local_results):
+        if api_result.input != local_result.input:
+            raise ValueError("The API and local results are not aligned.")
+        if api_result.actual_output != local_result.actual_output:
+            raise ValueError("The API and local results are not aligned.")
+        if api_result.expected_output != local_result.expected_output:
+            raise ValueError("The API and local results are not aligned.")
+        if api_result.context != local_result.context:
+            raise ValueError("The API and local results are not aligned.")
+        if api_result.retrieval_context != local_result.retrieval_context:
+            raise ValueError("The API and local results are not aligned.")
+        
+        # Merge MetricData
+        api_metric_data = api_result.metrics_data
+        local_metric_data = local_result.metrics_data
+        if api_metric_data is None and local_metric_data is not None:
+            api_result.metrics_data = local_metric_data
+
+        if api_metric_data is not None and local_metric_data is not None:
+            if len(api_metric_data) != len(local_metric_data):
+                raise ValueError("The number of API and local metrics data do not match.")
+            api_result.metrics_data = api_metric_data + local_metric_data
+    
+    return api_results
+
+
 def run_eval(evaluation_run: EvaluationRun):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
@@ -113,6 +148,7 @@ def run_eval(evaluation_run: EvaluationRun):
         else:
             custom_scorers.append(scorer)
     
+    api_results, local_results = [], []
     # Execute evaluation using Judgment API
     if judgment_scorers:
         api_evaluation_run: EvaluationRun = EvaluationRun(
@@ -123,10 +159,10 @@ def run_eval(evaluation_run: EvaluationRun):
             metadata=evaluation_run.metadata,
         )
         response_data = execute_api_eval(api_evaluation_run)  # List[Dict] of converted TestResults
-        # results = [TestResult(**result) for result in response_data]
+        for result in response_data["results"]:
+            filtered_result = {k: v for k, v in result.items() if k in TestResult.__annotations__}
+            api_results.append(TestResult(**filtered_result))
 
-        # TODO process response into `List[TestResult]`
-    
     # Run local tests
     if custom_scorers:  # List[CustomScorer]
         results: List[TestResult] = asyncio.run(
@@ -141,9 +177,11 @@ def run_eval(evaluation_run: EvaluationRun):
                 max_concurrent=100,
             )
         )
+        local_results = results
 
-    # TODO aggregate the api and local results and then return
-
+    # Aggregate the MetricData
+    merged_results = merge_results(api_results, local_results)
+    return merged_results
 
 if __name__ == "__main__":
     # Test using a proprietary Judgment Scorer
