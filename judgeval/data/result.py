@@ -16,6 +16,18 @@ class TestResult:
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
 
+    def to_dict(self) -> dict:
+        """Convert the TestResult instance to a dictionary, properly serializing metrics_data."""
+        return {
+            "success": self.success,
+            "metrics_data": [metric.model_dump() for metric in self.metrics_data] if self.metrics_data else None,
+            "input": self.input,
+            "actual_output": self.actual_output,
+            "expected_output": self.expected_output,
+            "context": self.context,
+            "retrieval_context": self.retrieval_context
+        }
+
 
 def create_test_result(
     api_test_case: LLMApiTestCase,
