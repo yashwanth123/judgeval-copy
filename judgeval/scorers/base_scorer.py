@@ -11,8 +11,7 @@ from judgeval.constants import JudgmentMetric
 
 class JudgmentScorer(BaseModel):
     """
-    Class for scorer that uses Judgment evaluators. If you would like to use one of our 
-    ready-made scorers, you can use this class to score an Example.
+    Class for ready-made, "out-of-the-box" scorer that uses Judgment evaluators to score `Example`s.
 
     Args:
         score_type (JudgmentMetric): The Judgment metric to use for scoring `Example`s
@@ -22,6 +21,10 @@ class JudgmentScorer(BaseModel):
 
     @field_validator('score_type')
     def convert_to_enum_value(cls, v):
+        """
+        Validates that the `score_type` is a valid `JudgmentMetric` enum value.
+        Converts string values to `JudgmentMetric` enum values.
+        """
         if isinstance(v, JudgmentMetric):
             return v.value
         elif isinstance(v, str):
@@ -29,5 +32,5 @@ class JudgmentScorer(BaseModel):
         raise ValueError(f"Invalid value for score_type: {v}")
     
     def __str__(self):
-        return f"JudgmentScorer(threshold={self.threshold}, score_type={self.score_type})"
+        return f"JudgmentScorer(score_type={self.score_type}, threshold={self.threshold})"
     
