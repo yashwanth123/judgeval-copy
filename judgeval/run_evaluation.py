@@ -115,12 +115,21 @@ def run_eval(evaluation_run: EvaluationRun):
     
     # Execute evaluation using Judgment API
     if judgment_scorers:
-        response_data = execute_api_eval(evaluation_run)
-        pprint.pprint(response_data)
+        api_evaluation_run: EvaluationRun = EvaluationRun(
+            examples=evaluation_run.examples,
+            scorers=judgment_scorers,
+            model=evaluation_run.model,
+            aggregator=evaluation_run.aggregator,
+            metadata=evaluation_run.metadata,
+        )
+        response_data = execute_api_eval(api_evaluation_run)  # List[Dict] of converted TestResults
+        # results = [TestResult(**result) for result in response_data]
+
+        # TODO process response into `List[TestResult]`
     
     # Run local tests
     if custom_scorers:  # List[CustomScorer]
-        results = asyncio.run(
+        results: List[TestResult] = asyncio.run(
             a_execute_test_cases(
                 evaluation_run.examples,
                 custom_scorers,
@@ -132,7 +141,8 @@ def run_eval(evaluation_run: EvaluationRun):
                 max_concurrent=100,
             )
         )
-        pprint.pprint(results)
+
+    # TODO aggregate the api and local results and then return
 
 
 if __name__ == "__main__":
@@ -156,15 +166,15 @@ if __name__ == "__main__":
     )
 
     scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
-    # model = TogetherModel()
-    # scorer = CustomFaithfulnessMetric(
-    #     threshold=0.6,
-    #     model=model,
-    # )
+    model = TogetherModel()
+    c_scorer = CustomFaithfulnessMetric(
+        threshold=0.6,
+        model=model,
+    )
 
     eval_data = EvaluationRun(
         examples=[example1, example2],
-        scorers=[scorer],
+        scorers=[scorer, c_scorer],
         metadata={"batch": "test"},
         model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
         aggregator='QWEN'
