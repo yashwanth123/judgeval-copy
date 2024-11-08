@@ -1,4 +1,4 @@
-from dataclasses import dataclass 
+from dataclasses import dataclass, fields
 from typing import List, Union, Optional
 
 from judgeval.data.metric_data import MetricData
@@ -27,6 +27,16 @@ class TestResult:
             "context": self.context,
             "retrieval_context": self.retrieval_context
         }
+    
+    def __str__(self) -> str:
+        return f"TestResult(\
+            success={self.success}, \
+            metrics_data={self.metrics_data}, \
+            input={self.input}, \
+            actual_output={self.actual_output}, \
+            expected_output={self.expected_output}, \
+            context={self.context}, \
+            retrieval_context={self.retrieval_context})"
 
 
 def create_test_result(
