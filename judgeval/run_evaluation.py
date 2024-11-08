@@ -166,13 +166,12 @@ def run_eval(evaluation_run: EvaluationRun):
     # Run local tests
     if custom_scorers:  # List[CustomScorer]
         results: List[TestResult] = asyncio.run(
-            a_execute_test_cases(
+            a_execute_scoring(
                 evaluation_run.examples,
                 custom_scorers,
                 ignore_errors=True,
                 skip_on_missing_params=True,
                 show_indicator=True,
-                use_cache=False,
                 throttle_value=0,
                 max_concurrent=100,
             )
@@ -182,6 +181,7 @@ def run_eval(evaluation_run: EvaluationRun):
     # Aggregate the MetricData
     merged_results = merge_results(api_results, local_results)
     return merged_results
+
 
 if __name__ == "__main__":
     # Test using a proprietary Judgment Scorer

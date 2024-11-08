@@ -1,5 +1,6 @@
 import nest_asyncio
 import pprint
+from typing import List, Optional, Dict, Any, Union
 import json
 import sys 
 from rich.console import Console
@@ -622,7 +623,7 @@ async def example():
                                       model=model)
     print(scorer)
 
-    results = await a_execute_test_cases(
+    results = await a_execute_scoring(
         [example1, example2], 
         [scorer],
         ignore_errors=True,
