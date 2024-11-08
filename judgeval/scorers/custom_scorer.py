@@ -1,15 +1,17 @@
 """
 Custom Scorer class
+
+Enables client to create custom scorers that do not fall under any of the ready-made Judgment scorers.
+To create a custom scorer, extend this class and implement the `score_example`, `a_score_example`, and `success_check` methods.
 """
-from typing import Generic, TypeVar, Optional, Any, Dict, Union, List
-from abc import ABC, abstractmethod
-from pydantic import BaseModel
-from enum import Enum
+
+from typing import Optional, Dict
+from abc import abstractmethod
 
 from judgeval.data.example import Example
 
 
-class CustomScorer():
+class CustomScorer:
     """
     If you want to create a scorer that does not fall under any of the ready-made Judgment scorers,
     you can create a custom scorer by extending this class. This is best used for special use cases
@@ -38,15 +40,23 @@ class CustomScorer():
 
     @abstractmethod
     def score_example(self, example: Example, *args, **kwargs) -> float:
-        """Method that must be implemented to measure test results"""
+        """
+        Measures the score on a single example
+        """
         raise NotImplementedError("You must implement the `score` method in your custom scorer")
 
     @abstractmethod
     async def a_score_example(self, example: Example, *args, **kwargs) -> float:
+        """
+        Asynchronously measures the score on a single example
+        """
         raise NotImplementedError("You must implement the `a_score` method in your custom scorer") 
     
     @abstractmethod
     def success_check(self) -> bool:
+        """
+        For unit testing, determines whether the test case passes or fails
+        """
         raise NotImplementedError("You must implement the `passes` method in your custom scorer")
 
     def __str__(self):
