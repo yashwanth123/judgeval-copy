@@ -232,12 +232,11 @@ async def score_with_indicator(
         await asyncio.gather(*tasks)
 
 
-async def a_execute_test_cases(
-    test_cases: List[Union[Example]],
-    metrics: List[CustomScorer],
+async def a_execute_scoring(
+    examples: List[Example],
+    scorers: List[CustomScorer],
     ignore_errors: bool,
     skip_on_missing_params: bool,
-    use_cache: bool,
     show_indicator: bool,
     throttle_value: int,
     max_concurrent: int,
@@ -246,10 +245,20 @@ async def a_execute_test_cases(
 ) -> List[TestResult]:
     """
     Executes evaluations of `Example`s asynchronously using one or more `CustomScorer`s.
-    Each `Example` will be evaluated all of the `CustomScorer`s in the `metrics` list.
+    Each `Example` will be evaluated by all of the `CustomScorer`s in the `scorers` list.
 
-    Args:
-        TODO
+        examples (List[Example]): A list of `Example` objects to be evaluated.
+        scorers (List[CustomScorer]): A list of `CustomScorer` objects to evaluate the examples.
+        ignore_errors (bool): Whether to ignore errors during evaluation.
+        skip_on_missing_params (bool): Whether to skip evaluation if parameters are missing.
+        show_indicator (bool): Whether to show a progress indicator.
+        throttle_value (int): The amount of time to wait between starting each task.
+        max_concurrent (int): The maximum number of concurrent tasks.
+        verbose_mode (Optional[bool]): If set, enables verbose mode for scorers.
+        _use_bar_indicator (bool): Whether to use a progress bar indicator.
+
+    Returns:
+        List[TestResult]: A list of `TestResult` objects containing the evaluation results.
     """
     semaphore = asyncio.Semaphore(max_concurrent)
 
@@ -258,38 +267,38 @@ async def a_execute_test_cases(
             return await func(*args, **kwargs)
 
     if verbose_mode is not None:
-        for metric in metrics:
+        for metric in scorers:
             metric.verbose_mode = verbose_mode
 
-    llm_test_case_counter = -1
-    test_results: List[TestResult] = [None for _ in range(len(test_cases))]
+    examples_counter = -1
+    scoring_results: List[TestResult] = [None for _ in examples]
     tasks = []
 
     if show_indicator and _use_bar_indicator:
         with tqdm_asyncio(
-            desc=f"Evaluating {len(test_cases)} test case(s) in parallel",
-            unit="test case",
-            total=len(test_cases),
+            desc=f"Evaluating {len(examples)} example(s) in parallel",
+            unit="Example",
+            total=len(examples),
             bar_format="{desc}: |{bar}|{percentage:3.0f}% ({n_fmt}/{total_fmt}) [Time Taken: {elapsed}, {rate_fmt}{postfix}]",
         ) as pbar:
-            for i, test_case in enumerate(test_cases):
-                with capture_evaluation_run("test case"):
-                    if isinstance(test_case, Example):
-                        if len(metrics) == 0:
+            for i, ex in enumerate(examples):
+                with capture_evaluation_run("Example"):
+                    if isinstance(ex, Example):
+                        if len(scorers) == 0:
                             pbar.update(1)
                             continue
 
-                        llm_test_case_counter += 1
-                        copied_llm_metrics: List[CustomScorer] = clone_scorers(
-                            metrics
+                        examples_counter += 1
+                        cloned_scorers: List[CustomScorer] = clone_scorers(
+                            scorers
                         )
                         task = execute_with_semaphore(
-                            func=a_execute_llm_test_cases,
-                            metrics=copied_llm_metrics,
-                            test_case=test_case,
-                            test_results=test_results,
-                            test_index=i,
-                            count=llm_test_case_counter,
+                            func=a_eval_examples_helper,
+                            scorers=cloned_scorers,
+                            example=ex,
+                            scoring_results=scoring_results,
+                            score_index=i,
+                            count=examples_counter,
                             ignore_errors=ignore_errors,
                             skip_on_missing_params=skip_on_missing_params,
                             show_indicator=show_indicator,
@@ -301,26 +310,25 @@ async def a_execute_test_cases(
                     await asyncio.sleep(throttle_value)
             await asyncio.gather(*tasks)
     else:
-        for i, test_case in enumerate(test_cases):
-            with capture_evaluation_run("test case"):
-                if isinstance(test_case, Example):
-                    if len(metrics) == 0:
+        for i, ex in enumerate(examples):
+            with capture_evaluation_run("Example"):
+                if isinstance(ex, Example):
+                    if len(scorers) == 0:
                         continue
-                    llm_test_case_counter += 1
+                    examples_counter += 1
 
-                    copied_llm_metrics: List[CustomScorer] = clone_scorers(
-                        metrics
+                    cloned_scorers: List[CustomScorer] = clone_scorers(
+                        scorers
                     )
                     task = execute_with_semaphore(
-                        func=a_execute_llm_test_cases,
-                        metrics=copied_llm_metrics,
-                        test_case=test_case,
-                        test_results=test_results,
-                        test_index=i,
-                        count=llm_test_case_counter,
+                        func=a_eval_examples_helper,
+                        scorers=cloned_scorers,
+                        example=ex,
+                        scoring_results=scoring_results,
+                        score_index=i,
+                        count=examples_counter,
                         ignore_errors=ignore_errors,
                         skip_on_missing_params=skip_on_missing_params,
-                        use_cache=use_cache,
                         _use_bar_indicator=_use_bar_indicator,
                         show_indicator=show_indicator,
                     )
@@ -328,68 +336,63 @@ async def a_execute_test_cases(
 
                 await asyncio.sleep(throttle_value)
         await asyncio.gather(*tasks)
+    return scoring_results
 
-    return test_results
 
-
-async def a_execute_llm_test_cases(
-    metrics: List[CustomScorer],
-    test_case: Example,
-    test_results: List[TestResult],
-    test_index: int,
+async def a_eval_examples_helper(
+    scorers: List[CustomScorer],
+    example: Example,
+    scoring_results: List[TestResult],
+    score_index: int,
     count: int,
     ignore_errors: bool,
     skip_on_missing_params: bool,
     show_indicator: bool,
     _use_bar_indicator: bool,
     pbar: Optional[tqdm_asyncio] = None,
-):
+    ) -> None:
     """
-    Execute a single LLM test case asynchronously and evaluate it using a list of metrics.
-
+    Evaluate a single example asynchronously using a list of scorers.
+    
     Args:
-        metrics (List[BaseMetric]): A list of metric objects to evaluate the test cases.
-        test_case (Example): The test case to be evaluated.
-        test_run_manager (TestRunManager): The manager handling the test run.
-        test_results (List[Union[TestResult, MLLMExample]]): A list to store the results of the test cases.
-        test_index (int): The index of the test case in the test case list.
-        count (int): The current count of test cases processed.
-        test_run (TestRun): The test run configuration and metadata.
-        ignore_errors (bool): Whether to ignore errors during the evaluation.
-        skip_on_missing_params (bool): Whether to skip the test case if required parameters are missing.
-        use_cache (bool): Whether to use cached results for the test case.
-        show_indicator (bool): Whether to show progress indicators.
-        _use_bar_indicator (bool): Whether to use a bar indicator for progress.
-        pbar (Optional[tqdm_asyncio]): An optional progress bar object for tracking progress.
-
+        scorers (List[CustomScorer]): List of CustomScorer objects to evaluate the example.
+        example (Example): The example to be evaluated.
+        scoring_results (List[TestResult]): List to store the scoring results.
+        score_index (int): Index at which the result should be stored in scoring_results.
+        count (int): Counter to track the number of examples processed.
+        ignore_errors (bool): Flag to indicate whether to ignore errors during scoring.
+        skip_on_missing_params (bool): Flag to indicate whether to skip scoring if parameters are missing.
+        show_indicator (bool): Flag to indicate whether to show a progress indicator.
+        _use_bar_indicator (bool): Flag to indicate whether to use a bar indicator for progress.
+        pbar (Optional[tqdm_asyncio]): Optional progress bar for tracking progress.
     Returns:
-        None: The results are appended to the test_results list.
+        None
     """
     show_metrics_indicator = show_indicator and not _use_bar_indicator
 
-    for metric in metrics:
-        metric.skipped = False
-        metric.error = None  # Reset metric error
+    for scorer in scorers:
+        scorer.skipped = False
+        scorer.error = None  # Reset metric error
 
     ##### Metric Calculation #####
-    api_test_case = create_api_test_case(test_case, count)  # Creates API Test Case to track the progress/success
+    api_test_case = create_api_test_case(example, count)  # Creates API Test Case to track the progress/success
     test_start_time = time.perf_counter()
     await score_with_indicator(
-        scorers=metrics,
-        example=test_case,
+        scorers=scorers,
+        example=example,
         skip_on_missing_params=skip_on_missing_params,
         ignore_errors=ignore_errors,
         show_indicator=show_metrics_indicator,
-    )  # execute the measure functions of each metric on the test case
+    )  # execute the scoring functions of each scorer on the example
 
-    # Now that all the measure functions of each metric have executed, we collect 
-    # the results and update the API Test Case with the metric data
-    for metric in metrics:
-        # At this point, the metric has been executed and already contains data.
-        if metric.skipped:
+    # Now that all the scoring functions of each scorer have executed, we collect 
+    # the results and update the API example with the metric data
+    for scorer in scorers:
+        # At this point, the scorer has been executed and already contains data.
+        if scorer.skipped:
             continue
         
-        metric_data = create_metric_data(metric)  # Fetch metric data from completed metric evaluation
+        metric_data = create_metric_data(scorer)  # Fetch metric data from completed metric evaluation
         api_test_case.update_metric_data(metric_data)  # Update API Test Case with the same metric data, including cost
           
     test_end_time = time.perf_counter()
@@ -398,7 +401,7 @@ async def a_execute_llm_test_cases(
     if run_duration < 1:
         run_duration = 0
     api_test_case.update_run_duration(run_duration)   # Update API Test Case with execution time duration
-    test_results[test_index] = create_test_result(api_test_case)  # Converts the outcomes of the executed test to a TestResult and saves it
+    scoring_results[score_index] = create_test_result(api_test_case)  # Converts the outcomes of the executed test to a TestResult and saves it
 
     if pbar is not None:
         pbar.update(1)
