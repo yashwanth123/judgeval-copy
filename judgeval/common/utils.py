@@ -10,7 +10,6 @@ NOTE: any function beginning with 'a', e.g. 'afetch_together_api_response', is a
 
 import concurrent.futures
 from typing import List, Mapping, Dict, Union
-from langfuse.decorators import observe
 import asyncio
 import litellm
 import pydantic
@@ -35,7 +34,6 @@ def read_file(file_path: str) -> str:
         return file.read()
 
 
-# @observe
 def fetch_together_api_response(model: str, messages: List[Mapping], response_format: pydantic.BaseModel = None) -> str:
     """
     Fetches a single response from the Together API for a given model and messages.
@@ -57,7 +55,6 @@ def fetch_together_api_response(model: str, messages: List[Mapping], response_fo
     return response.choices[0].message.content
 
 
-# @observe
 async def afetch_together_api_response(model: str, messages: List[Mapping], response_format: pydantic.BaseModel = None) -> str:
     """
     ASYNCHRONOUSLY Fetches a single response from the Together API for a given model and messages.
@@ -79,7 +76,6 @@ async def afetch_together_api_response(model: str, messages: List[Mapping], resp
     return response.choices[0].message.content
 
 
-@observe
 def query_together_api_multiple_calls(models: List[str], messages: List[List[Mapping]], response_formats: List[pydantic.BaseModel] = None) -> List[str]:
     """
     Queries the Together API for multiple calls in parallel
@@ -111,7 +107,6 @@ def query_together_api_multiple_calls(models: List[str], messages: List[List[Map
     return out
 
 
-@observe
 async def aquery_together_api_multiple_calls(models: List[str], messages: List[List[Mapping]], response_formats: List[pydantic.BaseModel] = None) -> List[str]:
     """
     Queries the Together API for multiple calls in parallel
@@ -143,7 +138,6 @@ async def aquery_together_api_multiple_calls(models: List[str], messages: List[L
     return out
 
 
-@observe
 def fetch_litellm_api_response(model: str, messages: List[Mapping], response_format: pydantic.BaseModel = None) -> str:
     """
     Fetches a single response from the Litellm API for a given model and messages.
@@ -183,7 +177,7 @@ def fetch_custom_litellm_api_response(custom_model_parameters: CustomModelParame
         )
     return response.choices[0].message.content
 
-@observe
+
 async def afetch_litellm_api_response(model: str, messages: List[Mapping], response_format: pydantic.BaseModel = None) -> str:
     """
     ASYNCHRONOUSLY Fetches a single response from the Litellm API for a given model and messages.
@@ -244,7 +238,6 @@ async def afetch_custom_litellm_api_response(custom_model_parameters: CustomMode
     return response.choices[0].message.content
 
 
-@observe
 def query_litellm_api_multiple_calls(models: List[str], messages: List[Mapping], response_formats: List[pydantic.BaseModel] = None) -> List[str]:
     """
     Queries the Litellm API for multiple calls in parallel
@@ -276,7 +269,6 @@ def query_litellm_api_multiple_calls(models: List[str], messages: List[Mapping],
     return out
 
 
-@observe
 async def aquery_litellm_api_multiple_calls(models: List[str], messages: List[Mapping], response_formats: List[pydantic.BaseModel] = None) -> List[str]:
     """
     Queries the Litellm API for multiple calls in parallel
@@ -308,7 +300,6 @@ async def aquery_litellm_api_multiple_calls(models: List[str], messages: List[Ma
     return out
 
 
-@observe
 def get_chat_completion(model_type: str, 
                         messages : Union[List[Mapping], List[List[Mapping]]], 
                         response_format: pydantic.BaseModel = None, 
@@ -348,7 +339,6 @@ def get_chat_completion(model_type: str,
     raise ValueError(f"Model {model_type} is not supported by Litellm or TogetherAI for chat completions. Please check the model name and try again.")
 
 
-@observe
 async def aget_chat_completion(model_type: str, 
                                messages : Union[List[Mapping], List[List[Mapping]]], 
                                response_format: pydantic.BaseModel = None, 
@@ -388,7 +378,6 @@ async def aget_chat_completion(model_type: str,
     raise ValueError(f"Model {model_type} is not supported by Litellm or TogetherAI for chat completions. Please check the model name and try again.")
 
 
-@observe
 def get_completion_multiple_models(models: List[str], messages: List[List[Mapping]], response_formats: List[pydantic.BaseModel] = None) -> List[str]:
     """
     Retrieves completions for a single prompt from multiple models in parallel. Supports closed-source and OSS models.
@@ -440,7 +429,6 @@ def get_completion_multiple_models(models: List[str], messages: List[List[Mappin
     return out 
 
 
-@observe
 async def aget_completion_multiple_models(models: List[str], messages: List[List[Mapping]], response_formats: List[pydantic.BaseModel] = None) -> List[str]:
     """
     ASYNCHRONOUSLY retrieves completions for a single prompt from multiple models in parallel. Supports closed-source and OSS models.
