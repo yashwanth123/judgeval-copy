@@ -81,7 +81,7 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> Any:  # TODO add return t
     Executes an evaluation of a list of `Example`s using one or more `JudgmentScorer`s via the Judgment API
     """
     try:
-        # submit API request to execute test
+        # submit API request to execute evals
         response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump())
         response_data = response.json()
         
@@ -101,19 +101,19 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
     Merges the results from the API and local evaluations
 
     Args:
-        api_results (List[TestResult]): The results from the API evaluation
-        local_results (List[TestResult]): The results from the local evaluation
+        api_results (List[ScoringResult]): The results from the API evaluation
+        local_results (List[ScoringResult]): The results from the local evaluation
     """
     if not local_results and api_results:
         return api_results
     if not api_results and local_results:
         return local_results
 
-    # Merge MetricData fields
+    # Merge ScorerData fields
     if len(api_results) != len(local_results):
         raise ValueError("The number of API and local results do not match.")
     
-    # we expect that each TestResult in api and local have all the same fields besides metrics_data
+    # we expect that each ScoringResult in api and local have all the same fields besides metrics_data
     for api_result, local_result in zip(api_results, local_results):
         if api_result.input != local_result.input:
             raise ValueError("The API and local results are not aligned.")
@@ -126,7 +126,7 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
         if api_result.retrieval_context != local_result.retrieval_context:
             raise ValueError("The API and local results are not aligned.")
         
-        # Merge MetricData
+        # Merge ScorerData
         api_metric_data = api_result.metrics_data
         local_metric_data = local_result.metrics_data
         if api_metric_data is None and local_metric_data is not None:
@@ -164,12 +164,12 @@ def run_eval(evaluation_run: EvaluationRun):
             aggregator=evaluation_run.aggregator,
             metadata=evaluation_run.metadata,
         )
-        response_data = execute_api_eval(api_evaluation_run)  # List[Dict] of converted TestResults
+        response_data = execute_api_eval(api_evaluation_run)  # List[Dict] of converted ScoringResults
         for result in response_data["results"]:
             filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
             api_results.append(ScoringResult(**filtered_result))
 
-    # Run local tests
+    # Run local evals
     if custom_scorers:  # List[CustomScorer]
         results: List[ScoringResult] = asyncio.run(
             a_execute_scoring(
@@ -177,7 +177,7 @@ def run_eval(evaluation_run: EvaluationRun):
                 custom_scorers,
                 ignore_errors=True,
                 skip_on_missing_params=True,
-                show_indicator=False,
+                show_indicator=True,
                 _use_bar_indicator=True,
                 throttle_value=0,
                 max_concurrent=100,
@@ -185,13 +185,13 @@ def run_eval(evaluation_run: EvaluationRun):
         )
         local_results = results
 
-    # Aggregate the MetricData
+    # Aggregate the ScorerData
     merged_results = merge_results(api_results, local_results)
     return merged_results
 
 
 if __name__ == "__main__":
-    # Test using a proprietary Judgment Scorer
+    # Eval using a proprietary Judgment Scorer
     example1 = Example(
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",
