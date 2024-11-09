@@ -11,7 +11,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from judgeval.common.exceptions import MissingTestCaseParamsError
 from judgeval.data.example import Example
-from judgeval.data.api_example import create_api_test_case
+from judgeval.data.api_example import create_process_example
 from judgeval.data.metric_data import create_metric_data
 from judgeval.data.result import ScoringResult, generate_scoring_result
 from judgeval.scorers.custom_scorer import CustomScorer
@@ -375,7 +375,7 @@ async def a_eval_examples_helper(
         scorer.error = None  # Reset metric error
 
     ##### Metric Calculation #####
-    api_test_case = create_api_test_case(example, count)  # Creates API Test Case to track the progress/success
+    api_test_case = create_process_example(example)  # Creates API Test Case to track the progress/success
     test_start_time = time.perf_counter()
     await score_with_indicator(
         scorers=scorers,

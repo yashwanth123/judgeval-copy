@@ -2,7 +2,7 @@ from dataclasses import dataclass, fields
 from typing import List, Union, Optional
 
 from judgeval.data.metric_data import MetricData
-from judgeval.data.api_example import LLMApiTestCase
+from judgeval.data.api_example import processExample
 
 @dataclass
 class ScoringResult:
@@ -54,7 +54,7 @@ class ScoringResult:
 
 
 def generate_scoring_result(
-    api_test_case: LLMApiTestCase,
+    api_test_case: processExample,
 ) -> ScoringResult:
     """
     Creates a final ScoringResult object for an evaluation run based on the results from a completed LLMApiTestCase.

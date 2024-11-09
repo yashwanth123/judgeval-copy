@@ -5,7 +5,12 @@ from judgeval.data.metric_data import MetricData
 from judgeval.data.example import Example
 
 
-class LLMApiTestCase(BaseModel):
+class processExample(BaseModel):
+    """
+    processExample is an `Example` object that contains intermediate information 
+    about an undergoing evaluation on the original `Example`. It is used purely for
+    internal operations and keeping track of the evaluation process.
+    """
     name: str
     input: Optional[str] = None
     actual_output: Optional[str] = Field(None, alias="actualOutput")
@@ -29,7 +34,6 @@ class LLMApiTestCase(BaseModel):
         None, alias="additionalMetadata"
     )
     comments: Optional[str] = Field(None)
-    conversational_instance_id: Optional[int] = Field(None)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -78,18 +82,18 @@ class LLMApiTestCase(BaseModel):
 
         return values
     
-def create_api_test_case(
-    test_case: Example,
-    conversational_instance_id: Optional[int] = None,
-) -> LLMApiTestCase:
+
+def create_process_example(
+    example: Example,
+) -> processExample:
     """
     When an LLM Test Case is executed, we track its progress using an LLMAPITestCase.
 
     This will track things like the success of the test case, as well as the metadata (such as verdicts and claims in Faithfulness).
     """
     success = True
-    if test_case.name is not None:
-        name = test_case.name
+    if example.name is not None:
+        name = example.name
     else:
         # raise ValueError(f"Test case name must be provided. Name: {test_case.name}")
         name = "Test Case Placeholder"
@@ -98,22 +102,21 @@ def create_api_test_case(
     metrics_data = []
 
 
-    api_test_case = LLMApiTestCase(
+    api_test_case = processExample(
         name=name,
-        input=test_case.input,
-        actualOutput=test_case.actual_output,
-        expectedOutput=test_case.expected_output,
-        context=test_case.context,
-        retrievalContext=test_case.retrieval_context,
-        toolsCalled=test_case.tools_called,
-        expectedTools=test_case.expected_tools,
+        input=example.input,
+        actualOutput=example.actual_output,
+        expectedOutput=example.expected_output,
+        context=example.context,
+        retrievalContext=example.retrieval_context,
+        toolsCalled=example.tools_called,
+        expectedTools=example.expected_tools,
         success=success,
         metricsData=metrics_data,
         runDuration=None,
         evaluationCost=None,
         order=order,
-        additionalMetadata=test_case.additional_metadata,
-        conversational_instance_id=conversational_instance_id,
+        additionalMetadata=example.additional_metadata,
     )
     return api_test_case
 
