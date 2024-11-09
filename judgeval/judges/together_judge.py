@@ -1,13 +1,17 @@
+"""
+Implementation of using TogetherAI inference for judges.
+"""
+
 from pydantic import BaseModel
 from typing import List, Union, Mapping
-from judgeval.judges import judgevalBaseLLM
+from judgeval.judges import judgevalJudge
 from judgeval.common.utils import fetch_together_api_response, afetch_together_api_response
 
 BASE_CONVERSATION = [
     {"role": "system", "content": "You are a helpful assistant."},
 ]
 
-class TogetherModel(judgevalBaseLLM):
+class TogetherJudge(judgevalJudge):
     def __init__(self, model: str = "QWEN", **kwargs):
         self.model = model
         self.kwargs = kwargs

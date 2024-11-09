@@ -10,9 +10,9 @@ import re
 
 from judgeval import langfuse
 from judgeval.data.example import Example
-from judgeval.judges.base_judge import judgevalBaseLLM
-from judgeval.judges.together_judge import TogetherModel
-from judgeval.judges.utils import initialize_model
+from judgeval.judges.base_judge import judgevalJudge
+from judgeval.judges.together_judge import TogetherJudge
+from judgeval.judges.utils import create_judge
 from judgeval.scorers.custom_scorer import CustomScorer
 from judgeval.scorers.score import *
 from judgeval.common.telemetry import capture_metric_type
@@ -310,7 +310,7 @@ class CustomFaithfulnessMetric(CustomScorer):
     def __init__(
         self,
         threshold: float = 0.5,
-        model: Union[str, judgevalBaseLLM] = None,
+        model: Union[str, judgevalJudge] = None,
         include_reason: bool = True,
         async_mode: bool = True,
         strict_mode: bool = False,
@@ -318,7 +318,7 @@ class CustomFaithfulnessMetric(CustomScorer):
     ):
         super().__init__("customfaithfulness", threshold)
         self.threshold = 1 if strict_mode else threshold
-        self.model, self.using_native_model = initialize_model(model)
+        self.model, self.using_native_model = create_judge(model)
         self.using_native_model = True  # NOTE: SETTING THIS FOR LITELLM and TOGETHER usage
         self.evaluation_model = self.model.get_model_name()
         self.include_reason = include_reason
@@ -617,7 +617,7 @@ async def example():
         additional_metadata={"difficulty": "medium"}
     )
 
-    model = TogetherModel()
+    model = TogetherJudge()
 
     scorer = CustomFaithfulnessMetric(threshold=0.5, 
                                       model=model)

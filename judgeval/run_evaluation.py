@@ -11,7 +11,7 @@ from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.scorers.base_scorer import JudgmentScorer
 from judgeval.playground import CustomFaithfulnessMetric
-from judgeval.judges.together_judge import TogetherModel
+from judgeval.judges.together_judge import TogetherJudge
 
 ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
 
@@ -211,7 +211,8 @@ if __name__ == "__main__":
     )
 
     scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
-    model = TogetherModel()
+    scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
+    model = TogetherJudge()
     c_scorer = CustomFaithfulnessMetric(
         threshold=0.6,
         model=model,
