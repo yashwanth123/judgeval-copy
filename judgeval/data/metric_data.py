@@ -5,7 +5,7 @@ Implementation of the MetricData class.
 from typing import List, Union, Optional, Dict
 from pydantic import BaseModel, Field
 
-from judgeval.scorers.custom_scorer import CustomScorer
+from judgeval.scorers import CustomScorer
 
 class ScorerData(BaseModel):
     """

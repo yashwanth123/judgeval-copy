@@ -8,7 +8,7 @@ To create a custom scorer, extend this class and implement the `score_example`, 
 from typing import Optional, Dict
 from abc import abstractmethod
 
-from judgeval.data.example import Example
+from judgeval.data import Example
 
 
 class CustomScorer:

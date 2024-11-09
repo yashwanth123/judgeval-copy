@@ -5,7 +5,7 @@ Util functions for Scorer objects
 import inspect
 from typing import List, Optional
 
-from judgeval.scorers.custom_scorer import CustomScorer
+from judgeval.scorers import CustomScorer
 
 
 def clone_scorers(

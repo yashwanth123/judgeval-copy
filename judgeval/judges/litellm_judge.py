@@ -1,7 +1,8 @@
 import pydantic
 from typing import List, Union, Mapping
+
 from judgeval import *
-from judgeval.judges.base_judge import judgevalJudge
+from judgeval.judges import judgevalJudge
 from judgeval.common.utils import afetch_litellm_api_response, fetch_litellm_api_response
 
 BASE_CONVERSATION = [

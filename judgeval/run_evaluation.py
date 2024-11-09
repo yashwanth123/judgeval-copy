@@ -4,14 +4,13 @@ from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, field_validator
 
 from judgeval.data import Example
+from judgeval.scorers import CustomScorer, JudgmentScorer
 from judgeval.scorers.score import *
-from judgeval.scorers.custom_scorer import CustomScorer
 from judgeval.constants import *
 from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES
 from judgeval.common.exceptions import JudgmentAPIError
-from judgeval.scorers.base_scorer import JudgmentScorer
 from judgeval.playground import CustomFaithfulnessMetric
-from judgeval.judges.together_judge import TogetherJudge
+from judgeval.judges import TogetherJudge
 
 ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
 
