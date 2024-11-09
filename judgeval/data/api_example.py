@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 
-from judgeval.data.metric_data import MetricData
+from judgeval.data.metric_data import ScorerData
 from judgeval.data.example import Example
 
 
@@ -22,7 +22,7 @@ class processExample(BaseModel):
 
     # make these optional, not all test cases in a conversation will be evaluated
     success: Union[bool, None] = Field(None)
-    metrics_data: Union[List[MetricData], None] = Field(
+    metrics_data: Union[List[ScorerData], None] = Field(
         None, alias="metricsData"
     )
     run_duration: Union[float, None] = Field(None, alias="runDuration")
@@ -37,7 +37,7 @@ class processExample(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def update_metric_data(self, metric_data: MetricData):
+    def update_metric_data(self, metric_data: ScorerData):
         """
         Updates metric data field of test case after the metrics have been
         evaluated on this test case.

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, fields
 from typing import List, Union, Optional
 
-from judgeval.data.metric_data import MetricData
+from judgeval.data.metric_data import ScorerData
 from judgeval.data.api_example import processExample
 
 @dataclass
@@ -21,7 +21,7 @@ class ScoringResult:
     """
     ### Fields for scoring outputs ### 
     success: bool  # used for unit testing
-    metrics_data: Union[List[MetricData], None]
+    metrics_data: Union[List[ScorerData], None]
 
     ### Inputs from the original example ### 
     input: Optional[str] = None

@@ -12,7 +12,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from judgeval.common.exceptions import MissingTestCaseParamsError
 from judgeval.data.example import Example
 from judgeval.data.api_example import create_process_example
-from judgeval.data.metric_data import create_metric_data
+from judgeval.data.metric_data import create_scorer_data
 from judgeval.data.result import ScoringResult, generate_scoring_result
 from judgeval.scorers.custom_scorer import CustomScorer
 from judgeval.scorers.utils import clone_scorers, format_metric_description
@@ -392,7 +392,7 @@ async def a_eval_examples_helper(
         if scorer.skipped:
             continue
         
-        metric_data = create_metric_data(scorer)  # Fetch metric data from completed metric evaluation
+        metric_data = create_scorer_data(scorer)  # Fetch metric data from completed metric evaluation
         api_test_case.update_metric_data(metric_data)  # Update API Test Case with the same metric data, including cost
           
     test_end_time = time.perf_counter()
