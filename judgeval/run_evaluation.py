@@ -3,7 +3,7 @@ import pprint
 from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, field_validator
 
-from judgeval.data.example import Example
+from judgeval.data import Example
 from judgeval.scorers.score import *
 from judgeval.scorers.custom_scorer import CustomScorer
 from judgeval.constants import *

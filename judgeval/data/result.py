@@ -1,8 +1,7 @@
 from dataclasses import dataclass, fields
 from typing import List, Union, Optional
 
-from judgeval.data.metric_data import ScorerData
-from judgeval.data.api_example import processExample
+from judgeval.data import ScorerData, processExample
 
 @dataclass
 class ScoringResult:
