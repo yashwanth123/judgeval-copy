@@ -53,7 +53,7 @@ class ScoringResult:
             retrieval_context={self.retrieval_context})"
 
 
-def create_test_result(
+def generate_scoring_result(
     api_test_case: LLMApiTestCase,
 ) -> ScoringResult:
     """

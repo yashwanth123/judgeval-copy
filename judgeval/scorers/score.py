@@ -13,7 +13,7 @@ from judgeval.common.exceptions import MissingTestCaseParamsError
 from judgeval.data.example import Example
 from judgeval.data.api_example import create_api_test_case
 from judgeval.data.metric_data import create_metric_data
-from judgeval.data.result import ScoringResult, create_test_result
+from judgeval.data.result import ScoringResult, generate_scoring_result
 from judgeval.scorers.custom_scorer import CustomScorer
 from judgeval.scorers.utils import clone_scorers, format_metric_description
 from judgeval.common.telemetry import capture_evaluation_run
@@ -401,7 +401,7 @@ async def a_eval_examples_helper(
     if run_duration < 1:
         run_duration = 0
     api_test_case.update_run_duration(run_duration)   # Update API Test Case with execution time duration
-    scoring_results[score_index] = create_test_result(api_test_case)  # Converts the outcomes of the executed test to a TestResult and saves it
+    scoring_results[score_index] = generate_scoring_result(api_test_case)  # Converts the outcomes of the executed test to a TestResult and saves it
 
     if pbar is not None:
         pbar.update(1)
