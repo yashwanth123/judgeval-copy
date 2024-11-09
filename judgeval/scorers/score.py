@@ -187,7 +187,7 @@ async def score_with_indicator(
         with Progress(
             SpinnerColumn(style="rgb(106,0,255)"),
             TextColumn("[progress.description]{task.description}"),
-            transient=False,
+            transient=True,
         ) as progress:
             tasks = []
             for scorer in scorers:

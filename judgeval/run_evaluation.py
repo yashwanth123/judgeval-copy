@@ -177,8 +177,8 @@ def run_eval(evaluation_run: EvaluationRun):
                 custom_scorers,
                 ignore_errors=True,
                 skip_on_missing_params=True,
-                show_indicator=True,
-                _use_bar_indicator=False,
+                show_indicator=False,
+                _use_bar_indicator=True,
                 throttle_value=0,
                 max_concurrent=100,
             )
