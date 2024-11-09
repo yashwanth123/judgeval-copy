@@ -96,7 +96,7 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> Any:  # TODO add return t
         raise ValueError(f"An error occurred while executing the Judgment API request: {str(e)}")
 
 
-def merge_results(api_results: List[TestResult], local_results: List[TestResult]) -> List[TestResult]:
+def merge_results(api_results: List[ScoringResult], local_results: List[ScoringResult]) -> List[ScoringResult]:
     """
     Merges the results from the API and local evaluations
 
@@ -166,12 +166,12 @@ def run_eval(evaluation_run: EvaluationRun):
         )
         response_data = execute_api_eval(api_evaluation_run)  # List[Dict] of converted TestResults
         for result in response_data["results"]:
-            filtered_result = {k: v for k, v in result.items() if k in TestResult.__annotations__}
-            api_results.append(TestResult(**filtered_result))
+            filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
+            api_results.append(ScoringResult(**filtered_result))
 
     # Run local tests
     if custom_scorers:  # List[CustomScorer]
-        results: List[TestResult] = asyncio.run(
+        results: List[ScoringResult] = asyncio.run(
             a_execute_scoring(
                 evaluation_run.examples,
                 custom_scorers,

@@ -13,7 +13,7 @@ from judgeval.common.exceptions import MissingTestCaseParamsError
 from judgeval.data.example import Example
 from judgeval.data.api_example import create_api_test_case
 from judgeval.data.metric_data import create_metric_data
-from judgeval.data.result import TestResult, create_test_result
+from judgeval.data.result import ScoringResult, create_test_result
 from judgeval.scorers.custom_scorer import CustomScorer
 from judgeval.scorers.utils import clone_scorers, format_metric_description
 from judgeval.common.telemetry import capture_evaluation_run
@@ -242,7 +242,7 @@ async def a_execute_scoring(
     max_concurrent: int,
     verbose_mode: Optional[bool] = None,
     _use_bar_indicator: bool = True,
-) -> List[TestResult]:
+) -> List[ScoringResult]:
     """
     Executes evaluations of `Example`s asynchronously using one or more `CustomScorer`s.
     Each `Example` will be evaluated by all of the `CustomScorer`s in the `scorers` list.
@@ -271,7 +271,7 @@ async def a_execute_scoring(
             metric.verbose_mode = verbose_mode
 
     examples_counter = -1
-    scoring_results: List[TestResult] = [None for _ in examples]
+    scoring_results: List[ScoringResult] = [None for _ in examples]
     tasks = []
 
     if show_indicator and _use_bar_indicator:
@@ -342,7 +342,7 @@ async def a_execute_scoring(
 async def a_eval_examples_helper(
     scorers: List[CustomScorer],
     example: Example,
-    scoring_results: List[TestResult],
+    scoring_results: List[ScoringResult],
     score_index: int,
     count: int,
     ignore_errors: bool,

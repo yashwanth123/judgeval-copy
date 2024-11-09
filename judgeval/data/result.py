@@ -5,11 +5,25 @@ from judgeval.data.metric_data import MetricData
 from judgeval.data.api_example import LLMApiTestCase
 
 @dataclass
-class TestResult:
-    """Returned from run_test"""
+class ScoringResult:
+    """
+    A ScoringResult contains the output of one or more scorers applied to a single example.
 
-    success: bool
+    Args:
+        success (bool): Whether the evaluation was successful. 
+                        This means that all scorers applied to this example returned a success.
+        metrics_data (List[MetricData]): The metrics data for the evaluated example
+        input (Optional[str]): The input to the example
+        actual_output (Optional[str]): The actual output of the example
+        expected_output (Optional[str]): The expected output of the example
+        context (Optional[List[str]]): The context of the example
+        retrieval_context (Optional[List[str]]): The retrieval context of the example
+    """
+    ### Fields for scoring outputs ### 
+    success: bool  # used for unit testing
     metrics_data: Union[List[MetricData], None]
+
+    ### Inputs from the original example ### 
     input: Optional[str] = None
     actual_output: Optional[str] = None
     expected_output: Optional[str] = None
@@ -17,7 +31,7 @@ class TestResult:
     retrieval_context: Optional[List[str]] = None
 
     def to_dict(self) -> dict:
-        """Convert the TestResult instance to a dictionary, properly serializing metrics_data."""
+        """Convert the ScoringResult instance to a dictionary, properly serializing metrics_data."""
         return {
             "success": self.success,
             "metrics_data": [metric.model_dump() for metric in self.metrics_data] if self.metrics_data else None,
@@ -29,7 +43,7 @@ class TestResult:
         }
     
     def __str__(self) -> str:
-        return f"TestResult(\
+        return f"ScoringResult(\
             success={self.success}, \
             metrics_data={self.metrics_data}, \
             input={self.input}, \
@@ -41,14 +55,14 @@ class TestResult:
 
 def create_test_result(
     api_test_case: LLMApiTestCase,
-) -> TestResult:
+) -> ScoringResult:
     """
-    Creates a final TestResult object for an evaluation run based on the results from a completed LLMApiTestCase.
+    Creates a final ScoringResult object for an evaluation run based on the results from a completed LLMApiTestCase.
 
     When an LLMTestCase is executed, it turns into an LLMApiTestCase and the progress of the evaluation run is tracked.
     At the end of the evaluation run, we create a TestResult object out of the completed LLMApiTestCase.
     """
-    return TestResult(
+    return ScoringResult(
         success=api_test_case.success,
         metrics_data=api_test_case.metrics_data,
         input=api_test_case.input,
