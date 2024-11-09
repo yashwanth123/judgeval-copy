@@ -103,6 +103,11 @@ def merge_results(api_results: List[TestResult], local_results: List[TestResult]
         api_results (List[TestResult]): The results from the API evaluation
         local_results (List[TestResult]): The results from the local evaluation
     """
+    if not local_results and api_results:
+        return api_results
+    if not api_results and local_results:
+        return local_results
+
     # Merge MetricData fields
     if len(api_results) != len(local_results):
         raise ValueError("The number of API and local results do not match.")
@@ -172,6 +177,7 @@ def run_eval(evaluation_run: EvaluationRun):
                 ignore_errors=True,
                 skip_on_missing_params=True,
                 show_indicator=True,
+                _use_bar_indicator=False,
                 throttle_value=0,
                 max_concurrent=100,
             )
