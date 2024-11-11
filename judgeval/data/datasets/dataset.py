@@ -1,4 +1,6 @@
 import ast
+import csv
+import datetime 
 import json
 from dataclasses import dataclass, field
 import os
@@ -197,20 +199,72 @@ class EvalDataset:
     def add_ground_truth(self, g: GroundTruthExample) -> None:
         self.ground_truths.extend(g)
     
-    def save_as(self, file_type: Literal["json", "csv"], dir_path: str):
+    def save_as(self, file_type: Literal["json", "csv"], dir_path: str, save_name: str = None) -> None:
         """
         Saves the dataset as a file. Save both the ground truths and examples.
 
         Args:
             file_type (Literal["json", "csv"]): The file type to save the dataset as.
             dir_path (str): The directory path to save the file to.
+            save_name (str, optional): The name of the file to save. Defaults to None.
         """
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
+        file_name = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") if save_name is None else save_name
+        complete_path = os.path.join(dir_path, f"{file_name}.{file_type}")
         if file_type == "json":
-            pass 
+            with open(complete_path, "w") as file:
+                json.dump(
+                    {
+                        "ground_truths": [g.to_dict() for g in self.ground_truths],
+                        "examples": [e.to_dict() for e in self.examples],
+                    },
+                    file,
+                    indent=4,
+                )
         elif file_type == "csv":
-            pass
+            with open(complete_path, "w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow([
+                    "input", "actual_output", "expected_output", "context", \
+                    "retrieval_context", "additional_metadata", "tools_called", \
+                    "expected_tools", "name", "comments", "source_file", "example"
+                ])
+                for e in self.examples:
+                    writer.writerow(
+                        [
+                            e.input,
+                            e.actual_output,
+                            e.expected_output,
+                            ";".join(e.context),
+                            ";".join(e.retrieval_context),
+                            e.additional_metadata,
+                            ";".join(e.tools_called),
+                            ";".join(e.expected_tools),
+                            e.name,
+                            None,  # Example does not have comments
+                            None,  # Example does not have source file
+                            True,  # Adding an Example
+                        ]
+                    )
+                
+                for g in self.ground_truths:
+                    writer.writerow(
+                        [
+                            g.input,
+                            g.actual_output,
+                            g.expected_output,
+                            ";".join(g.context),
+                            ";".join(g.retrieval_context),
+                            g.additional_metadata,
+                            ";".join(g.tools_called),
+                            ";".join(g.expected_tools),
+                            None,  # GroundTruthExample does not have name
+                            g.comments,
+                            g.source_file,
+                            False,  # Adding a GroundTruthExample, not an Example
+                        ]
+                    )
         else:
             ACCEPTABLE_FILE_TYPES = ["json", "csv"]
             raise TypeError(f"Invalid file type: {file_type}. Please choose from {ACCEPTABLE_FILE_TYPES}")
