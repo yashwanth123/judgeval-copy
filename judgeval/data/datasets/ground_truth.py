@@ -33,3 +33,17 @@ class GroundTruthExample(BaseModel):
     source_file: Optional[str] = Field(
         default=None, serialization_alias="sourceFile"
     )
+
+    def to_dict(self):
+        return {
+            "input": self.input,
+            "actual_output": self.actual_output,
+            "expected_output": self.expected_output,
+            "context": self.context,
+            "retrieval_context": self.retrieval_context,
+            "additional_metadata": self.additional_metadata,
+            "comments": self.comments,
+            "tools_called": self.tools_called,
+            "expected_tools": self.expected_tools,
+            "source_file": self.source_file,
+        }

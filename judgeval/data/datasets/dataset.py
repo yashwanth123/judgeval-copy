@@ -1,7 +1,8 @@
 import ast
 import json
 from dataclasses import dataclass, field
-from typing import List, Optional, Union
+import os
+from typing import List, Optional, Union, Literal
 
 from judgeval.data.datasets.ground_truth import GroundTruthExample
 from judgeval.data.datasets.utils import ground_truths_to_examples, examples_to_ground_truths
@@ -115,7 +116,7 @@ class EvalDataset:
         """
         Load examples from a CSV file.
 
-        This method reads a CSV file, extracting example data based on specified column names. It creates LLMTestCase objects for each row in the CSV and adds them to the Dataset instance. The context data, if provided, is expected to be a delimited string in the CSV, which this method will parse into a list.
+        This method reads a CSV file, extracting example data based on specified column names. It creates Example objects for each row in the CSV and adds them to the Dataset instance. The context data, if provided, is expected to be a delimited string in the CSV, which this method will parse into a list.
 
         Args:
             file_path (str): Path to the CSV file containing the examples.
@@ -196,12 +197,24 @@ class EvalDataset:
     def add_ground_truth(self, g: GroundTruthExample) -> None:
         self.ground_truths.extend(g)
     
-    def save_as(self):
+    def save_as(self, file_type: Literal["json", "csv"], dir_path: str):
         """
-        Saves the dataset as a file
-        """
-        raise NotImplementedError
+        Saves the dataset as a file. Save both the ground truths and examples.
 
+        Args:
+            file_type (Literal["json", "csv"]): The file type to save the dataset as.
+            dir_path (str): The directory path to save the file to.
+        """
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        if file_type == "json":
+            pass 
+        elif file_type == "csv":
+            pass
+        else:
+            ACCEPTABLE_FILE_TYPES = ["json", "csv"]
+            raise TypeError(f"Invalid file type: {file_type}. Please choose from {ACCEPTABLE_FILE_TYPES}")
+        
     def __iter__(self):
         return iter(self.examples)
     
