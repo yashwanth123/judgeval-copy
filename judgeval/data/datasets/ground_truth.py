@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional, Dict, List
 
 
@@ -10,29 +10,15 @@ class GroundTruthExample(BaseModel):
     workflow's performance.
     """
     input: str
-    actual_output: Optional[str] = Field(
-        default=None, serialization_alias="actualOutput"
-    )
-    expected_output: Optional[str] = Field(
-        default=None, serialization_alias="expectedOutput"
-    )
-    context: Optional[List[str]] = Field(default=None)
-    retrieval_context: Optional[List[str]] = Field(
-        default=None, serialization_alias="retrievalContext"
-    )
-    additional_metadata: Optional[Dict] = Field(
-        default=None, serialization_alias="additionalMetadata"
-    )
-    comments: Optional[str] = Field(default=None)
-    tools_called: Optional[List[str]] = Field(
-        default=None, serialization_alias="toolsCalled"
-    )
-    expected_tools: Optional[List[str]] = Field(
-        default=None, serialization_alias="expectedTools"
-    )
-    source_file: Optional[str] = Field(
-        default=None, serialization_alias="sourceFile"
-    )
+    actual_output: Optional[str] = None
+    expected_output: Optional[str] = None
+    context: Optional[List[str]] = None
+    retrieval_context: Optional[List[str]] = None
+    additional_metadata: Optional[Dict] = None
+    comments: Optional[str] = None
+    tools_called: Optional[List[str]] = None
+    expected_tools: Optional[List[str]] = None
+    source_file: Optional[str] = None
 
     def to_dict(self):
         return {
