@@ -67,3 +67,16 @@ class Example(BaseModel):
                 raise TypeError(
                     "'expected_tools' must be None or a list of strings"
                 )
+
+    def to_dict(self):
+        return {
+            "input": self.input,
+            "actual_output": self.actual_output,
+            "expected_output": self.expected_output,
+            "context": self.context,
+            "retrieval_context": self.retrieval_context,
+            "additional_metadata": self.additional_metadata,
+            "tools_called": self.tools_called,
+            "expected_tools": self.expected_tools,
+            "name": self.name,
+        }
