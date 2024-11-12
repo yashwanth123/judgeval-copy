@@ -1,4 +1,5 @@
 from judgeval.evaluation_run import EvaluationRun
+from judgeval.run_evaluation import run_eval
 import requests
 from judgeval.constants import ROOT_API
 
@@ -15,12 +16,9 @@ class JudgmentClient:
             print(f"Successfully initialized JudgmentClient, welcome back {response['user_name']}!")
 
     def run_eval(self, evaluation_run: EvaluationRun):
-        # How to break into this function?
-        # Best way to pass in the API key to each EvaluationRun?
-        # When you run the properiary metrics (logs + cost tracking, we can charge for # of logs): When you run client.run_eval(…), the method will have internal code to make API requests to run properiarty metrics Judgment backend server, passing the user’s API key 
-        if evaluation_run.judgment_api_key is None:
-            evaluation_run.judgment_api_key = self.judgment_api_key
-        # When you run the other metrics (just logs): client.run_eval(…) will have internal code to log outputs to Judgment backend server. Wherever the for loop is for running the custom metrics/functions, the output value I’ll put that into a request to /log/eval, then server will handle pushing to database
+        evaluation_run.judgment_api_key = self.judgment_api_key
+            
+        return run_eval(evaluation_run)
         
     def validate_api_key(self):
         response = requests.post(
