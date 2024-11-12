@@ -2,6 +2,9 @@ import ast
 import csv
 import datetime 
 import json
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
+import requests
 from dataclasses import dataclass, field
 import os
 from typing import List, Optional, Union, Literal
@@ -27,17 +30,98 @@ class EvalDataset:
         self._alias = None
         self._id = None
 
-    def push(self):
+    def push(self, alias: str, overwrite: Optional[bool] = None) -> None:
         """
         Pushes the dataset to Judgment platform
-        """
-        raise NotImplementedError
 
-    def pull(self):
+        Mock request:
+        {
+            "alias": alias,
+            "ground_truths": [...],
+            "examples": [...],
+            "overwrite": overwrite
+        } ==>
+        {
+            "_alias": alias,
+            "_id": "..."  # ID of the dataset
+        }
+        """
+        # Make a POST request to the Judgment API to create a new dataset
+        DATASETS_ENDPOINT = "..."  # TODO
+
+        with Progress(
+                SpinnerColumn(style="rgb(106,0,255)"),
+                TextColumn("[progress.description]{task.description}"),
+                transient=False,
+            ) as progress:
+                task_id = progress.add_task(
+                    f"Pushing [rgb(106,0,255)]'{alias}' to Judgment...",
+                    total=100,
+                )
+                response = requests.post(
+                    DATASETS_ENDPOINT, 
+                    json={
+                        "alias": alias,
+                        "ground_truths": [g.to_dict() for g in self.ground_truths],
+                        "examples": [e.to_dict() for e in self.examples],
+                        "overwrite": overwrite
+                    }
+                ) 
+
+                response.raise_for_status()
+                
+                payload = response.json()
+                self._alias = payload.get("_alias")
+                self._id = payload.get("_id")
+                progress.update(
+                    task_id,
+                    description=f"{progress.tasks[task_id].description} [rgb(25,227,160)]Done!)",
+                )
+        
+    def pull(self, alias: str):
         """
         Pulls the dataset from Judgment platform
+
+        Mock request:
+        {
+            "alias": alias,
+        } 
+        ==>
+        {
+            "ground_truths": [...],
+            "examples": [...],
+            "_alias": alias,
+            "_id": "..."  # ID of the dataset
+        }
         """
-        raise NotImplementedError
+        # Make a GET request to the Judgment API to get the dataset
+        DATASETS_ENDPOINT = "..."  # TODO
+
+        with Progress(
+                SpinnerColumn(style="rgb(106,0,255)"),
+                TextColumn("[progress.description]{task.description}"),
+                transient=False,
+            ) as progress:
+                task_id = progress.add_task(
+                    f"Pulling [rgb(106,0,255)]'{alias}'[/rgb(106,0,255)] from Judgment...",
+                    total=100,
+                )
+                response = requests.get(
+                    DATASETS_ENDPOINT, 
+                    params={"alias": alias}
+                ) 
+
+                response.raise_for_status()
+                
+                payload = response.json()
+                self.ground_truths = [GroundTruthExample(**g) for g in payload.get("ground_truths", [])]
+                self.examples = [Example(**e) for e in payload.get("examples", [])]
+                self._alias = payload.get("_alias")
+                self._id = payload.get("_id")
+                progress.update(
+                    task_id,
+                    description=f"{progress.tasks[task_id].description} [rgb(25,227,160)]Done!)",
+                )
 
     def add_from_json(
         self,
@@ -66,8 +150,7 @@ class EvalDataset:
         new_ground_truths = [GroundTruthExample(**g) for g in ground_truths]
         for g in new_ground_truths:
             self.add_ground_truth(g)
-
-        
+  
     def add_from_csv(
         self, 
         file_path: str,
