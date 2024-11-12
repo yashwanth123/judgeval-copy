@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 import os
 from typing import List, Optional, Union, Literal
 
+from judgeval.constants import JUDGMENT_DATASETS_API_URL
 from judgeval.data.datasets.ground_truth import GroundTruthExample
 from judgeval.data.datasets.utils import ground_truths_to_examples, examples_to_ground_truths
 from judgeval.data import Example
@@ -47,7 +48,6 @@ class EvalDataset:
         }
         """
         # Make a POST request to the Judgment API to create a new dataset
-        DATASETS_ENDPOINT = "..."  # TODO
 
         with Progress(
                 SpinnerColumn(style="rgb(106,0,255)"),
@@ -58,17 +58,25 @@ class EvalDataset:
                     f"Pushing [rgb(106,0,255)]'{alias}' to Judgment...",
                     total=100,
                 )
-                response = requests.post(
-                    DATASETS_ENDPOINT, 
-                    json={
+                content = {
                         "alias": alias,
                         "ground_truths": [g.to_dict() for g in self.ground_truths],
                         "examples": [e.to_dict() for e in self.examples],
-                        "overwrite": overwrite
+                        "overwrite": overwrite,
+                        "user_id": 1  # TODO fix
                     }
-                ) 
+                try:
+                    response = requests.post(
+                        JUDGMENT_DATASETS_API_URL, 
+                        json=content
+                    ) 
 
-                response.raise_for_status()
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as err:
+                    if response.status_code == 422:
+                        print("Validation error details:", err.response.json())
+                    else:
+                        print("HTTP error occurred:", err)
                 
                 payload = response.json()
                 self._alias = payload.get("_alias")
@@ -85,6 +93,7 @@ class EvalDataset:
         Mock request:
         {
             "alias": alias,
+            "user_id": user_id
         } 
         ==>
         {
@@ -95,7 +104,6 @@ class EvalDataset:
         }
         """
         # Make a GET request to the Judgment API to get the dataset
-        DATASETS_ENDPOINT = "..."  # TODO
 
         with Progress(
                 SpinnerColumn(style="rgb(106,0,255)"),
@@ -107,8 +115,8 @@ class EvalDataset:
                     total=100,
                 )
                 response = requests.get(
-                    DATASETS_ENDPOINT, 
-                    params={"alias": alias}
+                    JUDGMENT_DATASETS_API_URL, 
+                    params={"alias": alias}  # TODO add user id
                 ) 
 
                 response.raise_for_status()
@@ -312,4 +320,10 @@ class EvalDataset:
 if __name__ == "__main__":
 
     dataset = EvalDataset()
+    dataset.add_example(Example(input="input 1", actual_output="output 1"))
     print(dataset)
+
+    file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/judgeval/data/datasets/20241111_175859.csv"
+    dataset.add_from_csv(file_path)
+
+    dataset.push(alias="test_dataset_1", overwrite=True)
