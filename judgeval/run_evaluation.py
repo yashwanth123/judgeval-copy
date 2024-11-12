@@ -2,7 +2,7 @@ import requests
 import pprint
 from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, field_validator
-
+import os
 from judgeval.data import Example
 from judgeval.scorers import CustomScorer, JudgmentScorer
 from judgeval.scorers.score import *
@@ -12,73 +12,19 @@ from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge
 
+from judgeval.evaluation_run import EvaluationRun
+from judgeval.judgment_client import JudgmentClient
+
 ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
 
-class EvaluationRun(BaseModel):
-    """
-    Stores example and evaluation together for running
-    
-    Args: 
-        examples (List[Example]): The examples to evaluate
-        scorers (List[Union[JudgmentScorer, CustomScorer]]): A list of scorers to use for evaluation
-        model (str): The model used as a judge when using LLM as a Judge
-        aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
-        metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
-    """
-    examples: List[Example]
-    scorers: List[Union[JudgmentScorer, CustomScorer]]
-    model: Union[str, List[str]]
-    aggregator: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-    
-    @field_validator('examples')
-    def validate_examples(cls, v):
-        if not v:
-            raise ValueError("Examples cannot be empty.")
-        for ex in v:
-            if not isinstance(ex, Example):
-                raise ValueError(f"Invalid type for Example: {type(ex)}")
-        return v
 
-    @field_validator('scorers')
-    def validate_scorers(cls, v):
-        if not v:
-            raise ValueError("Scorers cannot be empty.")
-        for s in v:
-            if not isinstance(s, JudgmentScorer) and not isinstance(s, CustomScorer):
-                raise ValueError(f"Invalid type for Scorer: {type(s)}")
-        return v
-
-    @field_validator('model')
-    def validate_model(cls, v):
-        if not v:
-            raise ValueError("Model cannot be empty.")
-        if not isinstance(v, str) and not isinstance(v, list):
-            raise ValueError("Model must be a string or a list of strings.")
-        if isinstance(v, str) and v not in ACCEPTABLE_MODELS:
-            raise ValueError(f"Model name {v} not recognized.")
-        if isinstance(v, list):
-            for m in v:
-                if m not in ACCEPTABLE_MODELS:
-                    raise ValueError(f"Model name {m} not recognized.")
-        return v
-
-    @field_validator('aggregator', mode='before')
-    def validate_aggregator(cls, v):
-        if v is not None and not isinstance(v, str):
-            raise ValueError("Aggregator must be a string if provided.")
-        if v is not None and v not in ACCEPTABLE_MODELS:
-            raise ValueError(f"Model name {v} not recognized.")
-        return v
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> Any:  # TODO add return type
     """
     Executes an evaluation of a list of `Example`s using one or more `JudgmentScorer`s via the Judgment API
     """
+
     try:
         # submit API request to execute evals
         response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump())
@@ -191,39 +137,40 @@ def run_eval(evaluation_run: EvaluationRun):
 
 if __name__ == "__main__":
     # Eval using a proprietary Judgment Scorer
-    example1 = Example(
-        input="What if these shoes don't fit?",
-        actual_output="We offer a 30-day full refund at no extra cost.",
-        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-    )
+    # example1 = Example(
+    #     input="What if these shoes don't fit?",
+    #     actual_output="We offer a 30-day full refund at no extra cost.",
+    #     retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    # )
 
-    example2 = Example(
-        input="How do I reset my password?",
-        actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-        expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-        name="Password Reset",
-        context=["User Account"],
-        retrieval_context=["Password reset instructions"],
-        tools_called=["authentication"],
-        expected_tools=["authentication"],
-        additional_metadata={"difficulty": "medium"}
-    )
+    # example2 = Example(
+    #     input="How do I reset my password?",
+    #     actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+    #     expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+    #     name="Password Reset",
+    #     context=["User Account"],
+    #     retrieval_context=["Password reset instructions"],
+    #     tools_called=["authentication"],
+    #     expected_tools=["authentication"],
+    #     additional_metadata={"difficulty": "medium"}
+    # )
 
-    scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
-    scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
-    model = TogetherJudge()
-    c_scorer = CustomFaithfulnessMetric(
-        threshold=0.6,
-        model=model,
-    )
+    # scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
+    # scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
+    # model = TogetherJudge()
+    # c_scorer = CustomFaithfulnessMetric(
+    #     threshold=0.6,
+    #     model=model,
+    # )
 
-    eval_data = EvaluationRun(
-        examples=[example1, example2],
-        scorers=[scorer, c_scorer],
-        metadata={"batch": "test"},
-        model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
-        aggregator='QWEN'
-    )
+    # eval_data = EvaluationRun(
+    #     examples=[example1, example2],
+    #     scorers=[scorer, c_scorer],
+    #     metadata={"batch": "test"},
+    #     model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
+    #     aggregator='QWEN'
+    # )
 
-    run_eval(eval_data)
+    # run_eval(eval_data)
 
+    JudgmentClient(judgment_api_key=os.getenv("TEST_JUDGMENT_API_KEY"))
