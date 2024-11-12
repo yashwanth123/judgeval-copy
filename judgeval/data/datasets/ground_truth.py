@@ -33,3 +33,19 @@ class GroundTruthExample(BaseModel):
             "expected_tools": self.expected_tools,
             "source_file": self.source_file,
         }
+    
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}("
+            f"input={self.input}, "
+            f"actual_output={self.actual_output}, "
+            f"expected_output={self.expected_output}, "
+            f"context={self.context}, "
+            f"retrieval_context={self.retrieval_context}, "
+            f"additional_metadata={self.additional_metadata}, "
+            f"comments={self.comments}, "
+            f"tools_called={self.tools_called}, "
+            f"expected_tools={self.expected_tools}, "
+            f"source_file={self.source_file}"
+            f")"
+        )

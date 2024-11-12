@@ -80,3 +80,16 @@ class Example(BaseModel):
             "expected_tools": self.expected_tools,
             "name": self.name,
         }
+
+    def __str__(self):
+        return (
+            f"Example(input={self.input}, "
+            f"actual_output={self.actual_output}, "
+            f"expected_output={self.expected_output}, "
+            f"context={self.context}, "
+            f"retrieval_context={self.retrieval_context}, "
+            f"additional_metadata={self.additional_metadata}, "
+            f"tools_called={self.tools_called}, "
+            f"expected_tools={self.expected_tools}, "
+            f"name={self.name})"
+        )

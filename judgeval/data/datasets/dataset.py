@@ -133,11 +133,11 @@ class EvalDataset:
             self.add_ground_truth(g)
 
     def add_example(self, e: Example) -> None:
-        self.examples.extend(e)
+        self.examples = self.examples + [e]
         # TODO if we need to add rank, then we need to do it here
 
     def add_ground_truth(self, g: GroundTruthExample) -> None:
-        self.ground_truths.extend(g)
+        self.ground_truths = self.ground_truths + [g]
     
     def save_as(self, file_type: Literal["json", "csv"], dir_path: str, save_name: str = None) -> None:
         """
@@ -214,8 +214,8 @@ class EvalDataset:
     
     def __len__(self):
         return len(self.examples)
-
-    def __repr__(self):
+    
+    def __str__(self):
         return (
             f"{self.__class__.__name__}("
             f"ground_truths={self.ground_truths}, "
