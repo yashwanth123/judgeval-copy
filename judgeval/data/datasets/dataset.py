@@ -103,7 +103,7 @@ class EvalDataset:
                 "expected_output": row["expected_output"] if pd.notna(row["expected_output"]) else None,
                 "context": row["context"].split(";") if pd.notna(row["context"]) else [],
                 "retrieval_context": row["retrieval_context"].split(";") if pd.notna(row["retrieval_context"]) else [],
-                "additional_metadata": row["additional_metadata"] if pd.notna(row["additional_metadata"]) else {},
+                "additional_metadata": ast.literal_eval(row["additional_metadata"]) if pd.notna(row["additional_metadata"]) else dict(),
                 "tools_called": row["tools_called"].split(";") if pd.notna(row["tools_called"]) else [],
                 "expected_tools": row["expected_tools"].split(";") if pd.notna(row["expected_tools"]) else [],
             }
