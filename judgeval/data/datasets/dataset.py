@@ -99,22 +99,32 @@ class EvalDataset:
         for _, row in df.iterrows():
             data = {
                 "input": row["input"],
-                "actual_output": row["actual_output"],
-                "expected_output": row["expected_output"],
+                "actual_output": row["actual_output"] if pd.notna(row["actual_output"]) else None,
+                "expected_output": row["expected_output"] if pd.notna(row["expected_output"]) else None,
                 "context": row["context"].split(";") if pd.notna(row["context"]) else [],
                 "retrieval_context": row["retrieval_context"].split(";") if pd.notna(row["retrieval_context"]) else [],
-                "additional_metadata": row["additional_metadata"],
+                "additional_metadata": row["additional_metadata"] if pd.notna(row["additional_metadata"]) else {},
                 "tools_called": row["tools_called"].split(";") if pd.notna(row["tools_called"]) else [],
                 "expected_tools": row["expected_tools"].split(";") if pd.notna(row["expected_tools"]) else [],
             }
 
             if row["example"]:
-                data["name"] = row["name"]
-                examples.append(Example(**data))
+                data["name"] = row["name"] if pd.notna(row["name"]) else None
+                # every Example has `input` and `actual_output` fields
+                if data["input"] is not None and data["actual_output"] is not None:
+                    e = Example(**data)
+                    examples.append(e)
+                else:
+                    raise ValueError("Every example must have an 'input' and 'actual_output' field.")
             else:
-                data["comments"] = row["comments"]
-                data["source_file"] = row["source_file"]
-                ground_truths.append(GroundTruthExample(**data))
+                data["comments"] = row["comments"] if pd.notna(row["comments"]) else None
+                data["source_file"] = row["source_file"] if pd.notna(row["source_file"]) else None
+                # every GroundTruthExample has `input` field
+                if data["input"] is not None:
+                    g = GroundTruthExample(**data)
+                    ground_truths.append(g)
+                else:
+                    raise ValueError("Every ground truth must have an 'input' field.")
 
         for e in examples:
             self.add_example(e)
