@@ -13,7 +13,6 @@ from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge
 
 from judgeval.evaluation_run import EvaluationRun
-from judgeval.judgment_client import JudgmentClient
 
 ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
 
@@ -108,6 +107,7 @@ def run_eval(evaluation_run: EvaluationRun):
             model=evaluation_run.model,
             aggregator=evaluation_run.aggregator,
             metadata=evaluation_run.metadata,
+            judgment_api_key=evaluation_run.judgment_api_key,
         )
         response_data = execute_api_eval(api_evaluation_run)  # List[Dict] of converted ScoringResults
         for result in response_data["results"]:
@@ -129,6 +129,10 @@ def run_eval(evaluation_run: EvaluationRun):
             )
         )
         local_results = results
+        
+    # TODO: Once we add logging (pushing eval results to Judgment backend server), we can charge for # of logs
+    # Pass in the API key to these log requests.
+    # requests.post(JUDGMENT_EVAL_API_URL + "/log/eval", json=results.model_dump())
 
     # Aggregate the ScorerData
     merged_results = merge_results(api_results, local_results)
@@ -137,40 +141,38 @@ def run_eval(evaluation_run: EvaluationRun):
 
 if __name__ == "__main__":
     # Eval using a proprietary Judgment Scorer
-    # example1 = Example(
-    #     input="What if these shoes don't fit?",
-    #     actual_output="We offer a 30-day full refund at no extra cost.",
-    #     retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-    # )
+    example1 = Example(
+        input="What if these shoes don't fit?",
+        actual_output="We offer a 30-day full refund at no extra cost.",
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    )
 
-    # example2 = Example(
-    #     input="How do I reset my password?",
-    #     actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-    #     expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-    #     name="Password Reset",
-    #     context=["User Account"],
-    #     retrieval_context=["Password reset instructions"],
-    #     tools_called=["authentication"],
-    #     expected_tools=["authentication"],
-    #     additional_metadata={"difficulty": "medium"}
-    # )
+    example2 = Example(
+        input="How do I reset my password?",
+        actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        name="Password Reset",
+        context=["User Account"],
+        retrieval_context=["Password reset instructions"],
+        tools_called=["authentication"],
+        expected_tools=["authentication"],
+        additional_metadata={"difficulty": "medium"}
+    )
 
-    # scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
-    # scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
-    # model = TogetherJudge()
-    # c_scorer = CustomFaithfulnessMetric(
-    #     threshold=0.6,
-    #     model=model,
-    # )
+    scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
+    scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
+    model = TogetherJudge()
+    c_scorer = CustomFaithfulnessMetric(
+        threshold=0.6,
+        model=model,
+    )
 
-    # eval_data = EvaluationRun(
-    #     examples=[example1, example2],
-    #     scorers=[scorer, c_scorer],
-    #     metadata={"batch": "test"},
-    #     model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
-    #     aggregator='QWEN'
-    # )
+    eval_data = EvaluationRun(
+        examples=[example1, example2],
+        scorers=[scorer, c_scorer],
+        metadata={"batch": "test"},
+        model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
+        aggregator='QWEN'
+    )
 
-    # run_eval(eval_data)
-
-    JudgmentClient(judgment_api_key=os.getenv("TEST_JUDGMENT_API_KEY"))
+    run_eval(eval_data)

@@ -6,11 +6,13 @@ from pydantic import BaseModel, field_validator
 from judgeval.data import Example
 from judgeval.scorers import CustomScorer, JudgmentScorer
 from judgeval.scorers.score import *
-from judgeval.constants import *
+from judgeval.constants import TOGETHER_SUPPORTED_MODELS
 from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge
+
+ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
 
 class EvaluationRun(BaseModel):
     """
@@ -30,7 +32,7 @@ class EvaluationRun(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     
     # Testing
-    judgment_api_key: Optional[str] = None
+    judgment_api_key: Optional[str] = ""
     
     @field_validator('examples')
     def validate_examples(cls, v):
