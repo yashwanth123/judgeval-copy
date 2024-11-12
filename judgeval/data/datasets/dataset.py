@@ -5,6 +5,7 @@ import json
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 import requests
+import uuid
 from dataclasses import dataclass, field
 import os
 from typing import List, Optional, Union, Literal
@@ -50,41 +51,45 @@ class EvalDataset:
         # Make a POST request to the Judgment API to create a new dataset
 
         with Progress(
-                SpinnerColumn(style="rgb(106,0,255)"),
-                TextColumn("[progress.description]{task.description}"),
-                transient=False,
-            ) as progress:
-                task_id = progress.add_task(
-                    f"Pushing [rgb(106,0,255)]'{alias}' to Judgment...",
-                    total=100,
-                )
-                content = {
-                        "alias": alias,
-                        "ground_truths": [g.to_dict() for g in self.ground_truths],
-                        "examples": [e.to_dict() for e in self.examples],
-                        "overwrite": overwrite,
-                        "user_id": 1  # TODO fix
-                    }
-                try:
-                    response = requests.post(
-                        JUDGMENT_DATASETS_API_URL, 
-                        json=content
-                    ) 
-
-                    response.raise_for_status()
-                except requests.exceptions.HTTPError as err:
-                    if response.status_code == 422:
-                        print("Validation error details:", err.response.json())
-                    else:
-                        print("HTTP error occurred:", err)
-                
-                payload = response.json()
-                self._alias = payload.get("_alias")
-                self._id = payload.get("_id")
-                progress.update(
+            SpinnerColumn(style="rgb(106,0,255)"),
+            TextColumn("[progress.description]{task.description}"),
+            transient=False,
+        ) as progress:
+            task_id = progress.add_task(
+                f"Pushing [rgb(106,0,255)]'{alias}' to Judgment...",
+                total=100,
+            )
+            content = {
+                    "alias": alias,
+                    "ground_truths": [g.to_dict() for g in self.ground_truths],
+                    "examples": [e.to_dict() for e in self.examples],
+                    "overwrite": overwrite,
+                    "user_id": str(uuid.uuid4())  # TODO fix
+                }
+            try:
+                response = requests.post(
+                    JUDGMENT_DATASETS_API_URL, 
+                    json=content
+                ) 
+                if response.status_code == 500:
+                    content = response.json()
+                    print("Error details:", content.get("message"))
+                    return False
+                response.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                if response.status_code == 422:
+                    print("Validation error details:", err.response.json())
+                else:
+                    print("HTTP error occurred:", err)
+            
+            payload = response.json()
+            self._alias = payload.get("_alias")
+            self._id = payload.get("_id")
+            progress.update(
                     task_id,
                     description=f"{progress.tasks[task_id].description} [rgb(25,227,160)]Done!)",
                 )
+            return True
         
     def pull(self, alias: str):
         """
