@@ -48,8 +48,6 @@ class EvalDataset:
             "_id": "..."  # ID of the dataset
         }
         """
-        # Make a POST request to the Judgment API to create a new dataset
-
         with Progress(
             SpinnerColumn(style="rgb(106,0,255)"),
             TextColumn("[progress.description]{task.description}"),
@@ -121,7 +119,8 @@ class EvalDataset:
                 )
                 response = requests.get(
                     JUDGMENT_DATASETS_API_URL, 
-                    params={"alias": alias}  # TODO add user id
+                    params={"alias": alias,
+                            "user_id": "61005580-2848-4bfe-ba1e-73caed743a0a"}  # TODO add user id
                 ) 
 
                 response.raise_for_status()
@@ -325,10 +324,15 @@ class EvalDataset:
 if __name__ == "__main__":
 
     dataset = EvalDataset()
-    dataset.add_example(Example(input="input 1", actual_output="output 1"))
+    # dataset.add_example(Example(input="input 1", actual_output="output 1"))
+    # print(dataset)
+
+    # file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/judgeval/data/datasets/20241111_175859.csv"
+    # dataset.add_from_csv(file_path)
+
+    # dataset.push(alias="test_dataset_1", overwrite=True)
+    
+    # PULL
+    dataset.pull(alias="test_dataset_1")
     print(dataset)
-
-    file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/judgeval/data/datasets/20241111_175859.csv"
-    dataset.add_from_csv(file_path)
-
-    dataset.push(alias="test_dataset_1", overwrite=True)
+    
