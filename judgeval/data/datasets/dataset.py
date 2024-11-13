@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 import os
 from typing import List, Optional, Union, Literal
 
-from judgeval.constants import JUDGMENT_DATASETS_API_URL
+from judgeval.constants import JUDGMENT_DATASETS_PUSH_API_URL, JUDGMENT_DATASETS_PULL_API_URL
 from judgeval.data.datasets.ground_truth import GroundTruthExample
 from judgeval.data.datasets.utils import ground_truths_to_examples, examples_to_ground_truths
 from judgeval.data import Example
@@ -65,11 +65,11 @@ class EvalDataset:
                     "ground_truths": [g.to_dict() for g in self.ground_truths],
                     "examples": [e.to_dict() for e in self.examples],
                     "overwrite": overwrite,
-                    "user_id": str(uuid.uuid4())  # TODO fix
+                    "judgment_api_key": self.judgment_api_key
                 }
             try:
                 response = requests.post(
-                    JUDGMENT_DATASETS_API_URL, 
+                    JUDGMENT_DATASETS_PUSH_API_URL, 
                     json=content
                 )
                 if response.status_code == 500:
@@ -126,7 +126,7 @@ class EvalDataset:
                 }
 
                 response = requests.post(
-                    JUDGMENT_DATASETS_API_URL, 
+                    JUDGMENT_DATASETS_PULL_API_URL, 
                     json=request_body
                 )
 
@@ -331,15 +331,15 @@ class EvalDataset:
 if __name__ == "__main__":
 
     dataset = EvalDataset(judgment_api_key=os.getenv("TEST_JUDGMENT_API_KEY"))
-    # dataset.add_example(Example(input="input 1", actual_output="output 1"))
+    dataset.add_example(Example(input="input 1", actual_output="output 1"))
     # print(dataset)
 
     # file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/judgeval/data/datasets/20241111_175859.csv"
     # dataset.add_from_csv(file_path)
 
-    # dataset.push(alias="test_dataset_1", overwrite=True)
+    dataset.push(alias="test_dataset_3", overwrite=True)
     
     # PULL
-    dataset.pull(alias="test_dataset_1")
-    print(dataset)
+    # dataset.pull(alias="test_dataset_1")
+    # print(dataset)
     
