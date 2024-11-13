@@ -22,8 +22,10 @@ class EvalDataset:
     examples: List[Example]
     _alias: Union[str, None] = field(default=None)
     _id: Union[str, None] = field(default=None)
+    judgment_api_key: str = field(default="")
 
     def __init__(self, 
+                 judgment_api_key: str,  
                  ground_truths: List[GroundTruthExample] = [], 
                  examples: List[Example] = [],
                  ):
@@ -31,7 +33,8 @@ class EvalDataset:
         self.examples = examples
         self._alias = None
         self._id = None
-
+        self.judgment_api_key = judgment_api_key
+        
     def push(self, alias: str, overwrite: Optional[bool] = None) -> None:
         """
         Pushes the dataset to Judgment platform
@@ -68,7 +71,7 @@ class EvalDataset:
                 response = requests.post(
                     JUDGMENT_DATASETS_API_URL, 
                     json=content
-                ) 
+                )
                 if response.status_code == 500:
                     content = response.json()
                     print("Error details:", content.get("message"))
@@ -106,7 +109,7 @@ class EvalDataset:
             "_id": "..."  # ID of the dataset
         }
         """
-        # Make a GET request to the Judgment API to get the dataset
+        # Make a POST request to the Judgment API to get the dataset
 
         with Progress(
                 SpinnerColumn(style="rgb(106,0,255)"),
@@ -117,11 +120,15 @@ class EvalDataset:
                     f"Pulling [rgb(106,0,255)]'{alias}'[/rgb(106,0,255)] from Judgment...",
                     total=100,
                 )
-                response = requests.get(
+                request_body = {
+                    "alias": alias,
+                    "judgment_api_key": self.judgment_api_key
+                }
+
+                response = requests.post(
                     JUDGMENT_DATASETS_API_URL, 
-                    params={"alias": alias,
-                            "user_id": "61005580-2848-4bfe-ba1e-73caed743a0a"}  # TODO add user id
-                ) 
+                    json=request_body
+                )
 
                 response.raise_for_status()
                 
@@ -323,7 +330,7 @@ class EvalDataset:
 
 if __name__ == "__main__":
 
-    dataset = EvalDataset()
+    dataset = EvalDataset(judgment_api_key=os.getenv("TEST_JUDGMENT_API_KEY"))
     # dataset.add_example(Example(input="input 1", actual_output="output 1"))
     # print(dataset)
 
