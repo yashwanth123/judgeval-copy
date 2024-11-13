@@ -1,5 +1,5 @@
 import requests
-import pprint
+import litellm
 from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, field_validator
 
@@ -7,12 +7,11 @@ from judgeval.data import Example
 from judgeval.scorers import CustomScorer, JudgmentScorer
 from judgeval.scorers.score import *
 from judgeval.constants import *
-from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge
 
-ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
+ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys())
 
 class EvaluationRun(BaseModel):
     """
@@ -132,8 +131,6 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
             api_result.metrics_data = local_metric_data
 
         if api_metric_data is not None and local_metric_data is not None:
-            if len(api_metric_data) != len(local_metric_data):
-                raise ValueError("The number of API and local metrics data do not match.")
             api_result.metrics_data = api_metric_data + local_metric_data
     
     return api_results
@@ -164,7 +161,10 @@ def run_eval(evaluation_run: EvaluationRun):
             metadata=evaluation_run.metadata,
         )
         response_data = execute_api_eval(api_evaluation_run)  # List[Dict] of converted ScoringResults
-        for result in response_data["results"]:
+        for result in response_data["results"]:  
+            # filter for key-value pairs that are used to initialize ScoringResult
+            # there may be some stuff in here that doesn't belong in ScoringResult
+            # TODO: come back and refactor this to have ScoringResult take in **kwargs
             filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
             api_results.append(ScoringResult(**filtered_result))
 
@@ -219,7 +219,7 @@ if __name__ == "__main__":
 
     eval_data = EvaluationRun(
         examples=[example1, example2],
-        scorers=[scorer, c_scorer],
+        scorers=[c_scorer],
         metadata={"batch": "test"},
         model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
         aggregator='QWEN'

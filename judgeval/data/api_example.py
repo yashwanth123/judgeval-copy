@@ -57,16 +57,6 @@ class processExample(BaseModel):
             if metric_data.success is False:
                 self.success = False
 
-        # Track evaluation costs
-        evaluationCost = metric_data.evaluation_cost
-        if evaluationCost is None:
-            return
-
-        if self.evaluation_cost is None:
-            self.evaluation_cost = evaluationCost
-        else:
-            self.evaluation_cost += evaluationCost
-
     def update_run_duration(self, run_duration: float):
         self.run_duration = run_duration
 

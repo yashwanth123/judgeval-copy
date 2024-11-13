@@ -19,7 +19,8 @@ from dotenv import load_dotenv
 
 from judgeval import async_together_client, together_client
 from judgeval.constants import *
-from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES as LITELLM_SUPPORTED_MODELS
+
+LITELLM_SUPPORTED_MODELS = set(litellm.model_list)
 
 class CustomModelParameters(pydantic.BaseModel):
     model_name: str
