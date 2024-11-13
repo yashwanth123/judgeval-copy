@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 from judgeval.data.example import Example
-from judgeval.data.metric_data import ScorerData
+from judgeval.data.scorer_data import ScorerData
 
 
 class processExample(BaseModel):
