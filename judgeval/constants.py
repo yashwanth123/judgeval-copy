@@ -3,7 +3,7 @@ Constant variables used throughout source code
 """
 
 from enum import Enum
-
+import litellm
 
 class JudgmentMetric(Enum):  
     """
@@ -38,5 +38,7 @@ TOGETHER_SUPPORTED_MODELS = {
     "MISTRAL_8x22B_INSTRUCT": "mistralai/Mixtral-8x22B-Instruct-v0.1",
     "MISTRAL_8x7B_INSTRUCT": "mistralai/Mixtral-8x7B-Instruct-v0.1",
 }
+
+ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys())
 
 MAX_WORKER_THREADS = 10

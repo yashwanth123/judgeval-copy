@@ -6,13 +6,12 @@ from pydantic import BaseModel, field_validator
 from judgeval.data import Example
 from judgeval.scorers import CustomScorer, JudgmentScorer
 from judgeval.scorers.score import *
-from judgeval.constants import TOGETHER_SUPPORTED_MODELS
-from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES
+from judgeval.constants import ACCEPTABLE_MODELS
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge
+import litellm
 
-ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
 
 class EvaluationRun(BaseModel):
     """

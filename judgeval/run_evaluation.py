@@ -13,9 +13,6 @@ from judgeval.judges import TogetherJudge
 
 from judgeval.evaluation_run import EvaluationRun
 
-ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys())
-
-
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> Any:  # TODO add return type
