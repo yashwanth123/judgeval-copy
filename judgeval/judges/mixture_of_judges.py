@@ -3,12 +3,21 @@ Implementation for Mixture of Judges model through Judgeval
 """
 from judgeval import *
 import pydantic
-from typing import List, Union, Tuple, Mapping
+from typing import List, Union, Tuple, Mapping, Dict
 from judgeval.judges import judgevalJudge
 from judgeval.common.utils import get_completion_multiple_models, get_chat_completion, aget_completion_multiple_models, aget_chat_completion
 
 
-def build_dynamic_mixture_prompt(judge_responses: List[str], custom_prompt: str = None) -> str:
+def build_dynamic_mixture_prompt(judge_responses: List[str], custom_prompt: str = None) -> List[Mapping]:
+    """
+    Dynamically builds a prompt to mix judge responses together for the Mixture of Judges model.
+
+    In this implementation, we simply concatenate the judge responses into a formatted string, then
+    pass it into a default prompt template. This template can be customized by providing a custom prompt.
+
+    Args:
+        TODO figure out custom prompt
+    """
     formatted_responses = "\n".join([f"# Judge {i + 1}'s response: #\n{response}" for i, response in enumerate(judge_responses)])
     
     # This is the default prompt for the Mixture of Judges model
@@ -41,7 +50,6 @@ def build_dynamic_mixture_prompt(judge_responses: List[str], custom_prompt: str 
             'content': f'## Start of Judge Responses ##\n{formatted_responses}\n## End of Judge Responses ##\nSynthesized response:\n', 'role': 'user'
         }
     ]
-
     return base_convo
 
 BASE_CONVERSATION = [
@@ -93,7 +101,7 @@ class MixtureOfJudges(judgevalJudge):
         except Exception as e:
             raise
 
-        compiled_mixture_prompt = build_dynamic_mixture_prompt(responses, self.kwargs.get('mixture_prompt'))
+        compiled_mixture_prompt : List[Dict] = build_dynamic_mixture_prompt(responses, self.kwargs.get('mixture_prompt'))
         
         try:
             mixed_response = await aget_chat_completion(
