@@ -6,8 +6,20 @@ from judgeval.scorers import JudgmentScorer
 from judgeval.constants import JudgmentMetric
 from judgeval.judges import TogetherJudge
 from judgeval.playground import CustomFaithfulnessMetric
+from judgeval.data.datasets.dataset import EvalDataset
+def test_dataset():
+    # Associate EvalDatasets with a JudgmentClient, so they don't have to pass in judgment_api_key
+    client = JudgmentClient(judgment_api_key=os.getenv("TEST_JUDGMENT_API_KEY"))
+    dataset: EvalDataset = client.create_dataset()
+    dataset.add_example(Example(input="input 1", actual_output="output 1"))
 
-if __name__ == "__main__":
+    client.push_dataset(alias="test_dataset_5", dataset=dataset, overwrite=False)
+    
+    # PULL
+    dataset = client.pull_dataset(alias="test_dataset_5")
+    print(dataset)
+    
+def test_run_eval():
     client = JudgmentClient(judgment_api_key=os.getenv("TEST_JUDGMENT_API_KEY"))
 
     example1 = Example(
@@ -48,3 +60,5 @@ if __name__ == "__main__":
 
     print(results)
 
+if __name__ == "__main__":
+    test_dataset()

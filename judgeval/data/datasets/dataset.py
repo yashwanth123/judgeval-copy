@@ -329,7 +329,10 @@ class EvalDataset:
     
 
 if __name__ == "__main__":
-
+    # Associate EvalDatasets with a JudgmentClient, so they don't have to pass in judgment_api_key
+    dataset: EvalDataset = client.create_dataset()
+    dataset.push()
+    # dataset.push() vs client.push_dataset(dataset)
     dataset = EvalDataset(judgment_api_key=os.getenv("TEST_JUDGMENT_API_KEY"))
     dataset.add_example(Example(input="input 1", actual_output="output 1"))
     # print(dataset)
