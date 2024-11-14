@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+langfuse = "==2.50.3"
+litellm = "*"
+openai = "==1.47.1"
+python-dotenv = "==1.0.1"
+together = "*"
+fastapi = "*"
+uvicorn = "*"
+pytest = "*"
+deepeval = "*"
+supabase = "*"
+requests = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"

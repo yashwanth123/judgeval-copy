@@ -3,7 +3,7 @@ Constant variables used throughout source code
 """
 
 from enum import Enum
-
+import litellm
 
 class JudgmentMetric(Enum):  
     """
@@ -27,6 +27,8 @@ class JudgmentMetric(Enum):
 ROOT_API = "http://127.0.0.1:8000"
 # ROOT_API = "https://api.judgmentlabs.ai"  # TODO replace this with the actual API root
 JUDGMENT_EVAL_API_URL = f"{ROOT_API}/evaluate/"
+JUDGMENT_DATASETS_PUSH_API_URL = f"{ROOT_API}/datasets/push/"
+JUDGMENT_DATASETS_PULL_API_URL = f"{ROOT_API}/datasets/pull/"
 
 TOGETHER_SUPPORTED_MODELS = {
     "QWEN": "Qwen/Qwen2-72B-Instruct",
@@ -36,5 +38,7 @@ TOGETHER_SUPPORTED_MODELS = {
     "MISTRAL_8x22B_INSTRUCT": "mistralai/Mixtral-8x22B-Instruct-v0.1",
     "MISTRAL_8x7B_INSTRUCT": "mistralai/Mixtral-8x7B-Instruct-v0.1",
 }
+
+ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys())
 
 MAX_WORKER_THREADS = 10
