@@ -11,6 +11,7 @@ from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge
+from judgeval.judges.mixture_of_judges import MixtureOfJudges
 
 ACCEPTABLE_MODELS = LITE_LLM_MODEL_NAMES | set(TOGETHER_SUPPORTED_MODELS.keys())
 
@@ -211,7 +212,9 @@ if __name__ == "__main__":
 
     scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
     scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
-    model = TogetherJudge()
+    # model = TogetherJudge()
+
+    model = MixtureOfJudges()
     c_scorer = CustomFaithfulnessMetric(
         threshold=0.6,
         model=model,
@@ -219,11 +222,12 @@ if __name__ == "__main__":
 
     eval_data = EvaluationRun(
         examples=[example1, example2],
-        scorers=[scorer, c_scorer],
+        scorers=[c_scorer],
         metadata={"batch": "test"},
         model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
         aggregator='QWEN'
     )
 
-    run_eval(eval_data)
+    results = run_eval(eval_data)
 
+    print(f"Results: {results}")
