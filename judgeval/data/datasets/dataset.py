@@ -35,7 +35,7 @@ class EvalDataset:
         self._id = None
         self.judgment_api_key = judgment_api_key
         
-    def push(self, alias: str, overwrite: Optional[bool] = None) -> None:
+    def push(self, alias: str, overwrite: Optional[bool] = None) -> bool:
         """
         Pushes the dataset to Judgment platform
 
