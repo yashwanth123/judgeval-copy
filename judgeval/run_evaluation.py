@@ -194,9 +194,9 @@ if __name__ == "__main__":
 
     scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
     scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
-    # model = TogetherJudge()
+    model = TogetherJudge()
 
-    model = MixtureOfJudges()
+    # model = MixtureOfJudges()
     c_scorer = CustomFaithfulnessMetric(
         threshold=0.6,
         model=model,

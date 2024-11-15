@@ -1,7 +1,7 @@
 """
 Implements the JudgmentClient to interact with the Judgment API.
 """
-
+import os
 from typing import Optional, List
 import requests
 
@@ -13,7 +13,7 @@ from judgeval.run_evaluation import run_eval
 
 
 class JudgmentClient:
-    def __init__(self, judgment_api_key: str):
+    def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY")):
         self.judgment_api_key = judgment_api_key
         
         # Verify API key is valid

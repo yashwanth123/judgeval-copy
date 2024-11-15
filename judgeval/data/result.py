@@ -20,7 +20,7 @@ class ScoringResult:
     """
     # Fields for scoring outputs 
     success: bool  # used for unit testing
-    scorer_data: Union[List[ScorerData], None]
+    metrics_data: Union[List[ScorerData], None]
 
     # Inputs from the original example
     input: Optional[str] = None
@@ -35,7 +35,7 @@ class ScoringResult:
         """Convert the ScoringResult instance to a dictionary, properly serializing scorer_data."""
         return {
             "success": self.success,
-            "scorer_data": [scorer.model_dump() for scorer in self.scorer_data] if self.scorer_data else None,
+            "scorers_data": [scorer.model_dump() for scorer in self.metrics_data] if self.metrics_data else None,
             "input": self.input,
             "actual_output": self.actual_output,
             "expected_output": self.expected_output,
@@ -46,7 +46,7 @@ class ScoringResult:
     def __str__(self) -> str:
         return f"ScoringResult(\
             success={self.success}, \
-            scorer_data={self.scorer_data}, \
+            scorer_data={self.metrics_data}, \
             input={self.input}, \
             actual_output={self.actual_output}, \
             expected_output={self.expected_output}, \
@@ -65,7 +65,7 @@ def generate_scoring_result(
     """
     return ScoringResult(
         success=process_example.success,
-        scorer_data=process_example.scorers_data,
+        metrics_data=process_example.scorers_data,
         input=process_example.input,
         actual_output=process_example.actual_output,
         expected_output=process_example.expected_output,

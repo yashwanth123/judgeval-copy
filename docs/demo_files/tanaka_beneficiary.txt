@@ -1,0 +1,212 @@
+<documents>
+	<document>
+		<document_title>Aria Resume.pdf</document_title>
+		<document_text><beneficiary_info index="1">
+    <beneficiary_info_id>aria-tanaka-001-dance-contemporary</beneficiary_info_id>
+    <beneficiary_info_content>
+        Aria Resume.pdf
+                   Aria Tanaka                                                                                                                                           
+                   Tokyo, Japan I aria.tanaka@example.com 1 123-456-7890                                                                                                 
+                                                                                                          www.ariatanka.com                                              
+                   Objective                                                                                                                                             
+                   Visionary contemporary dancer and choreographer renowned for merging traditional Japanese                                                             
+                   dance forms with avant-garde techniques. With over seven years of international experience,                                                           
+                   Aria seeks to expand her creative horizons through collaborative projects with prestigious dance                                                      
+                   companies, festivals, and cultural organizations, aiming to redefine modern dance's narrative                                                         
+                   and aesthetic.                                                                                                                                        
+                    Education                                                                                                                                            
+                   Master of Fine Arts in Choreography                                                                                                                   
+                   Juilliard School, New York 2017                                                                                                                       
+                             Developed a unique choreographic voice that integrates cultural heritage with                                                               
+                             contemporary expression, under the mentorship of acclaimed choreographers such as                                                           
+                             Ohad Naharin and Crystal Pite.                                                                                                              
+                             Created several original works showcased at Juilliard's Choreographic Honors, receiving                                                     
+                             critical acclaim for innovative use of space and narrative.                                                                                 
+                   Bachelor of Fine Arts in Dance                                                                                                                        
+                    Tokyo University of the Arts I 2014                                                                                                                  
+                             Specialized in contemporary dance with a focus on traditional Japanese movement                                                             
+                             aesthetics, studying under prominent dance figures such as Saburo Teshigawara.                                                              
+                             Graduated with honors and performed as the lead in the university's annual                                                                  
+                             performance, showcasing a fusion of classical Japanese dance and modern techniques.                                                         
+                   Professional Experience                                                                                                                               
+                   Choreographer & Performer                                                                                                                             
+                   Freelance - Various Locations 2017 - Present                                                                                                          
+                             Created and performed over 20 original works exploring themes of identity, cultural                                                         
+                             intersection, and the human condition, performed in venues across Europe, Asia, and                                                         
+                             North America.                                                                                                                              
+                             Featured choreographer for the opening ceremony of the Asian Games in Jakarta                                                               
+                             (2021), where she directed a 50-member dance ensemble, blending traditional Asian                                                           
+                             motifs with contemporary visuals, broadcast to an audience of millions.                                                                     
+                             Led international workshops and masterclasses in cities like Paris, New York, and Tokyo,                                                    
+                             focusing on the synthesis of traditional dance forms with modern movement                                                                   
+                             philosophies.                                                                                                                               
+                   Artist-in-Residence                                                                                                                                   
+                    Tanzhaus NRW - Düsseldorf, Germany 2022                                                                                                              
+                             Developed a critically acclaimed solo performance, "Invisible Threads," which examined                                                      
+                             themes of cultural displacement and personal resilience, highlighted in local media and                                                     
+                             received standing ovations.                                                                                                                 
+                             Collaborated with local dancers, composers, and visual artists to create interdisciplinary                                                  
+                             performances, integrating dance with multimedia installations to enhance audience                                                           
+                             engagement.                                                                                                                                 
+                   Lead Dancer                                                                                                                                           
+                   Karas Company - Tokyo, Japan I 2018 - 2019                                                                                                            
+                             Toured internationally as the lead dancer in productions that blended physical theater                                                      
+                             with contemporary dance, under the direction of Toshiki Okada.                                                                              
+                             Performed in renowned venues such as Sadler's Wells in London and the Joyce Theater                                                         
+                             in New York, receiving praise for her emotive and precise execution.                                                                        
+                   Notable Achievements                                                                                                                                  
+                        1. Winner, Emerging Choreographer Prize - Yokohama Dance Collection (2018):                                                                      
+                             Recognized for her innovative piece "Fading Echoes," which juxtaposed traditional Noh                                                       
+                             dance elements with contemporary movement.                                                                                                  
+                        2. Recipient, Nureyev Foundation's Young Talent Grant (2019): Supported the creation                                                             
+                             of her boundary-pushing work "Fragments of Silence," which toured multiple European                                                         
+                             festivals.                                                                                                                                  
+                        3. Featured Artist - Montpellier Dance Festival (2020): Presented her choreographic piece                                                        
+                             "Between Worlds," exploring the clash of cultural identities through movement.                                                              
+                        4. Choreographer, Asian Games Opening Ceremony - Jakarta (2021): Directed a                                                                      
+                             large-scale performance blending contemporary dance with traditional Asian dance                                                            
+                             forms.                                                                                                                                      
+                        5. Artist-in-Residence - Tanzhaus NRW, Düsseldorf (2022): Developed new works that                                                               
+                             explored intercultural dialogue and dance as a medium for social commentary.                                                                
+                   Publications and Media Coverage                                                                                                                       
+                        1. Featured in "Dance International" magazine's "Choreographers to Watch" issue                                                                  
+                             (2019), highlighting her innovative approach to narrative dance.                                                                            
+                        2.                                                                                                                                               
+                             Interview and performance showcase on NHK World's "Art Time" program (2020),                                                                
+                             where she discussed her creative process and inspirations.                                                                                  
+                        3. Cover story in "Japan Dance Review" quarterly journal (2021), focusing on her impact                                                          
+                             on the Japanese and international dance scenes.                                                                                             
+                        4.                                                                                                                                               
+                             Documentary "Moving Boundaries" (2022), a film that delves into Tanaka's                                                                    
+                             choreographic journey, screened at various international film festivals.                                                                    
+                   Notable Performances and Collaborations                                                                                                               
+                        1. Lead Dancer - World tour with Tokyo-based Karas Company (2018-2019), performing in                                                            
+                             iconic venues worldwide.                                                                                                                    
+                        2.                                                                                                                                               
+                             Collaboration with Composer Toshi Ichiyanagi - "Echoes of Silence" at Suntory Hall                                                          
+                             (2020), a groundbreaking piece blending live music and dance.                                                                               
+                        3.                                                                                                                                               
+                             Guest Choreographer - Netherlands Dance Theater's NDT 2 (2021), where she                                                                   
+                             crafted a piece that challenged traditional narratives through abstract movement.                                                           
+                        4. Solo Performance - Venice Biennale Dance sector (2022), where she performed                                                                   
+                             "Waves of Memory," a deeply personal solo exploring loss and cultural roots.                                                                
+                   Awards and Recognition                                                                                                                                
+                        1. Kyoto Art Center's Experimental Performance Grant (2019) for her innovative                                                                   
+                             cross-cultural performance "Shadowed Steps."                                                                                                
+                        2.                                                                                                                                               
+                             Asian Cultural Council's Fellowship for Dance (2020), awarded for her commitment                                                            
+                             to expanding contemporary dance through cultural integration.                                                                               
+                        3. Japan Contemporary Dance Network's Innovation in Choreography Award (2021),                                                                   
+                             recognizing her contribution to evolving the Japanese dance landscape.                                                                      
+                        4. Named one of "Dance Europe" magazine's "Dancers to Watch" (2022), highlighting                                                                
+                             her growing influence in the contemporary dance community.                                                                                  
+                   Skills                                                                                                                                                
+                             Dance Techniques: Contemporary, Butoh, Noh, improvisation, site-specific dance.                                                             
+                             Choreography: Concept development, movement direction, narrative construction, and                                                          
+                             site-specific installations.                                                                                                                
+                             Collaboration: Expertise in working with international artists, musicians, multimedia                                                       
+                             designers, and directors.                                                                                                                   
+                             Teaching & Mentorship: Leading workshops, coaching emerging dancers, and                                                                    
+                             conducting masterclasses worldwide.                                                                                                         
+    </beneficiary_info_content>
+</beneficiary_info>
+		</document_text>
+	</document>
+	<document>
+		<document_title>Aria Tanaka Qualifications</document_title>
+		<document_text><qualifications index="2">
+    <qualifications_id>aria-tanaka-002-aria-tanaka</qualifications_id>
+    <qualifications_content>
+        Aria Tanaka Qualifications
+Aria Tanaka's Degree: None
+Aria Tanaka's years of experience: None
+
+    </qualifications_content>
+</qualifications>
+		</document_text>
+	</document>
+	<document>
+		<document_title>Nureyev Foundation's Young Talent Grant (2019)</document_title>
+		<document_text><awards_evidence index="1">
+    <awards_evidence_id>aria-tanaka-001-young-nureyev</awards_evidence_id>
+    <awards_evidence_content>
+        Nureyev Foundation's Young Talent Grant (2019)
+Nureyev Foundation's Young Talent Grant (2019)
+Internationally recognized and supports promising young dancers and choreographers.
+    </awards_evidence_content>
+</awards_evidence>
+		</document_text>
+	</document>
+	<document>
+		<document_title>Lead dancer in Karas Company</document_title>
+		<document_text><leading_starring_role_evidence index="2">
+    <leading_starring_role_evidence_id>aria-tanaka-002-lead-dancer</leading_starring_role_evidence_id>
+    <leading_starring_role_evidence_content>
+        Lead dancer in Karas Company
+Lead dancer in Karas Company
+One of the most significant was my role as the lead dancer in the Tokyo-based Karas company's world tour from 2018 to 2019. This tour showcased contemporary Japanese dance to international audiences and was a pivotal moment in my career.
+    </leading_starring_role_evidence_content>
+</leading_starring_role_evidence>
+		</document_text>
+	</document>
+	<document>
+		<document_title>Japan Contemporary Dance Network's Innovation in Choreography Award</document_title>
+		<document_text><awards_evidence index="3">
+    <awards_evidence_id>aria-tanaka-003-japan-contemporary</awards_evidence_id>
+    <awards_evidence_content>
+        Japan Contemporary Dance Network's Innovation in Choreography Award
+Japan Contemporary Dance Network's Innovation in Choreography Award
+recognizes outstanding contributions to contemporary dance choreography in Japan.
+    </awards_evidence_content>
+</awards_evidence>
+		</document_text>
+	</document>
+	<document>
+		<document_title>Choreography and Performance in Contemporary Dance with a Fusion of Traditional Japanese Techniques</document_title>
+		<document_text><general_context index="4">
+    <general_context_id>aria-tanaka-004-dance-contemporary</general_context_id>
+    <general_context_content>
+        Choreography and Performance in Contemporary Dance with a Fusion of Traditional Japanese Techniques
+Choreography and Performance in Contemporary Dance with a Fusion of Traditional Japanese Techniques
+Aria Tanaka specializes in choreography and performance in contemporary dance, uniquely blending traditional Japanese dance forms such as Noh and Butoh with cutting-edge contemporary techniques. Her work stands out in the global dance landscape for its innovative approach to storytelling through movement, often exploring themes of cultural identity and transformation. Aria’s portfolio includes high-profile performances, such as choreographing the Asian Games Opening Ceremony and solo showcases at prestigious events like the Venice Biennale. Her distinctive style and contributions to the field have been recognized by major awards and media coverage, including features in "Dance International" and "Japan Dance Review." For more insight into her work, you can explore her detailed portfolio and video highlights on her official website, which showcase her creative process, notable performances, and press coverage that spotlight her unique fusion of tradition and modernity in dance.
+    </general_context_content>
+</general_context>
+		</document_text>
+	</document>
+	<document>
+		<document_title>Sold-Out Performances at Prestigious Venues</document_title>
+		<document_text><commercial_success_evidence index="5">
+    <commercial_success_evidence_id>aria-tanaka-005-performances-prestigious</commercial_success_evidence_id>
+    <commercial_success_evidence_content>
+        Sold-Out Performances at Prestigious Venues
+Sold-Out Performances at Prestigious Venues
+Aria Tanaka's unique blend of traditional Japanese dance and modern techniques has led to sold-out performances at renowned venuesHer lead role in the Tokyo-based Karas company's world tour (2018-2019) likely attracted significant audiences, though specific attendance figures are not provided.
+    </commercial_success_evidence_content>
+</commercial_success_evidence>
+		</document_text>
+	</document>
+	<document>
+		<document_title>Commissions, Fees & Grants</document_title>
+		<document_text><BackendCriteria.HIGH_SALARY_evidence index="6">
+    <BackendCriteria.HIGH_SALARY_evidence_id>aria-tanaka-006-commissions-fees</BackendCriteria.HIGH_SALARY_evidence_id>
+    <BackendCriteria.HIGH_SALARY_evidence_content>
+        Commissions, Fees & Grants
+Commissions, Fees & Grants
+Over the past few years, my annual earnings have ranged between $150,000 to $200,000, significantly above the average for contemporary dancers and choreographers, which typically falls between $50,000 to $80,000 annually.Key factors contributing to my higher compensation include:High-Profile Commissions: As the choreographer for the Asian Games Opening Ceremony in Jakarta (2021), I received a commission of $50,000 for a single event, highlighting the high value placed on my work.Residency Stipends: My artist residency at Tanzhaus NRW in Düsseldorf (2022) included a stipend of €30,000 ($32,000 USD), reflecting the demand for my artistic insights and cultural contributions.Performance Fees: My solo performance at the Venice Biennale Dance sector (2022) brought in a performance fee of €20,000 ($21,000 USD), nearly double the standard rate for solo dancers in similar venues.Grants and Awards: I received the Nureyev Foundation's Young Talent Grant (2019) worth $25,000 and the Kyoto Art Center’s Experimental Performance Grant (2019) valued at $15,000, both recognizing my innovative choreography.
+    </BackendCriteria.HIGH_SALARY_evidence_content>
+</BackendCriteria.HIGH_SALARY_evidence>
+		</document_text>
+	</document>
+	<document>
+		<document_title>Emerging Choreographer Prize at the Yokohama Dance Collection (2018)</document_title>
+		<document_text><awards_evidence index="7">
+    <awards_evidence_id>aria-tanaka-007-emerging-choreographer</awards_evidence_id>
+    <awards_evidence_content>
+        Emerging Choreographer Prize at the Yokohama Dance Collection (2018)
+Emerging Choreographer Prize at the Yokohama Dance Collection (2018)
+prestigious award for up-and-coming choreographers in Japan and Asia
+    </awards_evidence_content>
+</awards_evidence>
+		</document_text>
+	</document>
+</documents>
