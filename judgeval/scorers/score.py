@@ -362,8 +362,8 @@ async def a_eval_examples_helper(
         if scorer.skipped:
             continue
         
-        scorer_data = create_scorer_data(scorer)  # Fetch scorer data from completed metric evaluation
-        process_example.update_metric_data(scorer_data)  # Update process example with the same scorer data
+        scorer_data = create_scorer_data(scorer)  # Fetch scorer data from completed scorer evaluation
+        process_example.update_scorer_data(scorer_data)  # Update process example with the same scorer data
           
     test_end_time = time.perf_counter()
     run_duration = test_end_time - scoring_start_time

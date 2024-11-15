@@ -55,7 +55,7 @@ class ScoringResult:
 
 
 def generate_scoring_result(
-    api_test_case: processExample,
+    process_example: ProcessExample,
 ) -> ScoringResult:
     """
     Creates a final ScoringResult object for an evaluation run based on the results from a completed LLMApiTestCase.
@@ -64,11 +64,11 @@ def generate_scoring_result(
     At the end of the evaluation run, we create a TestResult object out of the completed LLMApiTestCase.
     """
     return ScoringResult(
-        success=api_test_case.success,
-        scorer_data=api_test_case.metrics_data,
-        input=api_test_case.input,
-        actual_output=api_test_case.actual_output,
-        expected_output=api_test_case.expected_output,
-        context=api_test_case.context,
-        retrieval_context=api_test_case.retrieval_context,
+        success=process_example.success,
+        scorer_data=process_example.scorers_data,
+        input=process_example.input,
+        actual_output=process_example.actual_output,
+        expected_output=process_example.expected_output,
+        context=process_example.context,
+        retrieval_context=process_example.retrieval_context,
     )

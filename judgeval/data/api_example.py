@@ -5,9 +5,9 @@ from judgeval.data.example import Example
 from judgeval.data.scorer_data import ScorerData
 
 
-class processExample(BaseModel):
+class ProcessExample(BaseModel):
     """
-    processExample is an `Example` object that contains intermediate information 
+    ProcessExample is an `Example` object that contains intermediate information 
     about an undergoing evaluation on the original `Example`. It is used purely for
     internal operations and keeping track of the evaluation process.
     """
@@ -75,9 +75,9 @@ class processExample(BaseModel):
 
 def create_process_example(
     example: Example,
-) -> processExample:
+) -> ProcessExample:
     """
-    When an LLM Test Case is executed, we track its progress using an LLMAPITestCase.
+    When an LLM Test Case is executed, we track its progress using an ProcessExample.
 
     This will track things like the success of the test case, as well as the metadata (such as verdicts and claims in Faithfulness).
     """
@@ -85,14 +85,12 @@ def create_process_example(
     if example.name is not None:
         name = example.name
     else:
-        # raise ValueError(f"Test case name must be provided. Name: {test_case.name}")
         name = "Test Case Placeholder"
-    # order = test_case._dataset_rank
     order = None
-    metrics_data = []
+    scorers_data = []
 
 
-    api_test_case = processExample(
+    process_ex = ProcessExample(
         name=name,
         input=example.input,
         actualOutput=example.actual_output,
