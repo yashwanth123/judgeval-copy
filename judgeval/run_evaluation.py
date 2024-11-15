@@ -68,13 +68,13 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
             raise ValueError("The API and local results are not aligned.")
         
         # Merge ScorerData
-        api_metric_data = api_result.metrics_data
-        local_metric_data = local_result.metrics_data
-        if api_metric_data is None and local_metric_data is not None:
-            api_result.metrics_data = local_metric_data
+        api_scorer_data = api_result.scorer_data
+        local_scorer_data = local_result.scorer_data
+        if api_scorer_data is None and local_scorer_data is not None:
+            api_result.scorer_data = local_scorer_data
 
-        if api_metric_data is not None and local_metric_data is not None:
-            api_result.metrics_data = api_metric_data + local_metric_data
+        if api_scorer_data is not None and local_scorer_data is not None:
+            api_result.scorer_data = api_scorer_data + local_scorer_data
     
     return api_results
 
