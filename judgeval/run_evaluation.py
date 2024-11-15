@@ -1,24 +1,34 @@
+import asyncio
 import requests
-import litellm
-from typing import List, Optional, Dict, Any, Union
-from pydantic import BaseModel, field_validator
-import os
+from typing import List, Dict
+
 from judgeval.data import Example
 from judgeval.scorers import CustomScorer, JudgmentScorer
-from judgeval.scorers.score import *
-from judgeval.constants import *
+from judgeval.scorers.score import (
+    ScoringResult,
+    a_execute_scoring,
+)
+from judgeval.constants import (
+    JUDGMENT_EVAL_API_URL,
+    JudgmentMetric,
+)
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
-from judgeval.judges import TogetherJudge
 from judgeval.judges.mixture_of_judges import MixtureOfJudges
-
 from judgeval.evaluation_run import EvaluationRun
 
 
 
-def execute_api_eval(evaluation_run: EvaluationRun) -> Any:  # TODO add return type
+def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
     """
-    Executes an evaluation of a list of `Example`s using one or more `JudgmentScorer`s via the Judgment API
+    Executes an evaluation of a list of `Example`s using one or more `JudgmentScorer`s via the Judgment API.
+
+    Args:
+        evaluation_run (EvaluationRun): The evaluation run object containing the examples, scorers, and metadata
+
+    Returns:
+        List[Dict]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult`
+                    object. 
     """
 
     try:
@@ -39,22 +49,28 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> Any:  # TODO add return t
 
 def merge_results(api_results: List[ScoringResult], local_results: List[ScoringResult]) -> List[ScoringResult]:
     """
-    Merges the results from the API and local evaluations
+    When executing scorers that come from both the Judgment API and custom scorers, we're left with
+    results for each type of scorer. This function merges the results from the API and local evaluations,
+    grouped by example. In particular, we merge the `scorers_data` field of each `ScoringResult` object.
 
     Args:
-        api_results (List[ScoringResult]): The results from the API evaluation
-        local_results (List[ScoringResult]): The results from the local evaluation
+        api_results (List[ScoringResult]): The `ScoringResult`s from the API evaluation
+        local_results (List[ScoringResult]): The `ScoringResult`s from the local evaluation
+
+    Returns:
+        List[ScoringResult]: The merged `ScoringResult`s (updated `scorers_data` field)
     """
+    # No merge required
     if not local_results and api_results:
         return api_results
     if not api_results and local_results:
         return local_results
 
-    # Merge ScorerData fields
     if len(api_results) != len(local_results):
-        raise ValueError("The number of API and local results do not match.")
+        # Results should be of same length because each ScoringResult is a 1-1 mapping to an Example
+        raise ValueError(f"The number of API and local results do not match: {len(api_results)} vs {len(local_results)}")
     
-    # we expect that each ScoringResult in api and local have all the same fields besides metrics_data
+    # Each ScoringResult in api and local have all the same fields besides `scorers_data`
     for api_result, local_result in zip(api_results, local_results):
         if api_result.input != local_result.input:
             raise ValueError("The API and local results are not aligned.")
@@ -82,9 +98,23 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
 def run_eval(evaluation_run: EvaluationRun):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
+
+    Args:
+        evaluation_run (EvaluationRun): Stores example and evaluation together for running
+    
+        Args: 
+            examples (List[Example]): The examples to evaluate
+            scorers (List[Union[JudgmentScorer, CustomScorer]]): A list of scorers to use for evaluation
+            model (str): The model used as a judge when using LLM as a Judge
+            aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
+            metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
+            judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
+
+    Returns:
+        List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
     """
     
-    # Group JudgmentScorers and CustomScorers and evaluate them in async parallel
+    # Group JudgmentScorers and CustomScorers, then evaluate them in parallel
     judgment_scorers: List[JudgmentScorer] = []
     custom_scorers: List[CustomScorer] = []
     for scorer in evaluation_run.scorers:
@@ -93,7 +123,8 @@ def run_eval(evaluation_run: EvaluationRun):
         else:
             custom_scorers.append(scorer)
     
-    api_results, local_results = [], []
+    api_results: List[ScoringResult] = []
+    local_results: List[ScoringResult] = []
     # Execute evaluation using Judgment API
     if judgment_scorers:
         api_evaluation_run: EvaluationRun = EvaluationRun(
@@ -104,7 +135,8 @@ def run_eval(evaluation_run: EvaluationRun):
             metadata=evaluation_run.metadata,
             judgment_api_key=evaluation_run.judgment_api_key,
         )
-        response_data = execute_api_eval(api_evaluation_run)  # List[Dict] of converted ScoringResults
+        response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
+        # Convert the response data to `ScoringResult` objects
         for result in response_data["results"]:  
             # filter for key-value pairs that are used to initialize ScoringResult
             # there may be some stuff in here that doesn't belong in ScoringResult
@@ -134,12 +166,13 @@ def run_eval(evaluation_run: EvaluationRun):
     #   result["judgment_api_key"] = evaluation_run.judgment_api_key
     # requests.post(JUDGMENT_EVAL_API_URL + "/log/eval", json=results.model_dump())
 
-    # Aggregate the ScorerData
+    # Aggregate the ScorerData from the API and local evaluations
     merged_results = merge_results(api_results, local_results)
     return merged_results
 
 
 if __name__ == "__main__":
+    # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
     example1 = Example(
         input="What if these shoes don't fit?",

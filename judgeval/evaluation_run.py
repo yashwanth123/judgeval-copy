@@ -23,14 +23,13 @@ class EvaluationRun(BaseModel):
         model (str): The model used as a judge when using LLM as a Judge
         aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
         metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
+        judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
     """
     examples: List[Example]
     scorers: List[Union[JudgmentScorer, CustomScorer]]
     model: Union[str, List[str]]
     aggregator: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
-    
-    # Testing
     judgment_api_key: Optional[str] = ""
     
     @field_validator('examples')
