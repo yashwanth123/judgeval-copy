@@ -1,21 +1,14 @@
-import requests
-import pprint
 from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, field_validator
 
 from judgeval.data import Example
 from judgeval.scorers import CustomScorer, JudgmentScorer
-from judgeval.scorers.score import *
 from judgeval.constants import ACCEPTABLE_MODELS
-from judgeval.common.exceptions import JudgmentAPIError
-from judgeval.playground import CustomFaithfulnessMetric
-from judgeval.judges import TogetherJudge
-import litellm
 
 
 class EvaluationRun(BaseModel):
     """
-    Stores example and evaluation together for running
+    Stores example and evaluation scorers together for running an eval task
     
     Args: 
         examples (List[Example]): The examples to evaluate
