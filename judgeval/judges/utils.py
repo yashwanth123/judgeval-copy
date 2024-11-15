@@ -1,13 +1,13 @@
 """
 This module contains utility functions for judge models.
 """
-
+import litellm
 from typing import Optional, Union, Tuple
 
 from judgeval.judges import judgevalJudge, LiteLLMJudge, TogetherJudge
 from judgeval.constants import TOGETHER_SUPPORTED_MODELS
-from judgeval.litellm_model_names import LITE_LLM_MODEL_NAMES as LITELLM_SUPPORTED_MODELS
 
+LITELLM_SUPPORTED_MODELS = set(litellm.model_list)
 
 def create_judge(
     model: Optional[Union[str, judgevalJudge, LiteLLMJudge, TogetherJudge]] = None,

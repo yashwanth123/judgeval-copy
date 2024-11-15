@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 from judgeval.data.example import Example
-from judgeval.data.metric_data import ScorerData
+from judgeval.data.scorer_data import ScorerData
 
 
 class processExample(BaseModel):
@@ -56,16 +56,6 @@ class processExample(BaseModel):
         else:
             if metric_data.success is False:
                 self.success = False
-
-        # Track evaluation costs
-        evaluationCost = metric_data.evaluation_cost
-        if evaluationCost is None:
-            return
-
-        if self.evaluation_cost is None:
-            self.evaluation_cost = evaluationCost
-        else:
-            self.evaluation_cost += evaluationCost
 
     def update_run_duration(self, run_duration: float):
         self.run_duration = run_duration
