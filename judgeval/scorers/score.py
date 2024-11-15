@@ -113,7 +113,7 @@ async def score_task(
             else:
                 if ignore_errors:
                     scorer.error = str(e)
-                    scorer.success = False  # Override metric success
+                    scorer.success = False  # Override success
                     finish_text = "Failed"
                 else:
                     raise
@@ -128,14 +128,14 @@ async def score_task(
                 else:
                     if ignore_errors:
                         scorer.error = str(e)
-                        scorer.success = False  # Override metric success
+                        scorer.success = False  # Override success
                         finish_text = "Failed"
                     else:
                         raise
         except Exception as e:
             if ignore_errors:
                 scorer.error = str(e)
-                scorer.success = False  # Override metric success
+                scorer.success = False  # Override success
                 finish_text = "Failed"
             else:
                 raise
@@ -244,8 +244,8 @@ async def a_execute_scoring(
             return await func(*args, **kwargs)
 
     if verbose_mode is not None:
-        for metric in scorers:
-            metric.verbose_mode = verbose_mode
+        for scorer in scorers:
+            scorer.verbose_mode = verbose_mode
 
     scoring_results: List[ScoringResult] = [None for _ in examples]
     tasks = []
@@ -342,7 +342,7 @@ async def a_eval_examples_helper(
 
     for scorer in scorers:
         scorer.skipped = False
-        scorer.error = None  # Reset metric error
+        scorer.error = None  # Reset scorer error
 
     # scoring the Example
     process_example = create_process_example(example)  # Creates process example to track progress

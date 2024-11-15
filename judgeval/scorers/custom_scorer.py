@@ -18,20 +18,20 @@ class CustomScorer:
     where none of Judgment's scorers are suitable.
     """
     score_type: str  # name of your new scorer
-    threshold: float  # The threshold to pass a test while using this metric as a scorer
-    score: Optional[float] = None  # The float score of the metric run on the test case
+    threshold: float  # The threshold to pass a test while using this scorer as a scorer
+    score: Optional[float] = None  # The float score of the scorer run on the test case
     score_breakdown: Dict = None
     reason: Optional[str] = None  # The reason for the score when evaluating the test case
     success: Optional[bool] = None  # Whether the test case passed or failed
     evaluation_model: Optional[str] = None  # The model used to evaluate the test case
-    strict_mode: bool = False  # Whether to run the metric in strict mode
-    async_mode: bool = True  # Whether to run the metric in async mode
-    verbose_mode: bool = True  # Whether to run the metric in verbose mode
+    strict_mode: bool = False  # Whether to run the scorer in strict mode
+    async_mode: bool = True  # Whether to run the scorer in async mode
+    verbose_mode: bool = True  # Whether to run the scorer in verbose mode
     include_reason: bool = False  # Whether to include the reason in the output
-    error: Optional[str] = None  # The error message if the metric failed
-    evaluation_cost: Optional[float] = None  # The cost of running the metric
-    verbose_logs: Optional[str] = None  # The verbose logs of the metric
-    additional_metadata: Optional[Dict] = None  # Additional metadata for the metric
+    error: Optional[str] = None  # The error message if the scorer failed
+    evaluation_cost: Optional[float] = None  # The cost of running the scorer
+    verbose_logs: Optional[str] = None  # The verbose logs of the scorer
+    additional_metadata: Optional[Dict] = None  # Additional metadata for the scorer
 
     def __init__(
         self, 

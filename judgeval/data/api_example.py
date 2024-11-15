@@ -22,8 +22,8 @@ class ProcessExample(BaseModel):
 
     # make these optional, not all test cases in a conversation will be evaluated
     success: Union[bool, None] = Field(None)
-    metrics_data: Union[List[ScorerData], None] = Field(
-        None, alias="metricsData"
+    scorers_data: Union[List[ScorerData], None] = Field(
+        None, alias="scorersData"
     )
     run_duration: Union[float, None] = Field(None, alias="runDuration")
     evaluation_cost: Union[float, None] = Field(None, alias="evaluationCost")
@@ -37,24 +37,24 @@ class ProcessExample(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def update_metric_data(self, metric_data: ScorerData):
+    def update_scorer_data(self, scorer_data: ScorerData):
         """
-        Updates metric data field of test case after the metrics have been
+        Updates scorer data field of test case after the scorers have been
         evaluated on this test case.
         """
-        # self.metrics_data is a list of MetricData objects that contain the 
-        # evaluation results of each metric on this test case
-        if self.metrics_data is None:
-            self.metrics_data = [metric_data]
+        # self.scorers_data is a list of ScorerData objects that contain the 
+        # evaluation results of each scorer on this test case
+        if self.scorers_data is None:
+            self.scorers_data = [scorer_data]
         else:
-            self.metrics_data.append(metric_data)
+            self.scorers_data.append(scorer_data)
 
         if self.success is None:
             # self.success will be None when it is a message
             # in that case we will be setting success for the first time
-            self.success = metric_data.success
+            self.success = scorer_data.success
         else:
-            if metric_data.success is False:
+            if scorer_data.success is False:
                 self.success = False
 
     def update_run_duration(self, run_duration: float):
@@ -100,11 +100,11 @@ def create_process_example(
         toolsCalled=example.tools_called,
         expectedTools=example.expected_tools,
         success=success,
-        metricsData=metrics_data,
+        scorersData=scorers_data,
         runDuration=None,
         evaluationCost=None,
         order=order,
         additionalMetadata=example.additional_metadata,
     )
-    return api_test_case
+    return process_ex
 
