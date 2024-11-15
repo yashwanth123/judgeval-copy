@@ -26,7 +26,8 @@ class CustomModelParameters(pydantic.BaseModel):
     model_name: str
     secret_key: str
     litellm_base_url: str
-    
+
+os.environ['LITELLM_LOG'] = 'DEBUG'
 
 load_dotenv()
 

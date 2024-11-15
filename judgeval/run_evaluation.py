@@ -10,6 +10,7 @@ from judgeval.constants import *
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge
+from judgeval.judges.mixture_of_judges import MixtureOfJudges
 
 from judgeval.evaluation_run import EvaluationRun
 
@@ -160,7 +161,9 @@ if __name__ == "__main__":
 
     scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
     scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
-    model = TogetherJudge()
+    # model = TogetherJudge()
+
+    model = MixtureOfJudges()
     c_scorer = CustomFaithfulnessMetric(
         threshold=0.6,
         model=model,
@@ -174,4 +177,6 @@ if __name__ == "__main__":
         aggregator='QWEN'
     )
 
-    run_eval(eval_data)
+    results = run_eval(eval_data)
+
+    print(f"Results: {results}")
