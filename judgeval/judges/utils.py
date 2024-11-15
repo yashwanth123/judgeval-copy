@@ -21,7 +21,7 @@ def create_judge(
     if model is None:  # default option
         return LiteLLMJudge(model="gpt-4o"), True
     # If model is already a valid judge type, return it and mark native
-    if any(isinstance(model, judge_type) for judge_type in [judgevalJudge, LiteLLMJudge, TogetherJudge]):
+    if any(isinstance(model, judge_type) for judge_type in [judgevalJudge, LiteLLMJudge, TogetherJudge, MixtureOfJudges]):
         return model, True 
     # If model is a string, check that it corresponds to a valid model
     if model in LITELLM_SUPPORTED_MODELS:
