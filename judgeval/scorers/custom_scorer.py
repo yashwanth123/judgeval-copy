@@ -17,7 +17,7 @@ class CustomScorer:
     you can create a custom scorer by extending this class. This is best used for special use cases
     where none of Judgment's scorers are suitable.
     """
-    score_type: str
+    score_type: str  # name of your new scorer
     threshold: float  # The threshold to pass a test while using this metric as a scorer
     score: Optional[float] = None  # The float score of the metric run on the test case
     score_breakdown: Dict = None
@@ -33,10 +33,40 @@ class CustomScorer:
     verbose_logs: Optional[str] = None  # The verbose logs of the metric
     additional_metadata: Optional[Dict] = None  # Additional metadata for the metric
 
-    def __init__(self, score_type: str, threshold: float):
-        super().__init__()
-        self.score_type = score_type
-        self.threshold = threshold
+    def __init__(
+        self, 
+        score_type: str, 
+        threshold: float, 
+        score: Optional[float] = None, 
+        score_breakdown: Optional[Dict] = None, 
+        reason: Optional[str] = None, 
+        success: Optional[bool] = None, 
+        evaluation_model: Optional[str] = None, 
+        strict_mode: bool = False, 
+        async_mode: bool = True, 
+        verbose_mode: bool = True, 
+        include_reason: bool = False, 
+        error: Optional[str] = None, 
+        evaluation_cost: Optional[float] = None, 
+        verbose_logs: Optional[str] = None, 
+        additional_metadata: Optional[Dict] = None
+        ):
+            self.score_type = score_type
+            self.threshold = threshold
+            self.score = score
+            self.score_breakdown = score_breakdown
+            self.reason = reason
+            self.success = success
+            self.evaluation_model = evaluation_model
+            self.strict_mode = strict_mode
+            self.async_mode = async_mode
+            self.verbose_mode = verbose_mode
+            self.include_reason = include_reason
+            self.error = error
+            self.evaluation_cost = evaluation_cost
+            self.verbose_logs = verbose_logs
+            self.additional_metadata = additional_metadata
+
 
     @abstractmethod
     def score_example(self, example: Example, *args, **kwargs) -> float:
@@ -78,4 +108,3 @@ class CustomScorer:
             "additional_metadata": self.additional_metadata,
         }
         return f"CustomScorer({attributes})"
-
