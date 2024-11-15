@@ -18,18 +18,17 @@ class ScoringResult:
         context (Optional[List[str]]): The context of the example
         retrieval_context (Optional[List[str]]): The retrieval context of the example
     """
-    ### Fields for scoring outputs ### 
+    # Fields for scoring outputs 
     success: bool  # used for unit testing
     scorer_data: Union[List[ScorerData], None]
 
-    ### Inputs from the original example ### 
+    # Inputs from the original example
     input: Optional[str] = None
     actual_output: Optional[str] = None
     expected_output: Optional[str] = None
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
     
-    # For logging to Judgment backend server
     judgment_api_key: Optional[str] = ""
 
     def to_dict(self) -> dict:
