@@ -14,7 +14,7 @@ from judgeval.constants import (
 )
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
-from judgeval.judges.mixture_of_judges import MixtureOfJudges
+from judgeval.judges import TogetherJudge, MixtureOfJudges
 from judgeval.evaluation_run import EvaluationRun
 
 

@@ -28,7 +28,8 @@ async def safe_a_score_example(
     skip_on_missing_params: bool,
 ):
     """
-    Scores an `Example` using a `CustomScorer` and handles any exceptions that may occur.
+    Scoring task function when not using a progress indicator!
+    "Safely" scores an `Example` using a `CustomScorer` by gracefully handling any exceptions that may occur.
 
     Args:
         scorer (CustomScorer): The `CustomScorer` to use for scoring the example.
@@ -101,20 +102,25 @@ async def score_task(
     """
     while not progress.finished:
         start_time = time.perf_counter()
-        metric_data = None
-
-        if metric_data:
-            ## only change metric state, not configs
-            scorer.score = metric_data.score
-            scorer.success = metric_data.success
-            scorer.reason = metric_data.reason
-            scorer.evaluation_cost = metric_data.evaluation_cost
-            scorer.verbose_logs = metric_data.verbose_logs
-            finish_text = "Read from Cache"
-        else:
+        
+        try:
+            await scorer.a_score_example(example, _show_indicator=False)
+            finish_text = "Completed"
+        except MissingTestCaseParamsError as e:
+            if skip_on_missing_params:
+                scorer.skipped = True
+                return
+            else:
+                if ignore_errors:
+                    scorer.error = str(e)
+                    scorer.success = False  # Override metric success
+                    finish_text = "Failed"
+                else:
+                    raise
+        except TypeError:
             try:
-                await scorer.a_score_example(example, _show_indicator=False)
-                finish_text = "Done"
+                await scorer.a_score_example(example)
+                finish_text = "Completed"
             except MissingTestCaseParamsError as e:
                 if skip_on_missing_params:
                     scorer.skipped = True
@@ -126,28 +132,13 @@ async def score_task(
                         finish_text = "Failed"
                     else:
                         raise
-            except TypeError:
-                try:
-                    await scorer.a_score_example(example)
-                    finish_text = "Done"
-                except MissingTestCaseParamsError as e:
-                    if skip_on_missing_params:
-                        scorer.skipped = True
-                        return
-                    else:
-                        if ignore_errors:
-                            scorer.error = str(e)
-                            scorer.success = False  # Override metric success
-                            finish_text = "Failed"
-                        else:
-                            raise
-            except Exception as e:
-                if ignore_errors:
-                    scorer.error = str(e)
-                    scorer.success = False  # Override metric success
-                    finish_text = "Failed"
-                else:
-                    raise
+        except Exception as e:
+            if ignore_errors:
+                scorer.error = str(e)
+                scorer.success = False  # Override metric success
+                finish_text = "Failed"
+            else:
+                raise
 
         end_time = time.perf_counter()
         time_taken = format(end_time - start_time, ".2f")
@@ -208,25 +199,12 @@ async def score_with_indicator(
                 )
             await asyncio.gather(*tasks)
     else:
-        tasks = []
-        for scorer in scorers:
-            metric_data = None
-
-            if metric_data:
-                scorer.score = metric_data.score
-                scorer.threshold = metric_data.threshold
-                scorer.success = metric_data.success
-                scorer.reason = metric_data.reason
-                scorer.strict_mode = metric_data.strict_mode
-                scorer.evaluation_model = metric_data.evaluation_model
-                scorer.evaluation_cost = metric_data.evaluation_cost
-                scorer.verbose_logs = metric_data.verbose_logs
-            else:
-                tasks.append(
-                    safe_a_score_example(
-                        scorer, example, ignore_errors, skip_on_missing_params
-                    )
-                )
+        tasks = [
+            safe_a_score_example(
+                scorer, example, ignore_errors, skip_on_missing_params
+            )
+            for scorer in scorers
+        ]
 
         await asyncio.gather(*tasks)
 
@@ -269,7 +247,6 @@ async def a_execute_scoring(
         for metric in scorers:
             metric.verbose_mode = verbose_mode
 
-    examples_counter = -1
     scoring_results: List[ScoringResult] = [None for _ in examples]
     tasks = []
 
@@ -287,7 +264,6 @@ async def a_execute_scoring(
                             pbar.update(1)
                             continue
 
-                        examples_counter += 1
                         cloned_scorers: List[CustomScorer] = clone_scorers(
                             scorers
                         )
@@ -297,7 +273,6 @@ async def a_execute_scoring(
                             example=ex,
                             scoring_results=scoring_results,
                             score_index=i,
-                            count=examples_counter,
                             ignore_errors=ignore_errors,
                             skip_on_missing_params=skip_on_missing_params,
                             show_indicator=show_indicator,
@@ -314,7 +289,6 @@ async def a_execute_scoring(
                 if isinstance(ex, Example):
                     if len(scorers) == 0:
                         continue
-                    examples_counter += 1
 
                     cloned_scorers: List[CustomScorer] = clone_scorers(
                         scorers
@@ -325,7 +299,6 @@ async def a_execute_scoring(
                         example=ex,
                         scoring_results=scoring_results,
                         score_index=i,
-                        count=examples_counter,
                         ignore_errors=ignore_errors,
                         skip_on_missing_params=skip_on_missing_params,
                         _use_bar_indicator=_use_bar_indicator,
@@ -343,7 +316,6 @@ async def a_eval_examples_helper(
     example: Example,
     scoring_results: List[ScoringResult],
     score_index: int,
-    count: int,
     ignore_errors: bool,
     skip_on_missing_params: bool,
     show_indicator: bool,
@@ -358,7 +330,6 @@ async def a_eval_examples_helper(
         example (Example): The example to be evaluated.
         scoring_results (List[TestResult]): List to store the scoring results.
         score_index (int): Index at which the result should be stored in scoring_results.
-        count (int): Counter to track the number of examples processed.
         ignore_errors (bool): Flag to indicate whether to ignore errors during scoring.
         skip_on_missing_params (bool): Flag to indicate whether to skip scoring if parameters are missing.
         show_indicator (bool): Flag to indicate whether to show a progress indicator.
@@ -373,9 +344,9 @@ async def a_eval_examples_helper(
         scorer.skipped = False
         scorer.error = None  # Reset metric error
 
-    ##### Metric Calculation #####
-    api_test_case = create_process_example(example)  # Creates API Test Case to track the progress/success
-    test_start_time = time.perf_counter()
+    # scoring the Example
+    process_example = create_process_example(example)  # Creates process example to track progress
+    scoring_start_time = time.perf_counter()
     await score_with_indicator(
         scorers=scorers,
         example=example,
@@ -385,22 +356,20 @@ async def a_eval_examples_helper(
     )  # execute the scoring functions of each scorer on the example
 
     # Now that all the scoring functions of each scorer have executed, we collect 
-    # the results and update the API example with the metric data
+    # the results and update the process example with the scorer data
     for scorer in scorers:
         # At this point, the scorer has been executed and already contains data.
         if scorer.skipped:
             continue
         
-        metric_data = create_scorer_data(scorer)  # Fetch metric data from completed metric evaluation
-        api_test_case.update_metric_data(metric_data)  # Update API Test Case with the same metric data, including cost
+        scorer_data = create_scorer_data(scorer)  # Fetch scorer data from completed metric evaluation
+        process_example.update_metric_data(scorer_data)  # Update process example with the same scorer data
           
     test_end_time = time.perf_counter()
-    run_duration = test_end_time - test_start_time
-    # Quick hack to check if all metrics were from cache
-    if run_duration < 1:
-        run_duration = 0
-    api_test_case.update_run_duration(run_duration)   # Update API Test Case with execution time duration
-    scoring_results[score_index] = generate_scoring_result(api_test_case)  # Converts the outcomes of the executed test to a TestResult and saves it
+    run_duration = test_end_time - scoring_start_time
+    
+    process_example.update_run_duration(run_duration)   # Update process example with execution time duration
+    scoring_results[score_index] = generate_scoring_result(process_example)  # Converts the outcomes of the executed test to a TestResult and saves it
 
     if pbar is not None:
         pbar.update(1)
