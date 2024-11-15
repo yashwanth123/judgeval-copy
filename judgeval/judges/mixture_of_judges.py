@@ -125,18 +125,37 @@ class MixtureOfJudges(judgevalJudge):
                  models: List[str] = ['QWEN', 'LLAMA3_70B_INSTRUCT_TURBO', 'MISTRAL_8x22B_INSTRUCT'],
                  aggregator: str = 'gpt-4o', 
                  **kwargs):
+        """
+        `models` are the individual judge models to be used for generating responses.
+        `aggregator` is the model that will aggregate the responses from the individual judges.
+
+        kwargs include "custom_prompt" and "custom_conversation" for customizing the prompt for the Mixture of Judges model.
+        """
         self.models = models
         self.aggregator = aggregator
         self.kwargs = kwargs
         super().__init__(model_name=models)
 
-    def generate(self, input: Union[str, List[Mapping[str, str]]], schema: pydantic.BaseModel = None, **kwargs) -> str:
+    def generate(
+            self, 
+            input: Union[str, List[Mapping[str, str]]], 
+            response_schema: pydantic.BaseModel = None, 
+            aggregation_schema: pydantic.BaseModel = None,
+            **kwargs) -> str:
+        """
+        Args:
+            input (Union[str, List[Mapping[str, str]]]): Input query or conversation history to the model.
+            response_schema (pydantic.BaseModel): Response schema for individual judge models.
+            aggregation_schema (pydantic.BaseModel): Response schema for the aggregator model.
+            kwargs: Additional keyword arguments.
+        """
         if type(input) == str:  # completion endpoints need a list of dictionaries as input
             input = BASE_CONVERSATION + [{"role": "user", "content": input}]
         try:
             responses = get_completion_multiple_models(
                 models=self.models,
                 messages=[input] * len(self.models),  # repeat the same input for all judges since we query them in parallel
+                response_formats=[response_schema] * len(self.models)
             )
         except Exception:
             raise
@@ -147,13 +166,27 @@ class MixtureOfJudges(judgevalJudge):
             mixed_response = get_chat_completion(
                 model_type=self.aggregator,
                 messages=BASE_CONVERSATION + [{"role": "user", "content": compiled_mixture_prompt}],
+                response_format=aggregation_schema,
             )
         except Exception:
             raise
             
         return mixed_response, 0
 
-    async def a_generate(self, input: Union[str, List[Mapping[str, str]]], schema: pydantic.BaseModel = None, **kwargs) -> str:
+    async def a_generate(
+            self, 
+            input: Union[str, List[Mapping[str, str]]], 
+            response_schema: pydantic.BaseModel = None,
+            aggregation_schema: pydantic.BaseModel = None,
+            **kwargs
+        ) -> str:
+        """
+        Args:
+            input (Union[str, List[Mapping[str, str]]]): Input query or conversation history to the model.
+            response_schema (pydantic.BaseModel): Response schema for individual judge models.
+            aggregation_schema (pydantic.BaseModel): Response schema for the aggregator model.
+            kwargs: Additional keyword arguments.
+        """
         if type(input) == str:  # completion endpoints need a list of dictionaries as input
             input = BASE_CONVERSATION + [{"role": "user", "content": input}]
         
@@ -161,6 +194,7 @@ class MixtureOfJudges(judgevalJudge):
             responses = await aget_completion_multiple_models(
                 models=self.models,
                 messages=[input] * len(self.models),  # repeat the same input for all judges since we query them in parallel
+                response_formats=[response_schema] * len(self.models),
             )
         except Exception:
             raise
@@ -171,6 +205,7 @@ class MixtureOfJudges(judgevalJudge):
             mixed_response = await aget_chat_completion(
                 model_type=self.aggregator,
                 messages=compiled_mixture_prompt,
+                response_format=aggregation_schema,
             )
         except Exception:
             raise
