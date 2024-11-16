@@ -50,15 +50,15 @@ def test_run_eval():
 
     eval_data = EvaluationRun(
         examples=[example1, example2],
-        scorers=[scorer, c_scorer],
+        scorers=[scorer2],
         metadata={"batch": "test"},
         model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
         aggregator='QWEN'
     )
 
-    results = client.run_eval(eval_data)
+    results = client.run_eval(eval_data, log_results=True)
 
     print(results)
 
 if __name__ == "__main__":
-    test_dataset()
+    test_run_eval()

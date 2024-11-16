@@ -29,9 +29,10 @@ class EvaluationRun(BaseModel):
     model: Union[str, List[str]]
     aggregator: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
-    
-    # Testing
+    # API Key will be "" until user calls client.run_eval(), then API Key will be set
     judgment_api_key: Optional[str] = ""
+    # The user will specify whether they want log_results when they call run_eval
+    log_results: bool = False
     
     @field_validator('examples')
     def validate_examples(cls, v):

@@ -23,6 +23,7 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> Any:  # TODO add return t
 
     try:
         # submit API request to execute evals
+        print(f"Executing API eval with payload: {evaluation_run.model_dump()}")
         response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump())
         response_data = response.json()
         
@@ -79,7 +80,7 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
     return api_results
 
 
-def run_eval(evaluation_run: EvaluationRun):
+def run_eval(evaluation_run: EvaluationRun, log_results: bool = False):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
     """
@@ -103,6 +104,7 @@ def run_eval(evaluation_run: EvaluationRun):
             aggregator=evaluation_run.aggregator,
             metadata=evaluation_run.metadata,
             judgment_api_key=evaluation_run.judgment_api_key,
+            log_results=log_results
         )
         response_data = execute_api_eval(api_evaluation_run)  # List[Dict] of converted ScoringResults
         for result in response_data["results"]:  

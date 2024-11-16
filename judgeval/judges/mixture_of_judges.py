@@ -96,7 +96,7 @@ def build_dynamic_mixture_prompt(judge_responses: List[str], custom_system_promp
             'content': f'## Start of Judge Responses ##\n{formatted_responses}\n## End of Judge Responses ##\nSynthesized response:\n'
         }
         return custom_conversation_history + [judge_responses_prompt]
-    print(default_conversation)
+    # print(default_conversation)
     # Otherwise return the default conversation with system prompt and examples
     return default_conversation
 

@@ -16,10 +16,10 @@ class JudgmentClient:
         else:
             print(f"Successfully initialized JudgmentClient, welcome back {response['user_name']}!")
 
-    def run_eval(self, evaluation_run: EvaluationRun):
+    def run_eval(self, evaluation_run: EvaluationRun, log_results: bool = False):
         evaluation_run.judgment_api_key = self.judgment_api_key
             
-        return run_eval(evaluation_run)
+        return run_eval(evaluation_run, log_results=log_results)
     
     def create_dataset(self) -> EvalDataset:
         return EvalDataset(judgment_api_key=self.judgment_api_key)
