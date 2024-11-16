@@ -28,9 +28,6 @@ class ScoringResult:
     expected_output: Optional[str] = None
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
-    
-    # For logging to Judgment backend server
-    judgment_api_key: Optional[str] = ""
 
     def to_dict(self) -> dict:
         """Convert the ScoringResult instance to a dictionary, properly serializing metrics_data."""

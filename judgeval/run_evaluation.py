@@ -23,7 +23,6 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> Any:  # TODO add return t
 
     try:
         # submit API request to execute evals
-        print(f"Executing API eval with payload: {evaluation_run.model_dump()}")
         response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump())
         response_data = response.json()
         
@@ -80,7 +79,7 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
     return api_results
 
 
-def run_eval(evaluation_run: EvaluationRun, log_results: bool = False):
+def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = False):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
     """
@@ -98,6 +97,7 @@ def run_eval(evaluation_run: EvaluationRun, log_results: bool = False):
     # Execute evaluation using Judgment API
     if judgment_scorers:
         api_evaluation_run: EvaluationRun = EvaluationRun(
+            name=name,
             examples=evaluation_run.examples,
             scorers=judgment_scorers,
             model=evaluation_run.model,
@@ -107,7 +107,7 @@ def run_eval(evaluation_run: EvaluationRun, log_results: bool = False):
             log_results=log_results
         )
         response_data = execute_api_eval(api_evaluation_run)  # List[Dict] of converted ScoringResults
-        for result in response_data["results"]:  
+        for result in response_data["results"]:
             # filter for key-value pairs that are used to initialize ScoringResult
             # there may be some stuff in here that doesn't belong in ScoringResult
             # TODO: come back and refactor this to have ScoringResult take in **kwargs
@@ -129,6 +129,19 @@ def run_eval(evaluation_run: EvaluationRun, log_results: bool = False):
             )
         )
         local_results = results
+        
+        # Add logging support for custom scorers
+        if log_results:
+            try:
+                res = requests.post(JUDGMENT_EVAL_LOG_API_URL, json={"results": [result.to_dict() for result in results], "judgment_api_key": evaluation_run.judgment_api_key})
+                if not res.ok:
+                    response_data = res.json()
+                    error_message = response_data.get('message', 'An unknown error occurred.')
+                    raise Exception(f"Error {res.status_code}: {error_message}")
+            except requests.exceptions.RequestException as e:
+                raise JudgmentAPIError(f"An internal error occurred while executing the Judgment API request: {str(e)}")
+            except Exception as e:
+                raise ValueError(f"An error occurred while executing the Judgment API request: {str(e)}")
         
     # TODO: Once we add logging (pushing eval results to Judgment backend server), we can charge for # of logs
     # Pass in the API key to these log requests.
