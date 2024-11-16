@@ -50,7 +50,7 @@ def test_run_eval():
 
     eval_data = EvaluationRun(
         examples=[example1, example2],
-        scorers=[scorer],
+        scorers=[c_scorer],
         metadata={"batch": "test"},
         model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
         aggregator='QWEN'

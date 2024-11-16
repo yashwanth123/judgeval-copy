@@ -133,7 +133,14 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
         # Add logging support for custom scorers
         if log_results:
             try:
-                res = requests.post(JUDGMENT_EVAL_LOG_API_URL, json={"results": [result.to_dict() for result in results], "judgment_api_key": evaluation_run.judgment_api_key})
+                res = requests.post(
+                    JUDGMENT_EVAL_LOG_API_URL,
+                    json={
+                        "results": [result.to_dict() for result in results],
+                        "judgment_api_key": evaluation_run.judgment_api_key,
+                        "name": name
+                    }
+                )
                 if not res.ok:
                     response_data = res.json()
                     error_message = response_data.get('message', 'An unknown error occurred.')
