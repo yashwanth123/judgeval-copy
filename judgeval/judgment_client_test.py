@@ -56,9 +56,12 @@ def test_run_eval():
         aggregator='QWEN'
     )
 
-    results = client.run_eval(eval_data, name="test_run_eval", log_results=True)
+    results = client.run_eval(eval_data, name="joseph's eval", log_results=True)
 
-    print(results)
+    # print(results)
+    
+    eval_run = client.pull_eval(eval_run_name="joseph's eval")
+    print(f"Eval run: {eval_run=}")
 
 if __name__ == "__main__":
     test_run_eval()
