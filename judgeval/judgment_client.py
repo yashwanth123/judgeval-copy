@@ -35,7 +35,7 @@ class JudgmentClient:
     def create_dataset(self) -> EvalDataset:
         return EvalDataset(judgment_api_key=self.judgment_api_key)
     
-    def push_dataset(self, alias: str, dataset: EvalDataset, overwrite: Optional[bool] = None) -> bool:
+    def push_dataset(self, alias: str, dataset: EvalDataset, overwrite: Optional[bool] = False) -> bool:
         """
         Uploads an `EvalDataset` to the Judgment platform for storage.
 
