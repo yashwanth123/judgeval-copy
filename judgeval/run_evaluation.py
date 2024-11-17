@@ -149,12 +149,6 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
                 raise JudgmentAPIError(f"An internal error occurred while executing the Judgment API request: {str(e)}")
             except Exception as e:
                 raise ValueError(f"An error occurred while executing the Judgment API request: {str(e)}")
-        
-    # TODO: Once we add logging (pushing eval results to Judgment backend server), we can charge for # of logs
-    # Pass in the API key to these log requests.
-    # for result in results:
-    #   result["judgment_api_key"] = evaluation_run.judgment_api_key
-    # requests.post(JUDGMENT_EVAL_API_URL + "/log/eval", json=results.model_dump())
 
     # Aggregate the ScorerData
     merged_results = merge_results(api_results, local_results)

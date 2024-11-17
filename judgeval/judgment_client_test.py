@@ -49,18 +49,18 @@ def test_run_eval():
     )
 
     eval_data = EvaluationRun(
-        examples=[example1, example2],
-        scorers=[c_scorer],
+        examples=[example1, example2, example2],
+        scorers=[scorer, c_scorer],
         metadata={"batch": "test"},
         model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
         aggregator='QWEN'
     )
 
-    results = client.run_eval(eval_data, name="joseph's eval", log_results=True)
+    results = client.run_eval(eval_data, name="joseph's test eval", log_results=True)
 
     # print(results)
     
-    eval_run = client.pull_eval(eval_run_name="joseph's eval")
+    eval_run = client.pull_eval(eval_run_name="joseph's test eval")
     print(f"Eval run: {eval_run=}")
 
 if __name__ == "__main__":
