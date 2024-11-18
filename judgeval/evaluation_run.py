@@ -2,6 +2,7 @@ from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, field_validator
 
 from judgeval.data import Example
+from judgeval.data.datasets import EvalDataset
 from judgeval.scorers import CustomScorer, JudgmentScorer
 from judgeval.constants import ACCEPTABLE_MODELS
 

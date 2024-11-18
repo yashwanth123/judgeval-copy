@@ -2,12 +2,13 @@
 Implements the JudgmentClient to interact with the Judgment API.
 """
 import os
-from typing import Optional, List
+from typing import Optional, List, Dict, Any, Union
 import requests
 
 from judgeval.constants import ROOT_API
 from judgeval.data.datasets import EvalDataset
-from judgeval.data import ScoringResult
+from judgeval.data import ScoringResult, Example
+from judgeval.scorers import JudgmentScorer, CustomScorer
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.run_evaluation import run_eval
 
@@ -25,16 +26,51 @@ class JudgmentClient:
             # TODO: Add logging
             print(f"Successfully initialized JudgmentClient, welcome back {response['user_name']}!")
 
-    def run_eval(self, evaluation_run: EvaluationRun) -> List[ScoringResult]:
+    def run_evaluation(
+        self, 
+        examples: List[Example],
+        scorers: List[Union[JudgmentScorer, CustomScorer]],
+        model: Union[str, List[str]],
+        aggregator: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> List[ScoringResult]:
         """
         Executes an evaluation of `Example`s using one or more `Scorer`s
         """
-        evaluation_run.judgment_api_key = self.judgment_api_key
-        return run_eval(evaluation_run)
+        eval = EvaluationRun(
+            examples=examples,
+            scorers=scorers,
+            model=model,
+            aggregator=aggregator,
+            metadata=metadata,
+            judgment_api_key=self.judgment_api_key
+        )
+        return run_eval(eval)
     
+    def evaluate_dataset(
+        self, 
+        dataset: EvalDataset,
+        scorers: List[Union[JudgmentScorer, CustomScorer]],
+        model: Union[str, List[str]],
+        aggregator: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        ) -> List[ScoringResult]:
+        """
+        Executes an evaluation of a `EvalDataset` using one or more `Scorer`s
+        """
+        evaluation_run = EvaluationRun(
+            examples=dataset.examples,
+            scorers=scorers,
+            model=model,
+            aggregator=aggregator,
+            metadata=metadata,
+            judgment_api_key=self.judgment_api_key
+        )
+        return run_eval(evaluation_run)
+
     def create_dataset(self) -> EvalDataset:
         return EvalDataset(judgment_api_key=self.judgment_api_key)
-    
+
     def push_dataset(self, alias: str, dataset: EvalDataset, overwrite: Optional[bool] = False) -> bool:
         """
         Uploads an `EvalDataset` to the Judgment platform for storage.
