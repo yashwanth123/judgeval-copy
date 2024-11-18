@@ -1,14 +1,20 @@
 """
 Implementation for Mixture of Judges model through Judgeval
+
+Enables client to use multiple models to generate responses and then aggregate them into a single response.
 """
 from judgeval import *
 import pydantic
-from typing import List, Union, Tuple, Mapping, Dict
+from typing import List, Union, Mapping, Dict
 from judgeval.judges import judgevalJudge
 from judgeval.common.utils import get_completion_multiple_models, get_chat_completion, aget_completion_multiple_models, aget_chat_completion
 
 
-def build_dynamic_mixture_prompt(judge_responses: List[str], custom_system_prompt: str = None, custom_conversation_history: List[Mapping] = None) -> List[Mapping]:
+def build_dynamic_mixture_prompt(
+        judge_responses: List[str], 
+        custom_system_prompt: str = None, 
+        custom_conversation_history: List[Mapping] = None
+    ) -> List[Mapping]:
     """
     Dynamically builds a prompt to mix judge responses together for the Mixture of Judges model.
 
@@ -65,14 +71,13 @@ def build_dynamic_mixture_prompt(judge_responses: List[str], custom_system_promp
         }
     ]
     
-
-        
     # If a custom system prompt is provided, validate and use it
     if custom_system_prompt is not None:
         if not isinstance(custom_system_prompt, str):
-            raise ValueError("Custom system prompt must be a string")
+            raise TypeError(f"Custom system prompt must be a string. Received: {type(custom_system_prompt)}.")
         if not custom_system_prompt:
             raise ValueError("Custom system prompt cannot be empty")
+        # Override the default system prompt, but also add special instructions for handling JSON
         default_conversation[0]['content'] = custom_system_prompt + "\n\n**IMPORTANT**: IF THE JUDGE RESPONSES ARE IN JSON FORMAT, YOU MUST RESPOND USING THE SAME JSON FORMAT THAT THE RESPONSES ARE IN. If the judge responses are in JSON, you MUST RESPOND IN VALID JSON FORMAT."
     
     # If a custom conversation history is provided, append the judge responses to it
@@ -80,83 +85,129 @@ def build_dynamic_mixture_prompt(judge_responses: List[str], custom_system_promp
         # Validate custom conversation history format
         for message in custom_conversation_history:
             if not isinstance(message, dict):
-                raise ValueError("Custom conversation history must be a list of dictionaries")
+                raise TypeError(f"Custom conversation history must be a list of dictionaries. Received: {message}.")
             
             if 'role' not in message or 'content' not in message:
                 raise ValueError("Each message must have 'role' and 'content' keys")
-                
+            
             if not isinstance(message['role'], str) or not isinstance(message['content'], str):
-                raise ValueError("Message role and content must be strings")
-                
+                raise TypeError(f"Message role and content must be strings. Received: {type(message['role'])}, {type(message['content'])}.")
+            
             if message['role'] not in ['system', 'user', 'assistant']:
-                raise ValueError("Message role must be one of: 'system', 'user', 'assistant'")
+                raise ValueError(f"Message role must be one of: 'system', 'user', 'assistant'. Received: {message['role']}.")
             
         judge_responses_prompt = {
             'role': 'user', 
             'content': f'## Start of Judge Responses ##\n{formatted_responses}\n## End of Judge Responses ##\nSynthesized response:\n'
         }
         return custom_conversation_history + [judge_responses_prompt]
-    print(default_conversation)
-    # Otherwise return the default conversation with system prompt and examples
+    # No customization, return the default conversation with system prompt and examples
     return default_conversation
 
 BASE_CONVERSATION = [
     {"role": "system", "content": "You are a helpful assistant."},
 ]  # for string inputs, we need to add the user query to a base conversation, since LiteLLM only accepts a list of dictionaries as a chat history
 class MixtureOfJudges(judgevalJudge):
+    """
+    IMPORTANT: When supplying custom prompts and conversation histories for aggregation, supply them in the following format:
+    in kwargs:
+    {
+        "custom_prompt": "Your custom prompt here",
+        "custom_conversation": [
+            {"role": "system", "content": "System message 1"},
+            {"role": "user", "content": "User message 1"},
+            {"role": "assistant", "content": "Assistant message 1"},
+            ...
+        ]
+    }
+    """
     def __init__(self, 
                  models: List[str] = ['QWEN', 'LLAMA3_70B_INSTRUCT_TURBO', 'MISTRAL_8x22B_INSTRUCT'],
                  aggregator: str = 'gpt-4o', 
                  **kwargs):
+        """
+        `models` are the individual judge models to be used for generating responses.
+        `aggregator` is the model that will aggregate the responses from the individual judges.
+
+        kwargs include "custom_prompt" and "custom_conversation" for customizing the prompt for the Mixture of Judges model.
+        """
         self.models = models
         self.aggregator = aggregator
         self.kwargs = kwargs
         super().__init__(model_name=models)
 
-    def generate(self, input: Union[str, List[Mapping[str, str]]], schema: pydantic.BaseModel = None, **kwargs) -> str:
-        if type(input) == str:
+    def generate(
+            self, 
+            input: Union[str, List[Mapping[str, str]]], 
+            response_schema: pydantic.BaseModel = None, 
+            aggregation_schema: pydantic.BaseModel = None,
+            **kwargs) -> str:
+        """
+        Args:
+            input (Union[str, List[Mapping[str, str]]]): Input query or conversation history to the model.
+            response_schema (pydantic.BaseModel): Response schema for individual judge models.
+            aggregation_schema (pydantic.BaseModel): Response schema for the aggregator model.
+            kwargs: Additional keyword arguments.
+        """
+        if type(input) == str:  # completion endpoints need a list of dictionaries as input
             input = BASE_CONVERSATION + [{"role": "user", "content": input}]
-        
         try:
             responses = get_completion_multiple_models(
                 models=self.models,
                 messages=[input] * len(self.models),  # repeat the same input for all judges since we query them in parallel
+                response_formats=[response_schema] * len(self.models)
             )
-        except Exception as e:
+        except Exception:
             raise
 
-        compiled_mixture_prompt = build_dynamic_mixture_prompt(responses, self.kwargs.get('prompt'), self.kwargs.get('conversation'))
+        compiled_mixture_prompt = build_dynamic_mixture_prompt(responses, self.kwargs.get('custom_prompt'), self.kwargs.get('custom_conversation'))
         
         try:
             mixed_response = get_chat_completion(
                 model_type=self.aggregator,
                 messages=BASE_CONVERSATION + [{"role": "user", "content": compiled_mixture_prompt}],
+                response_format=aggregation_schema,
             )
-        except Exception as e:
+        except Exception:
             raise
             
         return mixed_response, 0
 
-    async def a_generate(self, input: Union[str, List[Mapping[str, str]]], schema: pydantic.BaseModel = None, **kwargs) -> str:
-        if type(input) == str:
+    async def a_generate(
+            self, 
+            input: Union[str, List[Mapping[str, str]]], 
+            response_schema: pydantic.BaseModel = None,
+            aggregation_schema: pydantic.BaseModel = None,
+            **kwargs
+        ) -> str:
+        """
+        Args:
+            input (Union[str, List[Mapping[str, str]]]): Input query or conversation history to the model.
+            response_schema (pydantic.BaseModel): Response schema for individual judge models.
+            aggregation_schema (pydantic.BaseModel): Response schema for the aggregator model.
+            kwargs: Additional keyword arguments.
+        """
+        if type(input) == str:  # completion endpoints need a list of dictionaries as input
             input = BASE_CONVERSATION + [{"role": "user", "content": input}]
         
         try:
             responses = await aget_completion_multiple_models(
                 models=self.models,
                 messages=[input] * len(self.models),  # repeat the same input for all judges since we query them in parallel
+                response_formats=[response_schema] * len(self.models),
             )
-        except Exception as e:
+        except Exception:
             raise
 
-        compiled_mixture_prompt : List[Dict] = build_dynamic_mixture_prompt(responses, self.kwargs.get('prompt'), self.kwargs.get('conversation'))
+        compiled_mixture_prompt : List[Dict] = build_dynamic_mixture_prompt(responses, self.kwargs.get('custom_prompt'), self.kwargs.get('custom_conversation'))
         
         try:
             mixed_response = await aget_chat_completion(
                 model_type=self.aggregator,
                 messages=compiled_mixture_prompt,
+                response_format=aggregation_schema,
             )
-        except Exception as e:
+        except Exception:
             raise
             
         return mixed_response, 0
@@ -166,4 +217,3 @@ class MixtureOfJudges(judgevalJudge):
 
     def get_model_name(self) -> List[str]:
         return self.models
-

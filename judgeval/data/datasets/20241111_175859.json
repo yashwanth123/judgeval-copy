@@ -1,0 +1,44 @@
+{
+    "ground_truths": [
+        {
+            "input": "Can I have a spooky spud?",
+            "actual_output": null,
+            "expected_output": "Nah mate, Halloween's past, ain't it?",
+            "context": [],
+            "retrieval_context": [],
+            "additional_metadata": {},
+            "comments": "love me a spooky spud!",
+            "tools_called": [],
+            "expected_tools": [],
+            "source_file": null
+        }
+    ],
+    "examples": [
+        {
+            "input": "Hello, do you sell beans?",
+            "actual_output": "Yes! We sell beans 'n cheese.",
+            "expected_output": "Crikey! Of course, with a jacket potato too.",
+            "context": [],
+            "retrieval_context": [
+                "Spudbros is a British business that sells baked potatoes."
+            ],
+            "additional_metadata": {},
+            "tools_called": [],
+            "expected_tools": [],
+            "name": "Spudbros_1"
+        },
+        {
+            "input": "Does beans go on first?",
+            "actual_output": "That's your choice! Either beans or cheese is a good option.",
+            "expected_output": "Mate... you can't be serious. Of course it's cheese first.",
+            "context": [],
+            "retrieval_context": [
+                "Spudbros typically creates their baked potatoes by adding a layer of three-cheese blend before topping it with beans."
+            ],
+            "additional_metadata": {},
+            "tools_called": [],
+            "expected_tools": [],
+            "name": "Spudbros_2"
+        }
+    ]
+}

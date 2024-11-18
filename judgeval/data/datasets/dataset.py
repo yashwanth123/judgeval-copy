@@ -25,7 +25,7 @@ class EvalDataset:
     judgment_api_key: str = field(default="")
 
     def __init__(self, 
-                 judgment_api_key: str,  
+                 judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"),  
                  ground_truths: List[GroundTruthExample] = [], 
                  examples: List[Example] = [],
                  ):
@@ -35,7 +35,7 @@ class EvalDataset:
         self._id = None
         self.judgment_api_key = judgment_api_key
         
-    def push(self, alias: str, overwrite: Optional[bool] = None) -> None:
+    def push(self, alias: str, overwrite: Optional[bool] = False) -> bool:
         """
         Pushes the dataset to Judgment platform
 

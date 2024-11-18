@@ -3,8 +3,8 @@ Classes for representing examples in a dataset.
 """
 
 
-from typing import Generic, TypeVar, Optional, Any, Dict, Union, List
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from typing import TypeVar, Optional, Any, Dict, List
+from pydantic import BaseModel
 from enum import Enum
 
 

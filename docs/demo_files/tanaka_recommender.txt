@@ -1,0 +1,13 @@
+<documents>
+	<document>
+		<document_title>Recommender Notes</document_title>
+		<document_text><document index="1">
+    <document_id>saburo-teshigawara-001-dance-japanese</document_id>
+    <document_content>
+        Recommender Notes
+Saburo Teshigawara is known for his experimental and visually stunning dance works. As a significant figure in the Japanese contemporary dance scene, his endorsement would highlight Aria’s connection to traditional Japanese dance and her standing in the artistic community.
+    </document_content>
+</document>
+		</document_text>
+	</document>
+</documents>
