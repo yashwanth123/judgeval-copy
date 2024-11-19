@@ -12,6 +12,7 @@ from judgeval.scorers import JudgmentScorer, CustomScorer
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.run_evaluation import run_eval
 from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL
+from judgeval.common.exceptions import JudgmentAPIError
 from pydantic import BaseModel
 
 class EvalRunRequestBody(BaseModel):
@@ -27,7 +28,7 @@ class JudgmentClient:
         result, response = self._validate_api_key()
         if not result:
             # May be bad to output their invalid API key...
-            raise ValueError(f"Issue with passed in Judgment API key: {response}")
+            raise JudgmentAPIError(f"Issue with passed in Judgment API key: {response}")
         else:
             # TODO: Add logging
             print(f"Successfully initialized JudgmentClient, welcome back {response.get('detail', {}).get('user_name', 'user')}!")
