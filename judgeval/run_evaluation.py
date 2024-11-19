@@ -17,7 +17,7 @@ from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge, MixtureOfJudges
 from judgeval.evaluation_run import EvaluationRun
-
+from fastapi import HTTPException
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
@@ -31,21 +31,20 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
         List[Dict]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult`
                     object. 
     """
-
+    
     try:
         # submit API request to execute evals
         response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump())
         response_data = response.json()
-        
-        # Check if the response status code is not 2XX
-        if not response.ok:
-            error_message = response_data.get('message', 'An unknown error occurred.')
-            raise Exception(f"Error {response.status_code}: {error_message}")
-        return response_data
-    except requests.exceptions.RequestException as e:
-        raise JudgmentAPIError(f"An internal error occurred while executing the Judgment API request: {str(e)}")
     except Exception as e:
-        raise ValueError(f"An error occurred while executing the Judgment API request: {str(e)}")
+        details = response.json().get("detail", "No details provided")
+        raise JudgmentAPIError("An error occurred while executing the Judgment API request: " + details)
+    # Check if the response status code is not 2XX
+    if not response.ok:
+        error_message = response_data.get('detail', 'An unknown error occurred.')
+        print(f"Error: {error_message=}")
+        raise JudgmentAPIError(error_message)
+    return response_data
 
 
 def merge_results(api_results: List[ScoringResult], local_results: List[ScoringResult]) -> List[ScoringResult]:
@@ -138,12 +137,21 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
             judgment_api_key=evaluation_run.judgment_api_key,
             log_results=log_results
         )
-        response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
+        try:
+            response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
+        except JudgmentAPIError as e:
+            # TODO: Replace with logger.error()
+            print(f"An error occurred while executing the Judgment API request: {str(e)}")
+            raise JudgmentAPIError(f"An error occurred while executing the Judgment API request: {str(e)}")
+        except ValueError as e:
+            raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: {str(e)}")
+        
         # Convert the response data to `ScoringResult` objects
         for result in response_data["results"]:
             # filter for key-value pairs that are used to initialize ScoringResult
             # there may be some stuff in here that doesn't belong in ScoringResult
             # TODO: come back and refactor this to have ScoringResult take in **kwargs
+            print(f"Result: {result=}")
             filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
             api_results.append(ScoringResult(**filtered_result))
 
@@ -176,7 +184,7 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
                 )
                 if not res.ok:
                     response_data = res.json()
-                    error_message = response_data.get('message', 'An unknown error occurred.')
+                    error_message = response_data.get('detail', 'An unknown error occurred.')
                     raise Exception(f"Error {res.status_code}: {error_message}")
             except requests.exceptions.RequestException as e:
                 raise JudgmentAPIError(f"Request failed while saving Custom Metric Eval results to DB: {str(e)}")
