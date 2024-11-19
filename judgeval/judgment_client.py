@@ -51,7 +51,7 @@ class JudgmentClient:
             raise ValueError(f"Error fetching eval results: {eval_run.json()}")
         eval_results = []
         for result in eval_run.json():
-            result = result.get("results", dict())
+            result = result.get("result", dict())
             filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
             eval_results.append(ScoringResult(**filtered_result))
         return eval_results

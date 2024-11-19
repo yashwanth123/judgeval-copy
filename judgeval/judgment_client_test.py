@@ -7,16 +7,16 @@ from judgeval.constants import JudgmentMetric
 from judgeval.judges import TogetherJudge
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
-def test_dataset():
+def test_dataset(dataset_name: str):
     # Associate EvalDatasets with a JudgmentClient, so they don't have to pass in judgment_api_key
     client = JudgmentClient(judgment_api_key=os.getenv("TEST_JUDGMENT_API_KEY"))
     dataset: EvalDataset = client.create_dataset()
     dataset.add_example(Example(input="input 1", actual_output="output 1"))
 
-    client.push_dataset(alias="test_dataset_5", dataset=dataset, overwrite=False)
+    client.push_dataset(alias=dataset_name, dataset=dataset, overwrite=False)
     
     # PULL
-    dataset = client.pull_dataset(alias="test_dataset_5")
+    dataset = client.pull_dataset(alias=dataset_name)
     print(dataset)
     
 def test_run_eval():
@@ -65,3 +65,4 @@ def test_run_eval():
 
 if __name__ == "__main__":
     test_run_eval()
+    # test_dataset("yo dataset")
