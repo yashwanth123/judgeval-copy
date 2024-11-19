@@ -102,3 +102,6 @@ test-results.xml
 
 # Custom
 Pipfile.lock
+
+# Logs
+./logs

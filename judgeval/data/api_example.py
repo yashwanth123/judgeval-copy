@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 from judgeval.data.example import Example
 from judgeval.data.scorer_data import ScorerData
-
+from judgeval.common.logger import debug, error
 
 class ProcessExample(BaseModel):
     """
@@ -42,6 +42,7 @@ class ProcessExample(BaseModel):
         Updates scorer data field of test case after the scorers have been
         evaluated on this test case.
         """
+        debug(f"Updating scorer data for example '{self.name}' with scorer: {scorer_data}")
         # self.scorers_data is a list of ScorerData objects that contain the 
         # evaluation results of each scorer on this test case
         if self.scorers_data is None:
@@ -55,6 +56,7 @@ class ProcessExample(BaseModel):
             self.success = scorer_data.success
         else:
             if scorer_data.success is False:
+                debug(f"Example '{self.name}' marked as failed due to scorer: {scorer_data}")
                 self.success = False
 
     def update_run_duration(self, run_duration: float):
@@ -66,6 +68,7 @@ class ProcessExample(BaseModel):
         actual_output = values.get("actualOutput")
 
         if (input is None or actual_output is None):
+            error(f"Validation error: Required fields missing. input={input}, actualOutput={actual_output}")
             raise ValueError(
                 "'input' and 'actualOutput' must be provided."
             )
@@ -86,10 +89,11 @@ def create_process_example(
         name = example.name
     else:
         name = "Test Case Placeholder"
+        debug(f"No name provided for example, using default name: {name}")
     order = None
     scorers_data = []
 
-
+    debug(f"Creating ProcessExample for: {name}")
     process_ex = ProcessExample(
         name=name,
         input=example.input,

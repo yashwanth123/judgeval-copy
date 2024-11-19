@@ -4,6 +4,7 @@ Implementation of using TogetherAI inference for judges.
 
 from pydantic import BaseModel
 from typing import List, Union, Mapping
+from judgeval.common.logger import debug, error
 
 from judgeval.judges import judgevalJudge
 from judgeval.common.utils import fetch_together_api_response, afetch_together_api_response
@@ -14,21 +15,25 @@ BASE_CONVERSATION = [
 
 class TogetherJudge(judgevalJudge):
     def __init__(self, model: str = "QWEN", **kwargs):
+        debug(f"Initializing TogetherJudge with model={model}")
         self.model = model
         self.kwargs = kwargs
         super().__init__(model_name=model)
 
     # TODO: Fix cost for generate and a_generate
     def generate(self, input: Union[str, List[Mapping[str, str]]], schema: BaseModel = None) -> str:
+        debug(f"Generating response for input type: {type(input)}")
         if isinstance(input, str):
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
             return fetch_together_api_response(self.model, convo, response_format=schema), 0
         elif isinstance(input, list):
             return fetch_together_api_response(self.model, convo, response_format=schema), 0
         else:
+            error(f"Invalid input type received: {type(input)}")
             raise TypeError("Input must be a string or a list of dictionaries.")
 
     async def a_generate(self, input: Union[str, List[dict]], schema: BaseModel = None) -> str:
+        debug(f"Async generating response for input type: {type(input)}")
         if isinstance(input, str):
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
             res = await afetch_together_api_response(self.model, convo, response_format=schema)
@@ -37,6 +42,7 @@ class TogetherJudge(judgevalJudge):
             res = await afetch_together_api_response(self.model, input, response_format=schema)
             return res, 0
         else:
+            error(f"Invalid input type received: {type(input)}")
             raise TypeError("Input must be a string or a list of dictionaries.")
 
     def load_model(self) -> str:

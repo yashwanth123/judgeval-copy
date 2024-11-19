@@ -171,7 +171,8 @@ def run_eval(evaluation_run: EvaluationRun):
         debug("Processing API results")
         for idx, result in enumerate(response_data["results"]):  
             with example_logging_context(evaluation_run.examples[idx].timestamp, evaluation_run.examples[idx].example_id):
-                debug(f"Processing API result for example {idx}")
+                for scorer in judgment_scorers:
+                    debug(f"Processing API result for example {idx} and scorer {scorer.score_type}")
                 # filter for key-value pairs that are used to initialize ScoringResult
                 # there may be some stuff in here that doesn't belong in ScoringResult
                 # TODO: come back and refactor this to have ScoringResult take in **kwargs
@@ -218,6 +219,8 @@ if __name__ == "__main__":
     
     # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
+    from judgeval.judgment_client import JudgmentClient
+
     example1 = Example(
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",
@@ -246,16 +249,15 @@ if __name__ == "__main__":
         model=model,
     )
 
-    eval_data = EvaluationRun(
-        examples=[example1, example2],
-        scorers=[c_scorer],
-        metadata={"batch": "test"},
-        model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
-        aggregator='QWEN'
-    )
+    client = JudgmentClient()
 
     with enable_logging():
         debug("Starting evaluation")
-        results = run_eval(eval_data)
+        response = client.run_evaluation(
+            examples=[example1, example2],
+            scorers=[c_scorer, scorer],
+            model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
+            aggregator='QWEN'
+        )
         info("Evaluation complete")
-        debug(f"Results: {results}")
+        debug(f"Results: {response}")
