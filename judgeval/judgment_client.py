@@ -30,7 +30,7 @@ class JudgmentClient:
             raise ValueError(f"Issue with passed in Judgment API key: {response}")
         else:
             # TODO: Add logging
-            print(f"Successfully initialized JudgmentClient, welcome back {response['user_name']}!")
+            print(f"Successfully initialized JudgmentClient, welcome back {response.get('detail', {}).get('user_name', 'user')}!")
             
     def run_evaluation(
         self, 
@@ -45,16 +45,19 @@ class JudgmentClient:
         """
         Executes an evaluation of `Example`s using one or more `Scorer`s
         """
-        eval = EvaluationRun(
-            name=eval_run_name,
+        try:
+            eval = EvaluationRun(
+                name=eval_run_name,
             examples=examples,
             scorers=scorers,
             model=model,
             aggregator=aggregator,
             metadata=metadata,
             judgment_api_key=self.judgment_api_key
-        )
-        return run_eval(eval, name=eval_run_name, log_results=log_results)
+            )
+            return run_eval(eval, name=eval_run_name, log_results=log_results)
+        except ValueError as e:
+            raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
     
     def evaluate_dataset(
         self, 
@@ -69,16 +72,19 @@ class JudgmentClient:
         """
         Executes an evaluation of a `EvalDataset` using one or more `Scorer`s
         """
-        evaluation_run = EvaluationRun(
-            name=eval_run_name,
-            examples=dataset.examples,
-            scorers=scorers,
-            model=model,
-            aggregator=aggregator,
-            metadata=metadata,
+        try:
+            evaluation_run = EvaluationRun(
+                name=eval_run_name,
+                examples=dataset.examples,
+                scorers=scorers,
+                model=model,
+                aggregator=aggregator,
+                metadata=metadata,
             judgment_api_key=self.judgment_api_key
-        )
-        return run_eval(evaluation_run, name=eval_run_name, log_results=log_results)
+            )
+            return run_eval(evaluation_run, name=eval_run_name, log_results=log_results)
+        except ValueError as e:
+            raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
 
     def create_dataset(self) -> EvalDataset:
         return EvalDataset(judgment_api_key=self.judgment_api_key)
@@ -137,4 +143,4 @@ class JudgmentClient:
         if response.status_code == 200:
             return True, response.json()
         else:
-            return False, response.json().get("message", "Error validating API key")
+            return False, response.json().get("detail", "Error validating API key")

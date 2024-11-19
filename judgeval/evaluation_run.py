@@ -64,11 +64,17 @@ class EvaluationRun(BaseModel):
         return v
 
     @field_validator('aggregator', mode='before')
-    def validate_aggregator(cls, v):
-        if v is not None and not isinstance(v, str):
+    def validate_aggregator(cls, v, values):
+        model = values.data.get('model')
+        if isinstance(model, list) and v is None:
+            raise ValueError("Aggregator cannot be empty.")
+            
+        if isinstance(model, list) and not isinstance(v, str):
             raise ValueError("Aggregator must be a string if provided.")
+            
         if v is not None and v not in ACCEPTABLE_MODELS:
             raise ValueError(f"Model name {v} not recognized.")
+            
         return v
 
     class Config:
