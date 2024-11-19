@@ -20,6 +20,7 @@ from judgeval.scorers import CustomScorer
 from judgeval.scorers.utils import clone_scorers, format_metric_description
 from judgeval.common.telemetry import capture_evaluation_run
 from judgeval.common.exceptions import MissingTestCaseParamsError
+from judgeval.common.logger import example_logging_context, debug
 
 async def safe_a_score_example(
     scorer: CustomScorer,
@@ -258,6 +259,16 @@ async def a_execute_scoring(
             bar_format="{desc}: |{bar}|{percentage:3.0f}% ({n_fmt}/{total_fmt}) [Time Taken: {elapsed}, {rate_fmt}{postfix}]",
         ) as pbar:
             for i, ex in enumerate(examples):
+                with example_logging_context(ex.timestamp, ex.example_id):
+                    debug(f"Starting scoring for example {ex.example_id}")
+                    debug(f"Input: {ex.input}")
+                    debug(f"Using {len(scorers)} scorers")
+                    for scorer in scorers:
+                        debug(f"Using scorer: {type(scorer).__name__}")
+                        if hasattr(scorer, 'threshold'):
+                            debug(f"Scorer threshold: {scorer.threshold}")
+                        if hasattr(scorer, 'model'):
+                            debug(f"Scorer model: {type(scorer.model).__name__}")
                 with capture_evaluation_run("Example"):
                     if isinstance(ex, Example):
                         if len(scorers) == 0:

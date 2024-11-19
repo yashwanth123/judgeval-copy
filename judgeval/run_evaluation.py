@@ -1,6 +1,7 @@
 import asyncio
 import requests
 from typing import List, Dict
+from datetime import datetime
 
 from judgeval.data import Example
 from judgeval.scorers import CustomScorer, JudgmentScorer
@@ -16,6 +17,7 @@ from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge, MixtureOfJudges
 from judgeval.evaluation_run import EvaluationRun
+from judgeval.common.logger import enable_logging, debug, info, error, example_logging_context
 
 
 
@@ -113,20 +115,46 @@ def run_eval(evaluation_run: EvaluationRun):
     Returns:
         List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
     """
+    # Set example IDs if not already set
+    debug("Initializing examples with IDs and timestamps")
+    for idx, example in enumerate(evaluation_run.examples):
+        if example.example_id is None:
+            example.example_id = idx
+            debug(f"Set example ID {idx} for input: {example.input[:50]}...")
+        example.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        with example_logging_context(example.timestamp, example.example_id):
+            debug(f"Initialized example {example.example_id}")
+            debug(f"Input: {example.input}")
+            debug(f"Actual output: {example.actual_output}")
+            if example.expected_output:
+                debug(f"Expected output: {example.expected_output}")
+            if example.context:
+                debug(f"Context: {example.context}")
+            if example.retrieval_context:
+                debug(f"Retrieval context: {example.retrieval_context}")
+    
+    debug(f"Starting evaluation run with {len(evaluation_run.examples)} examples")
     
     # Group JudgmentScorers and CustomScorers, then evaluate them in parallel
+    debug("Grouping scorers by type")
     judgment_scorers: List[JudgmentScorer] = []
     custom_scorers: List[CustomScorer] = []
     for scorer in evaluation_run.scorers:
         if isinstance(scorer, JudgmentScorer):
             judgment_scorers.append(scorer)
+            debug(f"Added judgment scorer: {type(scorer).__name__}")
         else:
             custom_scorers.append(scorer)
+            debug(f"Added custom scorer: {type(scorer).__name__}")
+    
+    debug(f"Found {len(judgment_scorers)} judgment scorers and {len(custom_scorers)} custom scorers")
     
     api_results: List[ScoringResult] = []
     local_results: List[ScoringResult] = []
     # Execute evaluation using Judgment API
     if judgment_scorers:
+        info("Starting API evaluation")
+        debug(f"Creating API evaluation run with {len(judgment_scorers)} scorers")
         api_evaluation_run: EvaluationRun = EvaluationRun(
             examples=evaluation_run.examples,
             scorers=judgment_scorers,
@@ -135,17 +163,28 @@ def run_eval(evaluation_run: EvaluationRun):
             metadata=evaluation_run.metadata,
             judgment_api_key=evaluation_run.judgment_api_key,
         )
+        debug("Sending request to Judgment API")
         response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
+        info(f"Received {len(response_data['results'])} results from API")
+        
         # Convert the response data to `ScoringResult` objects
-        for result in response_data["results"]:  
-            # filter for key-value pairs that are used to initialize ScoringResult
-            # there may be some stuff in here that doesn't belong in ScoringResult
-            # TODO: come back and refactor this to have ScoringResult take in **kwargs
-            filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
-            api_results.append(ScoringResult(**filtered_result))
+        debug("Processing API results")
+        for idx, result in enumerate(response_data["results"]):  
+            with example_logging_context(evaluation_run.examples[idx].timestamp, evaluation_run.examples[idx].example_id):
+                debug(f"Processing API result for example {idx}")
+                # filter for key-value pairs that are used to initialize ScoringResult
+                # there may be some stuff in here that doesn't belong in ScoringResult
+                # TODO: come back and refactor this to have ScoringResult take in **kwargs
+                filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
+                api_results.append(ScoringResult(**filtered_result))
 
     # Run local evals
     if custom_scorers:  # List[CustomScorer]
+        info("Starting local evaluation")
+        for example in evaluation_run.examples:
+            with example_logging_context(example.timestamp, example.example_id):
+                debug(f"Processing example {example.example_id}: {example.input}")
+        
         results: List[ScoringResult] = asyncio.run(
             a_execute_scoring(
                 evaluation_run.examples,
@@ -159,6 +198,7 @@ def run_eval(evaluation_run: EvaluationRun):
             )
         )
         local_results = results
+        info(f"Local evaluation complete with {len(local_results)} results")
         
     # TODO: Once we add logging (pushing eval results to Judgment backend server), we can charge for # of logs
     # Pass in the API key to these log requests.
@@ -167,11 +207,15 @@ def run_eval(evaluation_run: EvaluationRun):
     # requests.post(JUDGMENT_EVAL_API_URL + "/log/eval", json=results.model_dump())
 
     # Aggregate the ScorerData from the API and local evaluations
+    debug("Merging API and local results")
     merged_results = merge_results(api_results, local_results)
+    info(f"Successfully merged {len(merged_results)} results")
     return merged_results
 
 
 if __name__ == "__main__":
+    from judgeval.common.logger import enable_logging, debug, info
+    
     # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
     example1 = Example(
@@ -210,6 +254,8 @@ if __name__ == "__main__":
         aggregator='QWEN'
     )
 
-    results = run_eval(eval_data)
-
-    print(f"Results: {results}")
+    with enable_logging():
+        debug("Starting evaluation")
+        results = run_eval(eval_data)
+        info("Evaluation complete")
+        debug(f"Results: {results}")

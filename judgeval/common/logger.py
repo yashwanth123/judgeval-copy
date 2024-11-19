@@ -9,13 +9,17 @@ from contextlib import contextmanager
 logger = None
 LOGGING_ENABLED = False
 
+# Add these as module-level variables
+current_example_id = None
+current_timestamp = None
+
 def create_example_handler(timestamp: str, example_idx: int) -> RotatingFileHandler:
     """Creates a file handler for a specific example"""
     log_dir = Path('./logs/examples')
     log_dir.mkdir(exist_ok=True, parents=True)
     
     formatter = logging.Formatter(
-        fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        fmt='%(asctime)s - %(name)s - %(levelname)s - [Example_%(example_id)s][%(timestamp)s] %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
@@ -27,16 +31,26 @@ def create_example_handler(timestamp: str, example_idx: int) -> RotatingFileHand
         mode='a'
     )
     file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.DEBUG)
     return file_handler
 
 @contextmanager
 def example_logging_context(timestamp: str, example_idx: int):
     """Context manager for example-specific logging"""
+    global current_example_id, current_timestamp
+    
+    # Set the current example info
+    current_example_id = example_idx
+    current_timestamp = timestamp
+    
     handler = create_example_handler(timestamp, example_idx)
     logger.addHandler(handler)
     try:
         yield
     finally:
+        # Clear the example info
+        current_example_id = None
+        current_timestamp = None
         logger.removeHandler(handler)
         handler.close()
 
@@ -77,9 +91,21 @@ def _initialize_logger(
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    # Create handlers
+    # Create a custom formatter that includes example info when available
+    class ExampleFormatter(logging.Formatter):
+        def format(self, record):
+            if current_example_id is not None and current_timestamp is not None:
+                record.example_id = current_example_id
+                record.timestamp = current_timestamp
+                return logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - [Example_%(example_id)s][%(timestamp)s] %(message)s', 
+                                      datefmt='%Y-%m-%d %H:%M:%S').format(record)
+            return logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                                  datefmt='%Y-%m-%d %H:%M:%S').format(record)
+    
+    # Use the custom formatter
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
+    console_handler.setFormatter(ExampleFormatter())
+    console_handler.setLevel(logging.DEBUG)
     
     log_filename = f"{name}.log"
     file_handler = RotatingFileHandler(
@@ -88,11 +114,12 @@ def _initialize_logger(
         backupCount=backup_count,
         mode='a'
     )
-    file_handler.setFormatter(formatter)
+    file_handler.setFormatter(ExampleFormatter())
+    file_handler.setLevel(logging.DEBUG)
 
     # Get logger
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     
     # Prevent adding handlers multiple times
     if not logger.handlers:
