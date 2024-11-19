@@ -146,9 +146,9 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
                     error_message = response_data.get('message', 'An unknown error occurred.')
                     raise Exception(f"Error {res.status_code}: {error_message}")
             except requests.exceptions.RequestException as e:
-                raise JudgmentAPIError(f"An internal error occurred while executing the Judgment API request: {str(e)}")
+                raise JudgmentAPIError(f"Request failed while saving Custom Metric Eval results to DB: {str(e)}")
             except Exception as e:
-                raise ValueError(f"An error occurred while executing the Judgment API request: {str(e)}")
+                raise ValueError(f"Failed to save Custom Metric Eval results to DB: {str(e)}")
 
     # Aggregate the ScorerData
     merged_results = merge_results(api_results, local_results)
