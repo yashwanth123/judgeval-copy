@@ -32,9 +32,12 @@ def format_metric_description(
     scorer: CustomScorer,
     async_mode: Optional[bool] = None,
 ):
+    """
+    Renders a message to be displayed to console when a scorer is being executed.
+    """
     if async_mode is None:
         run_async = scorer.async_mode
     else:
         run_async = async_mode
 
-    return f"✨ Executing Judgment's [rgb(106,0,255)]{scorer.__name__} Scorer[/rgb(106,0,255)]! [rgb(55,65,81)](using {scorer.evaluation_model}, strict={scorer.strict_mode}, async_mode={run_async})...[/rgb(55,65,81)]"
+    return f"🔨 Executing Judgment's [rgb(106,0,255)]{scorer.__name__} Scorer[/rgb(106,0,255)]! [rgb(55,65,81)](using {scorer.evaluation_model}, async_mode={run_async})...[/rgb(55,65,81)]"

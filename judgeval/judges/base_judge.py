@@ -1,3 +1,7 @@
+"""
+Implements the base class for all Judgeval Judge models.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
@@ -33,15 +37,7 @@ class judgevalJudge(ABC):
             A string.
         """
         pass
-
-    def batch_generate(self, *args, **kwargs) -> List[str]:
-        """Runs the model to output LLM responses.
-
-        Returns:
-            A list of strings.
-        """
-        raise AttributeError
-
+    
     @abstractmethod
     def get_model_name(self, *args, **kwargs) -> str:
         pass

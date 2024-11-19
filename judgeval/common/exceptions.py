@@ -16,3 +16,13 @@ class JudgmentAPIError(Exception):
         super().__init__()
         self.message = message
 
+
+class InvalidJudgeModelError(Exception):
+    """
+    Exception raised when an invalid judge model is provided
+    """
+    
+    def __init__(self, message: str):
+        super().__init__()
+        self.message = message
+

@@ -1,5 +1,7 @@
 """
-Implementation of the MetricData class.
+Implementation of the ScorerData class.
+
+ScorerData holds the information related to a single, completed Scorer evaluation run.
 """
 
 from typing import List, Union, Optional, Dict
@@ -9,7 +11,7 @@ from judgeval.scorers import CustomScorer
 
 class ScorerData(BaseModel):
     """
-    ScorerData holds the infromation related to a single Scorer evaluation run.
+    ScorerData holds the information related to a single, completed Scorer evaluation run.
 
     For example, if running the Judgment Faithfulness scorer on an example, the ScorerData
     object will contain whether the example passed its threshold expectation, as well as more detailed

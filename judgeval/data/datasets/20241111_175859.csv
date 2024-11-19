@@ -1,0 +1,4 @@
+input,actual_output,expected_output,context,retrieval_context,additional_metadata,tools_called,expected_tools,name,comments,source_file,example
+"Hello, do you sell beans?",Yes! We sell beans 'n cheese.,"Crikey! Of course, with a jacket potato too.",,Spudbros is a British business that sells baked potatoes.,{},,,Spudbros_1,,,True
+Does beans go on first?,That's your choice! Either beans or cheese is a good option.,Mate... you can't be serious. Of course it's cheese first.,,Spudbros typically creates their baked potatoes by adding a layer of three-cheese blend before topping it with beans.,{},,,Spudbros_2,,,True
+Can I have a spooky spud?,,"Nah mate, Halloween's past, ain't it?",,,{},,,,love me a spooky spud!,,False
