@@ -16,9 +16,7 @@ def get_client():
     return JudgmentClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
 
 
-def test_dataset():
-    print(f"Judgment API Key: {os.getenv('JUDGMENT_API_KEY')}")
-    client = get_client()
+def test_dataset(client: JudgmentClient):
     dataset: EvalDataset = client.create_dataset()
     dataset.add_example(Example(input="input 1", actual_output="output 1"))
 
@@ -29,8 +27,7 @@ def test_dataset():
     print(dataset)
     
 
-def test_run_eval():
-    client = get_client()
+def test_run_eval(client: JudgmentClient, eval_run_name: str):
 
     example1 = Example(
         input="What if these shoes don't fit?",
@@ -62,14 +59,16 @@ def test_run_eval():
         examples=[example1, example2],
         scorers=[scorer, c_scorer],
         model="QWEN",
-        metadata={"batch": "test"}
+        metadata={"batch": "test"},
+        eval_run_name=eval_run_name,
+        log_results=True,
     )
 
-    print(results)
+    results = client.pull_eval(eval_run_name)
+    print(f"Evaluation results for {eval_run_name} from database:", results)
 
 
-def test_evaluate_dataset():
-    client = get_client()
+def test_evaluate_dataset(client: JudgmentClient):
 
     example1 = Example(
         input="What if these shoes don't fit?",
@@ -101,18 +100,22 @@ def test_evaluate_dataset():
 
 if __name__ == "__main__":
     # Test client functionality
-    get_client()
+    client = get_client()
     print("Client initialized successfully")
+    print("*" * 40)
 
     print("Testing dataset creation, pushing, and pulling")
-    test_dataset()
+    test_dataset(client)
     print("Dataset creation, pushing, and pulling successful")
+    print("*" * 40)
+    
     print("Testing evaluation run")
-    test_run_eval()
+    test_run_eval(client, "judgment evaluation run")
     print("Evaluation run successful")
-
+    print("*" * 40)
+    
     print("Testing dataset evaluation")
-    test_evaluate_dataset()
+    test_evaluate_dataset(client)
     print("Dataset evaluation successful")
-
+    print("*" * 40)
     print("All tests passed successfully")

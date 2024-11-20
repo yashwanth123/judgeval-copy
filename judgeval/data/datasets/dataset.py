@@ -5,7 +5,6 @@ import json
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 import requests
-import uuid
 from dataclasses import dataclass, field
 import os
 from typing import List, Optional, Union, Literal
@@ -15,7 +14,6 @@ from judgeval.data.datasets.ground_truth import GroundTruthExample
 from judgeval.data.datasets.utils import ground_truths_to_examples, examples_to_ground_truths
 from judgeval.data import Example
 from judgeval.common.logger import debug, error, warning, info
-
 
 @dataclass
 class EvalDataset:
@@ -340,22 +338,4 @@ class EvalDataset:
             f")"
         )
     
-
-if __name__ == "__main__":
-    # Associate EvalDatasets with a JudgmentClient, so they don't have to pass in judgment_api_key
-    dataset: EvalDataset = client.create_dataset()
-    dataset.push()
-    # dataset.push() vs client.push_dataset(dataset)
-    dataset = EvalDataset(judgment_api_key=os.getenv("TEST_JUDGMENT_API_KEY"))
-    dataset.add_example(Example(input="input 1", actual_output="output 1"))
-    # print(dataset)
-
-    # file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/judgeval/data/datasets/20241111_175859.csv"
-    # dataset.add_from_csv(file_path)
-
-    dataset.push(alias="test_dataset_3", overwrite=True)
-    
-    # PULL
-    # dataset.pull(alias="test_dataset_1")
-    # print(dataset)
     
