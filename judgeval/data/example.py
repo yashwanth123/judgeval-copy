@@ -6,6 +6,7 @@ Classes for representing examples in a dataset.
 from typing import TypeVar, Optional, Any, Dict, List
 from pydantic import BaseModel
 from enum import Enum
+from datetime import datetime
 
 
 Input = TypeVar('Input')
@@ -32,6 +33,8 @@ class Example(BaseModel):
     tools_called: Optional[List[str]] = None
     expected_tools: Optional[List[str]] = None
     name: Optional[str] = None
+    example_id: Optional[int] = None
+    timestamp: Optional[str] = None
 
     def __post_init__(self):
         # Ensure `context` is None or a list of strings
@@ -68,6 +71,12 @@ class Example(BaseModel):
                     "'expected_tools' must be None or a list of strings"
                 )
 
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Set timestamp if not provided
+        if self.timestamp is None:
+            self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
     def to_dict(self):
         return {
             "input": self.input,
@@ -79,6 +88,8 @@ class Example(BaseModel):
             "tools_called": self.tools_called,
             "expected_tools": self.expected_tools,
             "name": self.name,
+            "example_id": self.example_id,
+            "timestamp": self.timestamp,
         }
 
     def __str__(self):
@@ -91,5 +102,7 @@ class Example(BaseModel):
             f"additional_metadata={self.additional_metadata}, "
             f"tools_called={self.tools_called}, "
             f"expected_tools={self.expected_tools}, "
-            f"name={self.name})"
+            f"name={self.name}, "
+            f"example_id={self.example_id}, "
+            f"timestamp={self.timestamp})"
         )

@@ -9,36 +9,10 @@ from contextlib import contextmanager
 logger = None
 LOGGING_ENABLED = False
 
-def create_example_handler(timestamp: str, example_idx: int) -> RotatingFileHandler:
-    """Creates a file handler for a specific example"""
-    log_dir = Path('./logs/examples')
-    log_dir.mkdir(exist_ok=True, parents=True)
-    
-    formatter = logging.Formatter(
-        fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    
-    # Create a unique file for each example
-    file_handler = RotatingFileHandler(
-        log_dir / f"{timestamp}_example_{example_idx}.log",
-        maxBytes=1024 * 1024,  # 1MB
-        backupCount=5,
-        mode='a'
-    )
-    file_handler.setFormatter(formatter)
-    return file_handler
+# Add these as module-level variables
+current_example_id = None
+current_timestamp = None
 
-@contextmanager
-def example_logging_context(timestamp: str, example_idx: int):
-    """Context manager for example-specific logging"""
-    handler = create_example_handler(timestamp, example_idx)
-    logger.addHandler(handler)
-    try:
-        yield
-    finally:
-        logger.removeHandler(handler)
-        handler.close()
 
 @contextmanager
 def enable_logging():
@@ -64,9 +38,17 @@ def _initialize_logger(
     Returns the global logger instance.
     """
     global logger
+    
+    # Clear existing log file
+    log_dir = Path('./logs')
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / f"{name}.log"
+    if log_file.exists():
+        log_file.unlink()  # Delete existing log file
+    
     if logger is not None:
         return logger
-    
+        
     # Create logs directory if it doesn't exist
     log_dir = Path('./logs')
     log_dir.mkdir(exist_ok=True)
@@ -77,9 +59,21 @@ def _initialize_logger(
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    # Create handlers
+    # Create a custom formatter that includes example info when available
+    class ExampleFormatter(logging.Formatter):
+        def format(self, record):
+            if current_example_id is not None and current_timestamp is not None:
+                record.example_id = current_example_id
+                record.timestamp = current_timestamp
+                return logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - [Example_%(example_id)s][%(timestamp)s] %(message)s', 
+                                      datefmt='%Y-%m-%d %H:%M:%S').format(record)
+            return logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                                  datefmt='%Y-%m-%d %H:%M:%S').format(record)
+    
+    # Use the custom formatter
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
+    console_handler.setFormatter(ExampleFormatter())
+    console_handler.setLevel(logging.DEBUG)
     
     log_filename = f"{name}.log"
     file_handler = RotatingFileHandler(
@@ -88,11 +82,12 @@ def _initialize_logger(
         backupCount=backup_count,
         mode='a'
     )
-    file_handler.setFormatter(formatter)
+    file_handler.setFormatter(ExampleFormatter())
+    file_handler.setLevel(logging.DEBUG)
 
     # Get logger
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     
     # Prevent adding handlers multiple times
     if not logger.handlers:
@@ -130,3 +125,52 @@ def warning(msg: str, example_idx: int = None):
 def error(msg: str, example_idx: int = None):
     """Log error message if logging is enabled"""
     logger.error(msg)
+
+def create_example_handler(timestamp: str, example_idx: int) -> RotatingFileHandler:
+    """Creates a file handler for a specific example"""
+    debug(f"Creating example handler for timestamp={timestamp}, example_idx={example_idx}")
+    log_dir = Path('./logs/examples')
+    log_dir.mkdir(exist_ok=True, parents=True)
+    
+    formatter = logging.Formatter(
+        fmt='%(asctime)s - %(name)s - %(levelname)s - [Example_%(example_id)s][%(timestamp)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # Create a unique file for each example
+    file_handler = RotatingFileHandler(
+        log_dir / f"{timestamp}_example_{example_idx}.log",
+        maxBytes=1024 * 1024,  # 1MB
+        backupCount=5,
+        mode='a'
+    )
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.DEBUG)
+    info(f"Created example handler for example {example_idx}")
+    return file_handler
+
+@contextmanager
+def example_logging_context(timestamp: str, example_idx: int):
+    """Context manager for example-specific logging"""
+    if not LOGGING_ENABLED:
+        yield
+        return
+        
+    global current_example_id, current_timestamp
+    
+    debug(f"Entering example logging context for example {example_idx}")
+    current_example_id = example_idx
+    current_timestamp = timestamp
+    
+    handler = create_example_handler(timestamp, example_idx)
+    if handler:
+        logger.addHandler(handler)
+    try:
+        yield
+    finally:
+        current_example_id = None
+        current_timestamp = None
+        if handler:
+            logger.removeHandler(handler)
+            handler.close()
+            debug(f"Closed example handler for example {example_idx}")

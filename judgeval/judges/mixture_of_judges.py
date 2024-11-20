@@ -8,7 +8,7 @@ import pydantic
 from typing import List, Union, Mapping, Dict
 from judgeval.judges import judgevalJudge
 from judgeval.common.utils import get_completion_multiple_models, get_chat_completion, aget_completion_multiple_models, aget_chat_completion
-
+from judgeval.common.logger import debug, error
 
 def build_dynamic_mixture_prompt(
         judge_responses: List[str], 
@@ -74,8 +74,10 @@ def build_dynamic_mixture_prompt(
     # If a custom system prompt is provided, validate and use it
     if custom_system_prompt is not None:
         if not isinstance(custom_system_prompt, str):
+            error(f"TypeError: Custom system prompt must be a string. Received: {type(custom_system_prompt)}.")
             raise TypeError(f"Custom system prompt must be a string. Received: {type(custom_system_prompt)}.")
         if not custom_system_prompt:
+            error("ValueError: Custom system prompt cannot be empty")
             raise ValueError("Custom system prompt cannot be empty")
         # Override the default system prompt, but also add special instructions for handling JSON
         default_conversation[0]['content'] = custom_system_prompt + "\n\n**IMPORTANT**: IF THE JUDGE RESPONSES ARE IN JSON FORMAT, YOU MUST RESPOND USING THE SAME JSON FORMAT THAT THE RESPONSES ARE IN. If the judge responses are in JSON, you MUST RESPOND IN VALID JSON FORMAT."
@@ -85,15 +87,19 @@ def build_dynamic_mixture_prompt(
         # Validate custom conversation history format
         for message in custom_conversation_history:
             if not isinstance(message, dict):
+                error(f"TypeError: Custom conversation history must be a list of dictionaries. Received: {message}.")
                 raise TypeError(f"Custom conversation history must be a list of dictionaries. Received: {message}.")
             
             if 'role' not in message or 'content' not in message:
+                error("ValueError: Each message must have 'role' and 'content' keys")
                 raise ValueError("Each message must have 'role' and 'content' keys")
             
             if not isinstance(message['role'], str) or not isinstance(message['content'], str):
+                error(f"TypeError: Message role and content must be strings. Received: {type(message['role'])}, {type(message['content'])}.")
                 raise TypeError(f"Message role and content must be strings. Received: {type(message['role'])}, {type(message['content'])}.")
             
             if message['role'] not in ['system', 'user', 'assistant']:
+                error(f"ValueError: Message role must be one of: 'system', 'user', 'assistant'. Received: {message['role']}.")
                 raise ValueError(f"Message role must be one of: 'system', 'user', 'assistant'. Received: {message['role']}.")
             
         judge_responses_prompt = {
@@ -159,7 +165,8 @@ class MixtureOfJudges(judgevalJudge):
                 messages=[input] * len(self.models),  # repeat the same input for all judges since we query them in parallel
                 response_formats=[response_schema] * len(self.models)
             )
-        except Exception:
+        except Exception as e:
+            error(f"Error getting completions from multiple models: {str(e)}")
             raise
 
         compiled_mixture_prompt = build_dynamic_mixture_prompt(responses, self.kwargs.get('custom_prompt'), self.kwargs.get('custom_conversation'))
@@ -170,10 +177,11 @@ class MixtureOfJudges(judgevalJudge):
                 messages=BASE_CONVERSATION + [{"role": "user", "content": compiled_mixture_prompt}],
                 response_format=aggregation_schema,
             )
-        except Exception:
+        except Exception as e:
+            error(f"Error getting chat completion from aggregator: {str(e)}")
             raise
             
-        return mixed_response, 0
+        return mixed_response
 
     async def a_generate(
             self, 
@@ -198,7 +206,8 @@ class MixtureOfJudges(judgevalJudge):
                 messages=[input] * len(self.models),  # repeat the same input for all judges since we query them in parallel
                 response_formats=[response_schema] * len(self.models),
             )
-        except Exception:
+        except Exception as e:
+            error(f"Error getting async completions from multiple models: {str(e)}")
             raise
 
         compiled_mixture_prompt : List[Dict] = build_dynamic_mixture_prompt(responses, self.kwargs.get('custom_prompt'), self.kwargs.get('custom_conversation'))
@@ -209,10 +218,11 @@ class MixtureOfJudges(judgevalJudge):
                 messages=compiled_mixture_prompt,
                 response_format=aggregation_schema,
             )
-        except Exception:
+        except Exception as e:
+            error(f"Error getting async chat completion from aggregator: {str(e)}")
             raise
             
-        return mixed_response, 0
+        return mixed_response
     
     def load_model(self):
         return self.models
