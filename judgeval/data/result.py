@@ -17,6 +17,7 @@ class ScoringResult:
         expected_output (Optional[str]): The expected output of the example
         context (Optional[List[str]]): The context of the example
         retrieval_context (Optional[List[str]]): The retrieval context of the example
+        
     """
     # Fields for scoring outputs 
     success: bool  # used for unit testing
@@ -28,8 +29,6 @@ class ScoringResult:
     expected_output: Optional[str] = None
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
-    
-    judgment_api_key: Optional[str] = ""
 
     def to_dict(self) -> dict:
         """Convert the ScoringResult instance to a dictionary, properly serializing scorer_data."""

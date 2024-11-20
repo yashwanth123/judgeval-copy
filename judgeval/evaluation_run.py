@@ -12,6 +12,7 @@ class EvaluationRun(BaseModel):
     Stores example and evaluation scorers together for running an eval task
     
     Args: 
+        name (str): A name for this evaluation run
         examples (List[Example]): The examples to evaluate
         scorers (List[Union[JudgmentScorer, CustomScorer]]): A list of scorers to use for evaluation
         model (str): The model used as a judge when using LLM as a Judge
@@ -19,12 +20,16 @@ class EvaluationRun(BaseModel):
         metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
         judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
     """
+    name: Optional[str] = ""
     examples: List[Example]
     scorers: List[Union[JudgmentScorer, CustomScorer]]
     model: Union[str, List[str]]
     aggregator: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    # API Key will be "" until user calls client.run_eval(), then API Key will be set
     judgment_api_key: Optional[str] = ""
+    # The user will specify whether they want log_results when they call run_eval
+    log_results: bool = False
     
     @field_validator('examples')
     def validate_examples(cls, v):
@@ -59,11 +64,17 @@ class EvaluationRun(BaseModel):
         return v
 
     @field_validator('aggregator', mode='before')
-    def validate_aggregator(cls, v):
-        if v is not None and not isinstance(v, str):
+    def validate_aggregator(cls, v, values):
+        model = values.data.get('model')
+        if isinstance(model, list) and v is None:
+            raise ValueError("Aggregator cannot be empty.")
+            
+        if isinstance(model, list) and not isinstance(v, str):
             raise ValueError("Aggregator must be a string if provided.")
+            
         if v is not None and v not in ACCEPTABLE_MODELS:
             raise ValueError(f"Model name {v} not recognized.")
+            
         return v
 
     class Config:
