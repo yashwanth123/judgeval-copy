@@ -22,9 +22,9 @@ class TogetherJudge(judgevalJudge):
     def generate(self, input: Union[str, List[Mapping[str, str]]], schema: BaseModel = None) -> str:
         if isinstance(input, str):
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
-            return fetch_together_api_response(self.model, convo, response_format=schema), 0
+            return fetch_together_api_response(self.model, convo, response_format=schema)
         elif isinstance(input, list):
-            return fetch_together_api_response(self.model, convo, response_format=schema), 0
+            return fetch_together_api_response(self.model, convo, response_format=schema)
         else:
             raise TypeError("Input must be a string or a list of dictionaries.")
 
@@ -32,10 +32,10 @@ class TogetherJudge(judgevalJudge):
         if isinstance(input, str):
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
             res = await afetch_together_api_response(self.model, convo, response_format=schema)
-            return res, 0
+            return res
         elif isinstance(input, list):
             res = await afetch_together_api_response(self.model, input, response_format=schema)
-            return res, 0
+            return res
         else:
             raise TypeError("Input must be a string or a list of dictionaries.")
 

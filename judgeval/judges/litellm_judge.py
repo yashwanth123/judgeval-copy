@@ -19,9 +19,9 @@ class LiteLLMJudge(judgevalJudge):
     def generate(self, input: Union[str, List[Mapping[str, str]]], schema: pydantic.BaseModel = None) -> str:
         if type(input) == str:
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
-            return fetch_litellm_api_response(model=self.model, messages=convo, response_format=schema), 0  # TODO: fix the cost. Currently set to 0.
+            return fetch_litellm_api_response(model=self.model, messages=convo, response_format=schema)
         elif type(input) == list:
-            return fetch_litellm_api_response(model=self.model, messages=input, response_format=schema), 0 
+            return fetch_litellm_api_response(model=self.model, messages=input, response_format=schema)
         else:
             raise TypeError(f"Input must be a string or a list of dictionaries. Input type of: {type(input)}")
 
@@ -29,10 +29,10 @@ class LiteLLMJudge(judgevalJudge):
         if type(input) == str:
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
             response = await afetch_litellm_api_response(model=self.model, messages=convo, response_format=schema)
-            return response, 0
+            return response
         elif type(input) == list:
             response = await afetch_litellm_api_response(model=self.model, messages=input, response_format=schema)
-            return response, 0 # TODO: fix the cost!
+            return response
         else:
             raise TypeError(f"Input must be a string or a list of dictionaries. Input type of: {type(input)}")
     
