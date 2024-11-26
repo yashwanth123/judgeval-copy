@@ -1,9 +1,19 @@
 """
 Util functions for Scorer objects
+
+TODO add logging
 """
 
+import asyncio
+import nest_asyncio
 import inspect
-from typing import List, Optional
+import json
+import sys
+import re
+from contextlib import contextmanager
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.console import Console
+from typing import List, Optional, Any
 
 from judgeval.scorers import CustomScorer
 
@@ -28,7 +38,8 @@ def clone_scorers(
         cloned_scorers.append(scorer_class(**valid_args))
     return cloned_scorers
 
-def format_metric_description(
+
+def scorer_console_msg(
     scorer: CustomScorer,
     async_mode: Optional[bool] = None,
 ):

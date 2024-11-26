@@ -17,7 +17,7 @@ from judgeval.data import (
     create_scorer_data,
 )
 from judgeval.scorers import CustomScorer
-from judgeval.scorers.utils import clone_scorers, format_metric_description
+from judgeval.scorers.utils import clone_scorers, scorer_console_msg
 from judgeval.common.telemetry import capture_evaluation_run
 from judgeval.common.exceptions import MissingTestCaseParamsError
 
@@ -182,7 +182,7 @@ async def score_with_indicator(
             tasks = []
             for scorer in scorers:
                 task_id = progress.add_task(
-                    description=format_metric_description(
+                    description=scorer_console_msg(
                         scorer, async_mode=True
                     ),
                     total=100,
