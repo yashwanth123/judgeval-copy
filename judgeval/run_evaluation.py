@@ -1,6 +1,8 @@
 import asyncio
 import requests
 from typing import List, Dict
+from datetime import datetime
+from fastapi import HTTPException
 
 from judgeval.data import Example
 from judgeval.scorers import CustomScorer, JudgmentScorer
@@ -10,13 +12,14 @@ from judgeval.scorers.score import (
 )
 from judgeval.constants import (
     JUDGMENT_EVAL_API_URL,
+    JUDGMENT_EVAL_LOG_API_URL,
     JudgmentMetric,
 )
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge, MixtureOfJudges
 from judgeval.evaluation_run import EvaluationRun
-
+from judgeval.common.logger import enable_logging, debug, info, error, example_logging_context
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
@@ -30,21 +33,20 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
         List[Dict]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult`
                     object. 
     """
-
+    
     try:
         # submit API request to execute evals
         response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump())
         response_data = response.json()
-        
-        # Check if the response status code is not 2XX
-        if not response.ok:
-            error_message = response_data.get('message', 'An unknown error occurred.')
-            raise Exception(f"Error {response.status_code}: {error_message}")
-        return response_data
-    except requests.exceptions.RequestException as e:
-        raise JudgmentAPIError(f"An internal error occurred while executing the Judgment API request: {str(e)}")
     except Exception as e:
-        raise ValueError(f"An error occurred while executing the Judgment API request: {str(e)}")
+        details = response.json().get("detail", "No details provided")
+        raise JudgmentAPIError("An error occurred while executing the Judgment API request: " + details)
+    # Check if the response status code is not 2XX
+    if not response.ok:
+        error_message = response_data.get('detail', 'An unknown error occurred.')
+        print(f"Error: {error_message=}")
+        raise JudgmentAPIError(error_message)
+    return response_data
 
 
 def merge_results(api_results: List[ScoringResult], local_results: List[ScoringResult]) -> List[ScoringResult]:
@@ -95,7 +97,7 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
     return api_results
 
 
-def run_eval(evaluation_run: EvaluationRun):
+def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = False):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
@@ -113,39 +115,86 @@ def run_eval(evaluation_run: EvaluationRun):
     Returns:
         List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
     """
+    # Set example IDs if not already set
+    debug("Initializing examples with IDs and timestamps")
+    for idx, example in enumerate(evaluation_run.examples):
+        if example.example_id is None:
+            example.example_id = idx
+            debug(f"Set example ID {idx} for input: {example.input[:50]}...")
+        example.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        with example_logging_context(example.timestamp, example.example_id):
+            debug(f"Initialized example {example.example_id}")
+            debug(f"Input: {example.input}")
+            debug(f"Actual output: {example.actual_output}")
+            if example.expected_output:
+                debug(f"Expected output: {example.expected_output}")
+            if example.context:
+                debug(f"Context: {example.context}")
+            if example.retrieval_context:
+                debug(f"Retrieval context: {example.retrieval_context}")
+    
+    debug(f"Starting evaluation run with {len(evaluation_run.examples)} examples")
     
     # Group JudgmentScorers and CustomScorers, then evaluate them in parallel
+    debug("Grouping scorers by type")
     judgment_scorers: List[JudgmentScorer] = []
     custom_scorers: List[CustomScorer] = []
     for scorer in evaluation_run.scorers:
         if isinstance(scorer, JudgmentScorer):
             judgment_scorers.append(scorer)
+            debug(f"Added judgment scorer: {type(scorer).__name__}")
         else:
             custom_scorers.append(scorer)
+            debug(f"Added custom scorer: {type(scorer).__name__}")
+    
+    debug(f"Found {len(judgment_scorers)} judgment scorers and {len(custom_scorers)} custom scorers")
     
     api_results: List[ScoringResult] = []
     local_results: List[ScoringResult] = []
     # Execute evaluation using Judgment API
     if judgment_scorers:
+        info("Starting API evaluation")
+        debug(f"Creating API evaluation run with {len(judgment_scorers)} scorers")
         api_evaluation_run: EvaluationRun = EvaluationRun(
+            name=name,
             examples=evaluation_run.examples,
             scorers=judgment_scorers,
             model=evaluation_run.model,
             aggregator=evaluation_run.aggregator,
             metadata=evaluation_run.metadata,
             judgment_api_key=evaluation_run.judgment_api_key,
+            log_results=log_results
         )
-        response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
+
+            debug("Sending request to Judgment API")
+            response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
+            info(f"Received {len(response_data['results'])} results from API")
+        except JudgmentAPIError as e:
+            # TODO: Replace with logger.error()
+            print(f"An error occurred while executing the Judgment API request: {str(e)}")
+            raise JudgmentAPIError(f"An error occurred while executing the Judgment API request: {str(e)}")
+        except ValueError as e:
+            raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: {str(e)}")
+        
         # Convert the response data to `ScoringResult` objects
-        for result in response_data["results"]:  
-            # filter for key-value pairs that are used to initialize ScoringResult
-            # there may be some stuff in here that doesn't belong in ScoringResult
-            # TODO: come back and refactor this to have ScoringResult take in **kwargs
-            filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
-            api_results.append(ScoringResult(**filtered_result))
+        debug("Processing API results")
+        for idx, result in enumerate(response_data["results"]):  
+            with example_logging_context(evaluation_run.examples[idx].timestamp, evaluation_run.examples[idx].example_id):
+                for scorer in judgment_scorers:
+                    debug(f"Processing API result for example {idx} and scorer {scorer.score_type}")
+                # filter for key-value pairs that are used to initialize ScoringResult
+                # there may be some stuff in here that doesn't belong in ScoringResult
+                # TODO: come back and refactor this to have ScoringResult take in **kwargs
+                filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
+                api_results.append(ScoringResult(**filtered_result))
 
     # Run local evals
     if custom_scorers:  # List[CustomScorer]
+        info("Starting local evaluation")
+        for example in evaluation_run.examples:
+            with example_logging_context(example.timestamp, example.example_id):
+                debug(f"Processing example {example.example_id}: {example.input}")
+        
         results: List[ScoringResult] = asyncio.run(
             a_execute_scoring(
                 evaluation_run.examples,
@@ -159,21 +208,44 @@ def run_eval(evaluation_run: EvaluationRun):
             )
         )
         local_results = results
+        info(f"Local evaluation complete with {len(local_results)} results")
         
-    # TODO: Once we add logging (pushing eval results to Judgment backend server), we can charge for # of logs
-    # Pass in the API key to these log requests.
-    # for result in results:
-    #   result["judgment_api_key"] = evaluation_run.judgment_api_key
-    # requests.post(JUDGMENT_EVAL_API_URL + "/log/eval", json=results.model_dump())
+        if log_results:
+            try:
+                res = requests.post(
+                    JUDGMENT_EVAL_LOG_API_URL,
+                    json={
+                        "results": [result.to_dict() for result in local_results],
+                        "judgment_api_key": evaluation_run.judgment_api_key,
+                        "name": name
+                    }
+                )
+                if not res.ok:
+                    response_data = res.json()
+                    error_message = response_data.get('detail', 'An unknown error occurred.')
+                    error(f"Error {res.status_code}: {error_message}")
+                    raise Exception(f"Error {res.status_code}: {error_message}")
+            except requests.exceptions.RequestException as e:
+                error(f"Request failed while saving Custom Metric Eval results to DB: {str(e)}")
+                raise JudgmentAPIError(f"Request failed while saving Custom Metric Eval results to DB: {str(e)}")
+            except Exception as e:
+                error(f"Failed to save Custom Metric Eval results to DB: {str(e)}")
+                raise ValueError(f"Failed to save Custom Metric Eval results to DB: {str(e)}")
 
     # Aggregate the ScorerData from the API and local evaluations
+    debug("Merging API and local results")
     merged_results = merge_results(api_results, local_results)
+    info(f"Successfully merged {len(merged_results)} results")
     return merged_results
 
 
 if __name__ == "__main__":
+    from judgeval.common.logger import enable_logging, debug, info
+    
     # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
+    from judgeval.judgment_client import JudgmentClient
+
     example1 = Example(
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",
@@ -202,14 +274,15 @@ if __name__ == "__main__":
         model=model,
     )
 
-    eval_data = EvaluationRun(
-        examples=[example1, example2],
-        scorers=[c_scorer],
-        metadata={"batch": "test"},
-        model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
-        aggregator='QWEN'
-    )
+    client = JudgmentClient()
 
-    results = run_eval(eval_data)
-
-    print(f"Results: {results}")
+    with enable_logging():
+        debug("Starting evaluation")
+        response = client.run_evaluation(
+            examples=[example1, example2],
+            scorers=[c_scorer, scorer],
+            model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
+            aggregator='QWEN'
+        )
+        info("Evaluation complete")
+        debug(f"Results: {response}")

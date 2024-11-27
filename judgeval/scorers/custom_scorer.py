@@ -7,6 +7,7 @@ To create a custom scorer, extend this class and implement the `score_example`, 
 
 from typing import Optional, Dict
 from abc import abstractmethod
+from judgeval.common.logger import debug, info, warning, error
 
 from judgeval.data import Example
 
@@ -51,6 +52,10 @@ class CustomScorer:
         verbose_logs: Optional[str] = None, 
         additional_metadata: Optional[Dict] = None
         ):
+            debug(f"Initializing CustomScorer with score_type={score_type}, threshold={threshold}")
+            if strict_mode:
+                warning("Strict mode enabled - scoring will be more rigorous")
+            info(f"CustomScorer initialized with evaluation_model: {evaluation_model}")
             self.score_type = score_type
             self.threshold = threshold
             self.score = score
@@ -73,6 +78,8 @@ class CustomScorer:
         """
         Measures the score on a single example
         """
+        warning("Attempting to call unimplemented score_example method")
+        error("score_example method not implemented")
         raise NotImplementedError("You must implement the `score` method in your custom scorer")
 
     @abstractmethod
@@ -80,6 +87,8 @@ class CustomScorer:
         """
         Asynchronously measures the score on a single example
         """
+        warning("Attempting to call unimplemented a_score_example method")
+        error("a_score_example method not implemented")
         raise NotImplementedError("You must implement the `a_score` method in your custom scorer") 
     
     @abstractmethod
@@ -87,9 +96,15 @@ class CustomScorer:
         """
         For unit testing, determines whether the test case passes or fails
         """
+        warning("Attempting to call unimplemented success_check method")
+        error("success_check method not implemented")
         raise NotImplementedError("You must implement the `passes` method in your custom scorer")
 
     def __str__(self):
+        debug("Converting CustomScorer instance to string representation")
+        if self.error:
+            warning(f"CustomScorer contains error: {self.error}")
+        info(f"CustomScorer status - success: {self.success}, score: {self.score}")
         attributes = {
             "score_type": self.score_type,
             "threshold": self.threshold,

@@ -5,7 +5,6 @@ import json
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 import requests
-import uuid
 from dataclasses import dataclass, field
 import os
 from typing import List, Optional, Union, Literal
@@ -14,7 +13,7 @@ from judgeval.constants import JUDGMENT_DATASETS_PUSH_API_URL, JUDGMENT_DATASETS
 from judgeval.data.datasets.ground_truth import GroundTruthExample
 from judgeval.data.datasets.utils import ground_truths_to_examples, examples_to_ground_truths
 from judgeval.data import Example
-
+from judgeval.common.logger import debug, error, warning, info
 
 @dataclass
 class EvalDataset:
@@ -29,6 +28,9 @@ class EvalDataset:
                  ground_truths: List[GroundTruthExample] = [], 
                  examples: List[Example] = [],
                  ):
+        debug(f"Initializing EvalDataset with {len(ground_truths)} ground truths and {len(examples)} examples")
+        if not judgment_api_key:
+            warning("No judgment_api_key provided")
         self.ground_truths = ground_truths
         self.examples = examples
         self._alias = None
@@ -36,6 +38,9 @@ class EvalDataset:
         self.judgment_api_key = judgment_api_key
         
     def push(self, alias: str, overwrite: Optional[bool] = False) -> bool:
+        debug(f"Pushing dataset with alias '{alias}' (overwrite={overwrite})")
+        if overwrite:
+            warning(f"Overwrite enabled for alias '{alias}'")
         """
         Pushes the dataset to Judgment platform
 
@@ -73,16 +78,16 @@ class EvalDataset:
                     json=content
                 )
                 if response.status_code == 500:
-                    content = response.json()
-                    print("Error details:", content.get("message"))
+                    error(f"Server error during push: {content.get('message')}")
                     return False
                 response.raise_for_status()
             except requests.exceptions.HTTPError as err:
                 if response.status_code == 422:
-                    print("Validation error details:", err.response.json())
+                    error(f"Validation error during push: {err.response.json()}")
                 else:
-                    print("HTTP error occurred:", err)
+                    error(f"HTTP error during push: {err}")
             
+            info(f"Successfully pushed dataset with alias '{alias}'")
             payload = response.json()
             self._alias = payload.get("_alias")
             self._id = payload.get("_id")
@@ -93,6 +98,7 @@ class EvalDataset:
             return True
         
     def pull(self, alias: str):
+        debug(f"Pulling dataset with alias '{alias}'")
         """
         Pulls the dataset from Judgment platform
 
@@ -125,13 +131,17 @@ class EvalDataset:
                     "judgment_api_key": self.judgment_api_key
                 }
 
-                response = requests.post(
-                    JUDGMENT_DATASETS_PULL_API_URL, 
-                    json=request_body
-                )
+                try:
+                    response = requests.post(
+                        JUDGMENT_DATASETS_PULL_API_URL, 
+                        json=request_body
+                    )
+                    response.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    error(f"Error pulling dataset: {str(e)}")
+                    raise
 
-                response.raise_for_status()
-                
+                info(f"Successfully pulled dataset with alias '{alias}'")
                 payload = response.json()
                 self.ground_truths = [GroundTruthExample(**g) for g in payload.get("ground_truths", [])]
                 self.examples = [Example(**e) for e in payload.get("examples", [])]
@@ -142,10 +152,8 @@ class EvalDataset:
                     description=f"{progress.tasks[task_id].description} [rgb(25,227,160)]Done!)",
                 )
 
-    def add_from_json(
-        self,
-        file_path: str,
-        ) -> None:
+    def add_from_json(self, file_path: str) -> None:
+        debug(f"Loading dataset from JSON file: {file_path}")
         """
         Adds examples and ground truths from a JSON file.
 
@@ -158,10 +166,13 @@ class EvalDataset:
                 examples = payload.get("examples", [])
                 ground_truths = payload.get("ground_truths", [])
         except FileNotFoundError:
+            error(f"JSON file not found: {file_path}")
             raise FileNotFoundError(f"The file {file_path} was not found.")
         except json.JSONDecodeError:
+            error(f"Invalid JSON file: {file_path}")
             raise ValueError(f"The file {file_path} is not a valid JSON file.")
 
+        info(f"Added {len(examples)} examples and {len(ground_truths)} ground truths from JSON")
         new_examples = [Example(**e) for e in examples]
         for e in new_examples:
             self.add_example(e)
@@ -327,22 +338,4 @@ class EvalDataset:
             f")"
         )
     
-
-if __name__ == "__main__":
-    # Associate EvalDatasets with a JudgmentClient, so they don't have to pass in judgment_api_key
-    dataset: EvalDataset = client.create_dataset()
-    dataset.push()
-    # dataset.push() vs client.push_dataset(dataset)
-    dataset = EvalDataset(judgment_api_key=os.getenv("TEST_JUDGMENT_API_KEY"))
-    dataset.add_example(Example(input="input 1", actual_output="output 1"))
-    # print(dataset)
-
-    # file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/judgeval/data/datasets/20241111_175859.csv"
-    # dataset.add_from_csv(file_path)
-
-    dataset.push(alias="test_dataset_3", overwrite=True)
-    
-    # PULL
-    # dataset.pull(alias="test_dataset_1")
-    # print(dataset)
     
