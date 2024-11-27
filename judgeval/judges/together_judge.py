@@ -25,9 +25,9 @@ class TogetherJudge(judgevalJudge):
         debug(f"Generating response for input type: {type(input)}")
         if isinstance(input, str):
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
-            return fetch_together_api_response(self.model, convo, response_format=schema)
+            return fetch_together_api_response(self.model, convo, response_format=schema), 0
         elif isinstance(input, list):
-            return fetch_together_api_response(self.model, convo, response_format=schema)
+            return fetch_together_api_response(self.model, convo, response_format=schema), 0
         else:
             error(f"Invalid input type received: {type(input)}")
             raise TypeError("Input must be a string or a list of dictionaries.")
@@ -37,10 +37,10 @@ class TogetherJudge(judgevalJudge):
         if isinstance(input, str):
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
             res = await afetch_together_api_response(self.model, convo, response_format=schema)
-            return res
+            return res, 0
         elif isinstance(input, list):
             res = await afetch_together_api_response(self.model, input, response_format=schema)
-            return res
+            return res, 0
         else:
             error(f"Invalid input type received: {type(input)}")
             raise TypeError("Input must be a string or a list of dictionaries.")

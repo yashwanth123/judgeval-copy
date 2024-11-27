@@ -76,6 +76,6 @@ class EvaluationRun(BaseModel):
             raise ValueError(f"Model name {v} not recognized.")
             
         return v
-    
+
     class Config:
         arbitrary_types_allowed = True
