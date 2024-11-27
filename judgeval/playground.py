@@ -205,7 +205,7 @@ def metric_progress_indicator(
                 transient=transient,
             ) as progress:
                 progress.add_task(
-                    description=scorer_console_msg(metric, async_mode),
+                    description=format_metric_description(metric, async_mode),
                     total=total,
                 )
                 yield

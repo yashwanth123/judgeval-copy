@@ -93,7 +93,7 @@ def test_evaluate_dataset(client: JudgmentClient):
         dataset=dataset,
         scorers=[JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)],
         model="QWEN",
-        metadata={"batch": "test"},
+        metadata={"batch": "test"}
     )
 
     print(res)
