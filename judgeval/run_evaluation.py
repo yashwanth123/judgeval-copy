@@ -155,18 +155,19 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
     if judgment_scorers:
         info("Starting API evaluation")
         debug(f"Creating API evaluation run with {len(judgment_scorers)} scorers")
-        api_evaluation_run: EvaluationRun = EvaluationRun(
-            name=name,
-            examples=evaluation_run.examples,
-            scorers=judgment_scorers,
-            model=evaluation_run.model,
-            aggregator=evaluation_run.aggregator,
-            metadata=evaluation_run.metadata,
-            judgment_api_key=evaluation_run.judgment_api_key,
-            log_results=log_results
-        )
+        try:
+            api_evaluation_run: EvaluationRun = EvaluationRun(
+                name=name,
+                examples=evaluation_run.examples,
+                scorers=judgment_scorers,
+                model=evaluation_run.model,
+                aggregator=evaluation_run.aggregator,
+                metadata=evaluation_run.metadata,
+                judgment_api_key=evaluation_run.judgment_api_key,
+                log_results=log_results
+            )
 
-            debug("Sending request to Judgment API")
+            debug("Sending request to Judgment API")    
             response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
             info(f"Received {len(response_data['results'])} results from API")
         except JudgmentAPIError as e:
