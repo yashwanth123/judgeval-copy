@@ -54,7 +54,6 @@ class JudgmentClient:
         model: Union[str, List[str]],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        log_results: Optional[bool] = True,
         ) -> List[ScoringResult]:
         """
         Executes an evaluation of a `EvalDataset` using one or more `Scorer`s
@@ -66,7 +65,6 @@ class JudgmentClient:
             aggregator=aggregator,
             metadata=metadata,
             judgment_api_key=self.judgment_api_key,
-            log_results=log_results,
         )
         return run_eval(evaluation_run)
 
