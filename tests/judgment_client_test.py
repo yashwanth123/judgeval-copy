@@ -94,7 +94,8 @@ def test_evaluate_dataset():
         dataset=dataset,
         scorers=[JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)],
         model="QWEN",
-        metadata={"batch": "test"}
+        metadata={"batch": "test"},
+        log_results=True,
     )
 
     print(res)

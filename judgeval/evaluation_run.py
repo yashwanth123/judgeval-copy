@@ -25,6 +25,7 @@ class EvaluationRun(BaseModel):
     aggregator: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
     judgment_api_key: Optional[str] = ""
+    log_results: Optional[bool] = True
     
     @field_validator('examples')
     def validate_examples(cls, v):
@@ -65,6 +66,6 @@ class EvaluationRun(BaseModel):
         if v is not None and v not in ACCEPTABLE_MODELS:
             raise ValueError(f"Model name {v} not recognized.")
         return v
-
+    
     class Config:
         arbitrary_types_allowed = True
