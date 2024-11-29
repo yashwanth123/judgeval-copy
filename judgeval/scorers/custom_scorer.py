@@ -74,12 +74,14 @@ class CustomScorer:
             self.verbose_logs = verbose_logs
             self.additional_metadata = additional_metadata
 
-    def _add_model(self, model: Union[str, List[str], judgevalJudge]):
+    def _add_model(self, model: Optional[Union[str, List[str], judgevalJudge]] = None):
         """
-        Adds the evaluation model to the CustomScorer instance
-        """
-        self.model, self.using_native_model  = create_judge(model)
+        Adds the evaluation model to the CustomScorer instance 
 
+        This method is used at eval time
+        """
+        self.model, self.using_native_model = create_judge(model)
+        self.evaluation_model = self.model.get_model_name()
 
     @abstractmethod
     def score_example(self, example: Example, *args, **kwargs) -> float:

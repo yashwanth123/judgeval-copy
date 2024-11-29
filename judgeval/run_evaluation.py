@@ -200,6 +200,7 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
             a_execute_scoring(
                 evaluation_run.examples,
                 custom_scorers,
+                model=evaluation_run.model,
                 ignore_errors=True,
                 skip_on_missing_params=True,
                 show_indicator=True,

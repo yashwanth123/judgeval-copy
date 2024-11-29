@@ -49,10 +49,8 @@ def test_run_eval(client: JudgmentClient, eval_run_name: str):
 
     scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
     scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
-    model = TogetherJudge()
     c_scorer = CustomFaithfulnessMetric(
         threshold=0.6,
-        model=model,
     )
 
     results = client.run_evaluation(

@@ -21,6 +21,7 @@ from judgeval.scorers.utils import clone_scorers, scorer_console_msg
 from judgeval.common.telemetry import capture_evaluation_run
 from judgeval.common.exceptions import MissingTestCaseParamsError
 from judgeval.common.logger import example_logging_context, debug, error, warning, info
+from judgeval.judges import judgevalJudge
 
 async def safe_a_score_example(
     scorer: CustomScorer,
@@ -279,10 +280,9 @@ async def a_execute_scoring(
         for scorer in scorers:
             scorer.verbose_mode = verbose_mode
 
+    # Add model to scorers 
     for scorer in scorers:
-        print("Processing scorer")
         scorer._add_model(model)
-        print(f"Scorer model: {scorer.evaluation_model}, {scorer.model}, {type(scorer)}")
 
     scoring_results: List[ScoringResult] = [None for _ in examples]
     tasks = []

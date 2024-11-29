@@ -31,7 +31,11 @@ def clone_scorers(scorers: List[CustomScorer]) -> List[CustomScorer]:
         valid_params = signature.parameters.keys()
         valid_args = {key: args[key] for key in valid_params if key in args}
 
-        cloned_scorers.append(scorer_class(**valid_args))
+        cloned_scorer = scorer_class(**valid_args)
+        # kinda hacky, but in case the class inheriting from CustomScorer doesn't have `model` in its __init__,
+        # we need to explicitly include it here so that we can add the judge model to the cloned scorer
+        cloned_scorer._add_model(model=args.get("model"))
+        cloned_scorers.append(cloned_scorer)
     return cloned_scorers
 
 
