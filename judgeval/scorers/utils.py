@@ -18,11 +18,7 @@ from typing import List, Optional, Any
 from judgeval.scorers import CustomScorer
 
 
-def clone_scorers(
-    scorers: List[
-        CustomScorer
-    ]
-) -> List[CustomScorer]:
+def clone_scorers(scorers: List[CustomScorer]) -> List[CustomScorer]:
     """
     Creates duplicates of the scorers passed as argument.
     """

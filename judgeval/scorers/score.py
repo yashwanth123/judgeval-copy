@@ -243,11 +243,12 @@ async def score_with_indicator(
 async def a_execute_scoring(
     examples: List[Example],
     scorers: List[CustomScorer],
-    ignore_errors: bool,
-    skip_on_missing_params: bool,
-    show_indicator: bool,
-    throttle_value: int,
-    max_concurrent: int,
+    model: Optional[Union[str, List[str], judgevalJudge]] = None,
+    ignore_errors: bool = True,
+    skip_on_missing_params: bool = True,
+    show_indicator: bool = True,
+    throttle_value: int = 0,
+    max_concurrent: int = 100,
     verbose_mode: Optional[bool] = None,
     _use_bar_indicator: bool = True,
 ) -> List[ScoringResult]:
@@ -277,6 +278,11 @@ async def a_execute_scoring(
     if verbose_mode is not None:
         for scorer in scorers:
             scorer.verbose_mode = verbose_mode
+
+    for scorer in scorers:
+        print("Processing scorer")
+        scorer._add_model(model)
+        print(f"Scorer model: {scorer.evaluation_model}, {scorer.model}, {type(scorer)}")
 
     scoring_results: List[ScoringResult] = [None for _ in examples]
     tasks = []

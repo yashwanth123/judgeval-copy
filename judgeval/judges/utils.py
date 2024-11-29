@@ -11,7 +11,7 @@ from judgeval.constants import TOGETHER_SUPPORTED_MODELS
 LITELLM_SUPPORTED_MODELS = set(litellm.model_list)
 
 def create_judge(
-    model: Optional[Union[str, List[str], judgevalJudge, LiteLLMJudge, TogetherJudge]] = None) -> Tuple[judgevalJudge, bool]:
+    model: Optional[Union[str, List[str], judgevalJudge]] = None) -> Tuple[judgevalJudge, bool]:
     """
     Creates a judge model from string(s) or a judgeval judge object.
 
@@ -22,7 +22,7 @@ def create_judge(
     Returns a tuple of (initialized judgevalBaseLLM, using_native_model boolean)
     If no model is provided, uses GPT4o as the default judge.
     """
-    if type(model) not in [str, list, judgevalJudge]:
+    if not isinstance(model, (str, list, judgevalJudge)):
         raise InvalidJudgeModelError(f"Model must be a string, list of strings, or a judgeval judge object. Got: {type(model)} instead.")
     if model is None:  # default option
         return LiteLLMJudge(model="gpt-4o"), True
