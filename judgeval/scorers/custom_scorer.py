@@ -5,11 +5,13 @@ Enables client to create custom scorers that do not fall under any of the ready-
 To create a custom scorer, extend this class and implement the `score_example`, `a_score_example`, and `success_check` methods.
 """
 
-from typing import Optional, Dict
+from typing import Optional, Dict, Union, List
 from abc import abstractmethod
-from judgeval.common.logger import debug, info, warning, error
 
+from judgeval.common.logger import debug, info, warning, error
 from judgeval.data import Example
+from judgeval.judges import judgevalJudge
+from judgeval.judges.utils import create_judge
 
 
 class CustomScorer:
