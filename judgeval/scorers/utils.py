@@ -1,9 +1,19 @@
 """
 Util functions for Scorer objects
+
+TODO add logging
 """
 
+import asyncio
+import nest_asyncio
 import inspect
-from typing import List, Optional
+import json
+import sys
+import re
+from contextlib import contextmanager
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.console import Console
+from typing import List, Optional, Any
 
 from judgeval.scorers import CustomScorer
 
@@ -28,7 +38,8 @@ def clone_scorers(
         cloned_scorers.append(scorer_class(**valid_args))
     return cloned_scorers
 
-def format_metric_description(
+
+def scorer_console_msg(
     scorer: CustomScorer,
     async_mode: Optional[bool] = None,
 ):
@@ -41,3 +52,125 @@ def format_metric_description(
         run_async = async_mode
 
     return f"🔨 Executing Judgment's [rgb(106,0,255)]{scorer.__name__} Scorer[/rgb(106,0,255)]! [rgb(55,65,81)](using {scorer.evaluation_model}, async_mode={run_async})...[/rgb(55,65,81)]"
+
+
+@contextmanager
+def scorer_progress_meter(
+    scorer: CustomScorer,
+    async_mode: Optional[bool] = None,
+    display_meter: bool = True,
+    total: int = 100,
+    transient: bool = True,
+):
+    """
+    Context manager to display a progress indicator while a scorer is being run.
+    """
+    console = Console(file=sys.stderr)
+    if display_meter:
+        with Progress(
+            SpinnerColumn(style="rgb(106,0,255)"),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+            transient=transient,
+        ) as progress:
+            progress.add_task(
+                description=scorer_console_msg(scorer, async_mode),
+                total=total,
+            )
+            yield
+    else:
+        yield
+
+
+def parse_response_json(llm_response: str, scorer: Optional[CustomScorer] = None) -> dict:
+    """
+    Extracts JSON output from an LLM response and returns it as a dictionary.
+
+    If the JSON is invalid, the error is forwarded to the `scorer`, if provided.
+
+    Args:
+        llm_response (str): The response from an LLM.
+        scorer (CustomScorer, optional): The scorer object to forward errors to.
+    """
+    start = llm_response.find("{")
+    end = llm_response.rfind("}") + 1
+
+    if end == 0 and start != -1:
+        llm_response = llm_response + "}"
+        end = len(llm_response)
+
+    json_str = llm_response[start:end] if start != -1 and end != 0 else ""
+    json_str = re.sub(r",\s*([\]}])", r"\1", json_str)  # Remove trailing comma if present
+
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError:
+        error_str = "Evaluation LLM outputted an invalid JSON. Please use a better evaluation model."
+        if scorer is not None:
+            scorer.error = error_str
+        raise ValueError(error_str)
+    except Exception as e:
+        raise Exception(f"An unexpected error occurred: {str(e)}")
+
+
+def print_verbose_logs(metric: str, logs: str):
+    print("*" * 50)
+    print(f"{metric} Verbose Logs")
+    print("*" * 50)
+    print("")
+    print(logs)
+    print("")
+    print("=" * 70)
+
+
+def create_verbose_logs(metric: CustomScorer, steps: List[str]) -> str:
+    """
+    Creates verbose logs for a scorer object.
+
+    Args:
+        metric (CustomScorer): The scorer object.
+        steps (List[str]): The steps to be included in the verbose logs.
+    
+    Returns:
+        str: The verbose logs (Concatenated steps).
+    """
+
+    verbose_logs = ""
+    for i in range(len(steps) - 1):
+        verbose_logs += steps[i]
+        if i < len(steps) - 2:  # don't add new line for penultimate step
+            verbose_logs += " \n \n"
+    if metric.verbose_mode:
+        print_verbose_logs(metric.__name__, verbose_logs + f"\n \n{steps[-1]}")
+    return verbose_logs
+
+
+def get_or_create_event_loop() -> asyncio.AbstractEventLoop:
+    """
+    Get or create an asyncio event loop.
+
+    This function attempts to retrieve the current event loop using `asyncio.get_event_loop()`.
+    If the event loop is already running, it applies the `nest_asyncio` patch to allow nested
+    asynchronous execution. If the event loop is closed or not found, it creates a new event loop
+    and sets it as the current event loop.
+
+    Returns:
+        asyncio.AbstractEventLoop: The current or newly created event loop.
+    
+    Raises:
+        RuntimeError: If the event loop is closed.
+    """
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            print(
+                "Event loop is already running. Applying nest_asyncio patch to allow async execution..."
+            )
+            nest_asyncio.apply()
+
+        if loop.is_closed():
+            raise RuntimeError
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop
