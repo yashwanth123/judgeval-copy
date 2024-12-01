@@ -126,15 +126,7 @@ class PromptScorer(CustomScorer):
             result, reason = self.process_response(response)
             return result, reason
         else:
-            try:
-                res: ReasonScore = self.model.generate(
-                    prompt, schema=ReasonScore
-                )
-                return res.score, res.reason
-            except TypeError:
-                res = self.model.generate(prompt)
-                data = parse_response_json(res, self)
-                return data["score"], data["reason"]
+            raise NotImplementedError("Non-native judge models are not supported in synchronous mode yet.")
 
     async def a_evaluate(self, example: Example) -> Tuple[Any, str]:
         """
