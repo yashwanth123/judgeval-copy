@@ -137,7 +137,9 @@ class PromptScorer(CustomScorer):
 
         NOTE: It is assumed that the model response will be JSON and contain a "score" and "reason" field.
         """
-        prompt = self.build_measure_prompt(example)
+        judge_prompt = self.build_measure_prompt(example)
+        schema = self.build_schema()
+        prompt = self.enforce_prompt_format(judge_prompt=judge_prompt, schema=schema)
         if self.using_native_model:
             res = await self.model.a_generate(prompt)
             response = parse_response_json(res, self)
@@ -159,10 +161,83 @@ class PromptScorer(CustomScorer):
                 data = parse_response_json(res, self)
                 return data["score"], data["reason"]
 
+    # TODO: can we make this take *args and **kwargs? How does that work with a_evaluate() since we'd have to pass the same args
     @abstractmethod
-    def build_measure_prompt(self, example: Example, *args, **kwargs) -> Union[str, List[dict]]:
+    def build_measure_prompt(self, example: Example) -> List[dict]:
         # builds the prompt that is sent to the model inside of the `score_example()` method
         # returns either a string prompt or a conversation prompt of the form [{"role": "system", "content": "..."}, ...]
+
+        """
+        basic version is
+
+        SYSTEM_ROLE = ...
+        return [
+            {"role": "system", "content": SYSTEM_ROLE},
+            {"role": "user", "content": f"Response: {example.actual_output}\n\nYour judgment: "}
+        ]
+        """
+        pass
+    
+    # TODO: does this need to take *args and **kwargs? How does that work with a_evaluate() since we'd have to pass the same args
+    @abstractmethod
+    def build_schema(self) -> dict:
+        # returns a dictionary that represents the schema of the JSON response that the judge model should return
+        # e.g. return {"score": int, "reason": str}
+        pass
+    
+    def enforce_prompt_format(self, judge_prompt: List[dict], schema: dict):
+        """
+        Formats the final prompt to the judge model.
+
+        This function takes a list of dictionaries (`judge_prompt`) and a schema dictionary (`schema`), 
+        and appends a schema enforcement prompt to the content of the first dictionary in the list, which is assumed to be the system prompt. 
+        The schema enforcement prompt instructs the judge model to provide its response in a specific JSON format.
+
+        Args:
+            judge_prompt (List[dict]): A list of dictionaries representing the judge prompt. 
+                                       Each dictionary should contain a "content" key.
+            schema (dict): A dictionary representing the schema. The keys are the expected keys in the response, 
+                           and the values are the types of the corresponding values.
+
+        Returns:
+            List[dict]: The modified judge prompt with the schema enforcement prompt appended to the content 
+                        of the first dictionary.
+
+        Raises:
+            TypeError: If `judge_prompt` is not a list of dictionaries.
+
+        Example:
+            judge_prompt = [{"content": "Please evaluate the following:"}]
+            schema = {"score": int, "comments": str}
+            formatted_prompt = format_measure_prompt(judge_prompt, schema)
+            # formatted_prompt[0]["content"] will include the schema enforcement prompt
+        """
+        SCHEMA_ENFORCEMENT_PROMPT = "\n\nPlease provide your response in the following JSON format: {"
+        if isinstance(judge_prompt, list) and all(isinstance(item, dict) for item in judge_prompt):
+            # create formatting string for schema enforcement
+            # schema is a map between key and type of the value 
+            for key, key_type in schema.items():
+                SCHEMA_ENFORCEMENT_PROMPT += f'"{key}": <{key}> ({key_type}), '
+            SCHEMA_ENFORCEMENT_PROMPT = SCHEMA_ENFORCEMENT_PROMPT[:-2] + "}"  # remove trailing comma and space
+            judge_prompt[0]["content"] += SCHEMA_ENFORCEMENT_PROMPT
+            return judge_prompt
+        else:
+            raise TypeError(f"Prompt must be a list of dictionaries. Got {type(judge_prompt)} instead.")
+
+    @abstractmethod 
+    def process_response(self, response: dict):
+        """
+        Customizable method for processing the response from the judge model.
+
+        You can add any additional logic to parse the JSON response here and return the result and reason for decision.
+
+        If you don't need a reason for the decision, you can simply return (score, None).
+
+        Example:
+        score = response["score"]
+        reason = response["reason"]
+        return score, reason
+        """
         pass
 
     @abstractmethod
