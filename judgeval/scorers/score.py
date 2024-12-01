@@ -17,10 +17,11 @@ from judgeval.data import (
     create_scorer_data,
 )
 from judgeval.scorers import CustomScorer
-from judgeval.scorers.utils import clone_scorers, format_metric_description
+from judgeval.scorers.utils import clone_scorers, scorer_console_msg
 from judgeval.common.telemetry import capture_evaluation_run
 from judgeval.common.exceptions import MissingTestCaseParamsError
 from judgeval.common.logger import example_logging_context, debug, error, warning, info
+from judgeval.judges import judgevalJudge
 
 async def safe_a_score_example(
     scorer: CustomScorer,
@@ -213,7 +214,7 @@ async def score_with_indicator(
             tasks = []
             for scorer in scorers:
                 task_id = progress.add_task(
-                    description=format_metric_description(
+                    description=scorer_console_msg(
                         scorer, async_mode=True
                     ),
                     total=100,
@@ -243,11 +244,12 @@ async def score_with_indicator(
 async def a_execute_scoring(
     examples: List[Example],
     scorers: List[CustomScorer],
-    ignore_errors: bool,
-    skip_on_missing_params: bool,
-    show_indicator: bool,
-    throttle_value: int,
-    max_concurrent: int,
+    model: Optional[Union[str, List[str], judgevalJudge]] = None,
+    ignore_errors: bool = True,
+    skip_on_missing_params: bool = True,
+    show_indicator: bool = True,
+    throttle_value: int = 0,
+    max_concurrent: int = 100,
     verbose_mode: Optional[bool] = None,
     _use_bar_indicator: bool = True,
 ) -> List[ScoringResult]:
@@ -277,6 +279,10 @@ async def a_execute_scoring(
     if verbose_mode is not None:
         for scorer in scorers:
             scorer.verbose_mode = verbose_mode
+
+    # Add model to scorers 
+    for scorer in scorers:
+        scorer._add_model(model)
 
     scoring_results: List[ScoringResult] = [None for _ in examples]
     tasks = []

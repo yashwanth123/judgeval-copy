@@ -205,7 +205,7 @@ def metric_progress_indicator(
                 transient=transient,
             ) as progress:
                 progress.add_task(
-                    description=format_metric_description(metric, async_mode),
+                    description=scorer_console_msg(metric, async_mode),
                     total=total,
                 )
                 yield
@@ -310,7 +310,6 @@ class CustomFaithfulnessMetric(CustomScorer):
     def __init__(
         self,
         threshold: float = 0.5,
-        model: Union[str, judgevalJudge] = None,
         include_reason: bool = True,
         async_mode: bool = True,
         strict_mode: bool = False,
@@ -318,9 +317,7 @@ class CustomFaithfulnessMetric(CustomScorer):
     ):
         super().__init__("customfaithfulness", threshold)
         self.threshold = 1 if strict_mode else threshold
-        self.model, self.using_native_model = create_judge(model)
         self.using_native_model = True  # NOTE: SETTING THIS FOR LITELLM and TOGETHER usage
-        self.evaluation_model = self.model.get_model_name()
         self.include_reason = include_reason
         self.async_mode = async_mode
         self.strict_mode = strict_mode

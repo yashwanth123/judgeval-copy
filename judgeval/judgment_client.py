@@ -49,12 +49,12 @@ class JudgmentClient:
         try:
             eval = EvaluationRun(
                 name=eval_run_name,
-            examples=examples,
-            scorers=scorers,
-            model=model,
-            aggregator=aggregator,
-            metadata=metadata,
-            judgment_api_key=self.judgment_api_key
+                examples=examples,
+                scorers=scorers,
+                model=model,
+                aggregator=aggregator,
+                metadata=metadata,
+                judgment_api_key=self.judgment_api_key
             )
             return run_eval(eval, name=eval_run_name, log_results=log_results)
         except ValueError as e:

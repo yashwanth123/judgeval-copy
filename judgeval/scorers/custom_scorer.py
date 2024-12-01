@@ -5,11 +5,13 @@ Enables client to create custom scorers that do not fall under any of the ready-
 To create a custom scorer, extend this class and implement the `score_example`, `a_score_example`, and `success_check` methods.
 """
 
-from typing import Optional, Dict
+from typing import Optional, Dict, Union, List
 from abc import abstractmethod
-from judgeval.common.logger import debug, info, warning, error
 
+from judgeval.common.logger import debug, info, warning, error
 from judgeval.data import Example
+from judgeval.judges import judgevalJudge
+from judgeval.judges.utils import create_judge
 
 
 class CustomScorer:
@@ -72,6 +74,14 @@ class CustomScorer:
             self.verbose_logs = verbose_logs
             self.additional_metadata = additional_metadata
 
+    def _add_model(self, model: Optional[Union[str, List[str], judgevalJudge]] = None):
+        """
+        Adds the evaluation model to the CustomScorer instance 
+
+        This method is used at eval time
+        """
+        self.model, self.using_native_model = create_judge(model)
+        self.evaluation_model = self.model.get_model_name()
 
     @abstractmethod
     def score_example(self, example: Example, *args, **kwargs) -> float:
