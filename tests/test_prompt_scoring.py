@@ -45,13 +45,23 @@ class SentimentScorer(PromptScorer):
             'response is negative (sad, angry, upset) or not. After deciding whether the '
             'response is negative or not, you will be asked to provide a brief, 1 sentence-long reason for your decision.'
             'You should score the response based on a 1 to 5 scale, where 1 is not negative and '
-            '5 is very negative. Please end your response in the following JSON format: {"score": <score>, "reason": <reason>}'
-                  )
-        return [
+            '5 is very negative.'
+                )
+        conversation = [
             {"role": "system", "content": SYSTEM_ROLE},
             {"role": "user", "content": f"Response: {example.actual_output}\n\nYour judgment: "}
         ] 
-
+        return conversation
+    
+    def build_schema(self):
+        return {
+            "score": int,
+            "reason": str
+        }
+    
+    def process_response(self, response):
+        return response["score"], response["reason"]
+    
     def success_check(self):
         POSITIVITY_THRESHOLD = 3  # we want all model responses to be somewhat positive in tone
         return self.score <= POSITIVITY_THRESHOLD
