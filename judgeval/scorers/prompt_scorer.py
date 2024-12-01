@@ -160,8 +160,14 @@ class PromptScorer(CustomScorer):
         # returns either a string prompt or a conversation prompt of the form [{"role": "system", "content": "..."}, ...]
 
         """
-        basic version is
+        This function creates the prompt that the judge model uses to evaluate examples.
 
+        The prompt is typically a set of instructions that the judge model uses to evaluate the example.
+
+        This function returns a conversation prompt of the form 
+        [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}]
+
+        A basic version of implementing this function could be as follows:
         SYSTEM_ROLE = ...
         return [
             {"role": "system", "content": SYSTEM_ROLE},
@@ -173,8 +179,14 @@ class PromptScorer(CustomScorer):
     # TODO: does this need to take *args and **kwargs? How does that work with a_evaluate() since we'd have to pass the same args
     @abstractmethod
     def build_schema(self) -> dict:
-        # returns a dictionary that represents the schema of the JSON response that the judge model should return
-        # e.g. return {"score": int, "reason": str}
+        """
+        This function returns a dictionary that represents the schema of the JSON response that the judge model should return.
+
+        The keys of the dictionary are the expected keys in the response, and the values are the types of the corresponding values.
+
+        Example: If you want to have the judge model return a score and a reason, you would write:
+        return {"score": int, "reason": str}
+        """
         pass
     
     def enforce_prompt_format(self, judge_prompt: List[dict], schema: dict):
@@ -233,9 +245,13 @@ class PromptScorer(CustomScorer):
         pass
 
     @abstractmethod
-    def success_check(self, **kwargs):
+    def success_check(self, **kwargs) -> bool:
+        """
+        Determines whether or not the PromptScorer should consider the evaluation of a single example successful.
+        """
         pass
     
     @property
     def __name__(self):
-        return "Prompt Scorer"
+        return self.name
+    
