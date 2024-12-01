@@ -122,8 +122,9 @@ class PromptScorer(CustomScorer):
         prompt = self.build_measure_prompt(example)
         if self.using_native_model:
             res = self.model.generate(prompt)
-            data = parse_response_json(res, self)
-            return data["score"], data["reason"]
+            response = parse_response_json(res, self)
+            result, reason = self.process_response(response)
+            return result, reason
         else:
             try:
                 res: ReasonScore = self.model.generate(
@@ -147,12 +148,14 @@ class PromptScorer(CustomScorer):
         prompt = self.build_measure_prompt(example)
         if self.using_native_model:
             res = await self.model.a_generate(prompt)
-            data = parse_response_json(res, self)
+            response = parse_response_json(res, self)
+            self.response = response
 
-            self.score = data["score"]
-            self.reason = data["reason"]
-            self.response = data
-            return data["score"], data["reason"]
+            result, reason = self.process_response(response)
+            self.score = result
+            self.reason = reason
+            self.response = response
+            return result, reason
         else:
             try:
                 res: ReasonScore = await self.model.a_generate(
