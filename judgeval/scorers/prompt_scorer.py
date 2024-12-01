@@ -151,15 +151,7 @@ class PromptScorer(CustomScorer):
             self.response = response
             return result, reason
         else:
-            try:
-                res: ReasonScore = await self.model.a_generate(
-                    prompt, schema=ReasonScore
-                )
-                return res.score, res.reason
-            except TypeError:
-                res = await self.model.a_generate(prompt)
-                data = parse_response_json(res, self)
-                return data["score"], data["reason"]
+            raise NotImplementedError("Non-native judge models are not supported in async mode yet.")
 
     # TODO: can we make this take *args and **kwargs? How does that work with a_evaluate() since we'd have to pass the same args
     @abstractmethod
