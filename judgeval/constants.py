@@ -5,11 +5,11 @@ Constant variables used throughout source code
 from enum import Enum
 import litellm
 
-class JudgmentMetric(Enum):  
+class APIScorer(Enum):  
     """
-    Collection of proprietary metrics implemented by Judgment.
+    Collection of proprietary scorers implemented by Judgment.
 
-    These are ready-made evaluation scorers/metrics that can be used to evaluate
+    These are ready-made evaluation scorers that can be used to evaluate
     Examples via the Judgment API.
     """
     FAITHFULNESS = "faithfulness"

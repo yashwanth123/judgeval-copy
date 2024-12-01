@@ -7,7 +7,7 @@ Scores `Example`s using ready-made Judgment evaluators.
 from pydantic import BaseModel, field_validator
 from judgeval.common.logger import debug, info, warning, error
 
-from judgeval.constants import JudgmentMetric
+from judgeval.constants import APIScorer
 
 
 class JudgmentScorer(BaseModel):
@@ -18,7 +18,7 @@ class JudgmentScorer(BaseModel):
         score_type (JudgmentMetric): The Judgment metric to use for scoring `Example`s
     """
     threshold: float
-    score_type: JudgmentMetric
+    score_type: APIScorer
 
     @field_validator('score_type')
     def convert_to_enum_value(cls, v):
@@ -27,12 +27,12 @@ class JudgmentScorer(BaseModel):
         Converts string values to `JudgmentMetric` enum values.
         """
         debug(f"Attempting to convert score_type value: {v}")
-        if isinstance(v, JudgmentMetric):
+        if isinstance(v, APIScorer):
             info(f"Using existing JudgmentMetric: {v.value}")
             return v.value
         elif isinstance(v, str):
             debug(f"Converting string value to JudgmentMetric enum: {v}")
-            return JudgmentMetric[v.upper()].value
+            return APIScorer[v.upper()].value
         error(f"Invalid score_type value: {v}")
         raise ValueError(f"Invalid value for score_type: {v}")
     
