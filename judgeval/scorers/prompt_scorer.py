@@ -48,7 +48,6 @@ class PromptScorer(CustomScorer):
         self,
         name: str, 
         threshold: float = 0.5,
-        model: Optional[Union[str, judgevalJudge]] = None,
         include_reason: bool = True,
         async_mode: bool = True,
         strict_mode: bool = False,
@@ -56,9 +55,7 @@ class PromptScorer(CustomScorer):
     ):
         self.name = name
         self.threshold = 1 if strict_mode else threshold
-        self.model, self.using_native_model = create_judge(model)
         self.using_native_model = True  # NOTE: SETTING THIS FOR LITELLM and TOGETHER usage
-        self.evaluation_model = self.model.get_model_name()
         self.include_reason = include_reason
         self.async_mode = async_mode
         self.strict_mode = strict_mode
