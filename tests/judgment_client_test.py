@@ -6,7 +6,7 @@ import os
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import JudgmentScorer
-from judgeval.constants import JudgmentMetric
+from judgeval.constants import APIScorer
 from judgeval.judges import TogetherJudge
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
@@ -47,12 +47,10 @@ def test_run_eval(client: JudgmentClient, eval_run_name: str):
         additional_metadata={"difficulty": "medium"}
     )
 
-    scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
-    scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
-    model = TogetherJudge()
+    scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
     c_scorer = CustomFaithfulnessMetric(
         threshold=0.6,
-        model=model,
     )
 
     results = client.run_evaluation(
@@ -91,7 +89,7 @@ def test_evaluate_dataset(client: JudgmentClient):
     dataset = EvalDataset(examples=[example1, example2])
     res = client.evaluate_dataset(
         dataset=dataset,
-        scorers=[JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)],
+        scorers=[JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)],
         model="QWEN",
         metadata={"batch": "test"},
     )

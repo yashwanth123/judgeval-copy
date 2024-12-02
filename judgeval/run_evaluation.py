@@ -13,7 +13,7 @@ from judgeval.scorers.score import (
 from judgeval.constants import (
     JUDGMENT_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
-    JudgmentMetric,
+    APIScorer,
 )
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
@@ -200,6 +200,7 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
             a_execute_scoring(
                 evaluation_run.examples,
                 custom_scorers,
+                model=evaluation_run.model,
                 ignore_errors=True,
                 skip_on_missing_params=True,
                 show_indicator=True,
@@ -265,8 +266,8 @@ if __name__ == "__main__":
         additional_metadata={"difficulty": "medium"}
     )
 
-    scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
-    scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
+    scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
     model = TogetherJudge()
 
     # model = MixtureOfJudges()

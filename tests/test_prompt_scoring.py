@@ -21,7 +21,6 @@ class SentimentScorer(PromptScorer):
         self, 
         name="Sentiment Scorer", 
         threshold=0.5, 
-        model=qwen, 
         include_reason=True, 
         async_mode=True, 
         strict_mode=False, 
@@ -30,7 +29,6 @@ class SentimentScorer(PromptScorer):
         super().__init__(
             name=name,
             threshold=threshold,
-            model=model,
             include_reason=include_reason,
             async_mode=async_mode,
             strict_mode=strict_mode,
