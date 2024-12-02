@@ -20,10 +20,10 @@ class LiteLLMJudge(judgevalJudge):
 
     def generate(self, input: Union[str, List[Mapping[str, str]]], schema: pydantic.BaseModel = None) -> str:
         debug(f"Generating response for input type: {type(input)}")
-        if type(input) == str:
+        if isinstance(input, str):
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
             return fetch_litellm_api_response(model=self.model, messages=convo, response_format=schema)
-        elif type(input) == list:
+        elif isinstance(input, list):
             return fetch_litellm_api_response(model=self.model, messages=input, response_format=schema)
         else:
             error(f"Invalid input type received: {type(input)}")
@@ -31,11 +31,11 @@ class LiteLLMJudge(judgevalJudge):
 
     async def a_generate(self, input: Union[str, List[Mapping[str, str]]], schema: pydantic.BaseModel = None) -> str:
         debug(f"Async generating response for input type: {type(input)}")
-        if type(input) == str:
+        if isinstance(input, str):
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
             response = await afetch_litellm_api_response(model=self.model, messages=convo, response_format=schema)
             return response
-        elif type(input) == list:
+        elif isinstance(input, list):
             response = await afetch_litellm_api_response(model=self.model, messages=input, response_format=schema)
             return response
         else:

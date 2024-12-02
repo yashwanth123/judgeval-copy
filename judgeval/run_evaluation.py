@@ -167,7 +167,7 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
                 log_results=log_results
             )
 
-            debug("Sending request to Judgment API")
+            debug("Sending request to Judgment API")    
             response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
             info(f"Received {len(response_data['results'])} results from API")
         except JudgmentAPIError as e:
