@@ -20,6 +20,7 @@ from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge, MixtureOfJudges
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.common.logger import enable_logging, debug, info, error, example_logging_context
+from judgeval.common.tracer import Tracing, tracer
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
@@ -155,16 +156,17 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
     if judgment_scorers:
         info("Starting API evaluation")
         debug(f"Creating API evaluation run with {len(judgment_scorers)} scorers")
-        api_evaluation_run: EvaluationRun = EvaluationRun(
-            name=name,
-            examples=evaluation_run.examples,
-            scorers=judgment_scorers,
-            model=evaluation_run.model,
-            aggregator=evaluation_run.aggregator,
-            metadata=evaluation_run.metadata,
-            judgment_api_key=evaluation_run.judgment_api_key,
-            log_results=log_results
-        )
+        try:
+            api_evaluation_run: EvaluationRun = EvaluationRun(
+                name=name,
+                examples=evaluation_run.examples,
+                scorers=judgment_scorers,
+                model=evaluation_run.model,
+                aggregator=evaluation_run.aggregator,
+                metadata=evaluation_run.metadata,
+                judgment_api_key=evaluation_run.judgment_api_key,
+                log_results=log_results
+            )
 
             debug("Sending request to Judgment API")
             response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
@@ -241,6 +243,7 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
 
 if __name__ == "__main__":
     from judgeval.common.logger import enable_logging, debug, info
+    from judgeval.common.tracer import tracer
     
     # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
@@ -267,8 +270,6 @@ if __name__ == "__main__":
     scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
     scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
     model = TogetherJudge()
-
-    # model = MixtureOfJudges()
     c_scorer = CustomFaithfulnessMetric(
         threshold=0.6,
         model=model,
@@ -276,13 +277,24 @@ if __name__ == "__main__":
 
     client = JudgmentClient()
 
-    with enable_logging():
-        debug("Starting evaluation")
-        response = client.run_evaluation(
-            examples=[example1, example2],
-            scorers=[c_scorer, scorer],
-            model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
-            aggregator='QWEN'
-        )
-        info("Evaluation complete")
-        debug(f"Results: {response}")
+    with Tracing() as tracer:
+        with tracer.span("full_evaluation"):
+            debug("Starting evaluation process")
+            
+            with tracer.span("setup"):
+                debug("Setting up evaluation components")
+                # Setup code here if needed
+            
+            with tracer.span("client_evaluation"):
+                debug("Running client evaluation")
+                response = client.run_evaluation(
+                    examples=[example1, example2],
+                    scorers=[c_scorer, scorer],
+                    model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
+                    aggregator='QWEN'
+                )
+            
+            with tracer.span("process_results"):
+                debug("Processing evaluation results")
+                
+
