@@ -23,6 +23,7 @@ from judgeval.common.logger import enable_logging, debug, info, error, example_l
 from judgeval.common.tracer import Tracing, tracer
 
 
+@tracer.observe
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
     """
     Executes an evaluation of a list of `Example`s using one or more `JudgmentScorer`s via the Judgment API.
@@ -98,6 +99,7 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
     return api_results
 
 
+@tracer.observe
 def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = False):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
@@ -277,24 +279,15 @@ if __name__ == "__main__":
 
     client = JudgmentClient()
 
-    with Tracing() as tracer:
-        with tracer.span("full_evaluation"):
-            debug("Starting evaluation process")
-            
-            with tracer.span("setup"):
-                debug("Setting up evaluation components")
-                # Setup code here if needed
-            
-            with tracer.span("client_evaluation"):
-                debug("Running client evaluation")
-                response = client.run_evaluation(
-                    examples=[example1, example2],
-                    scorers=[c_scorer, scorer],
-                    model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
-                    aggregator='QWEN'
-                )
-            
-            with tracer.span("process_results"):
-                debug("Processing evaluation results")
-                
+    @tracer.observe
+    def run_demo():
+        response = client.run_evaluation(
+            examples=[example1, example2],
+            scorers=[c_scorer, scorer],
+            model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
+            aggregator='QWEN'
+        )
+        return response
+
+    results = run_demo()
 
