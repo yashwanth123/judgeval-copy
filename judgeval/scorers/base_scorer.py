@@ -15,7 +15,7 @@ class JudgmentScorer(BaseModel):
     Class for ready-made, "out-of-the-box" scorer that uses Judgment evaluators to score `Example`s.
 
     Args:
-        score_type (JudgmentMetric): The Judgment metric to use for scoring `Example`s
+        score_type (APIScorer): The Judgment metric to use for scoring `Example`s
     """
     threshold: float
     score_type: APIScorer
