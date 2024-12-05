@@ -122,7 +122,6 @@ class Tracer:
 
     def _format_result(self, result: Any, func_name: str) -> str:
         """Format the result for display based on function and result type"""
-        
         def get_scorer_info(scorer):
             """Helper function to get info regardless of type"""
             if isinstance(scorer, dict):

@@ -238,8 +238,12 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
 
     # Aggregate the ScorerData from the API and local evaluations
     debug("Merging API and local results")
-    merged_results = merge_results(api_results, local_results)
+    merged_results: List[ScoringResult] = merge_results(api_results, local_results)
     info(f"Successfully merged {len(merged_results)} results")
+
+    for i, result in enumerate(merged_results):
+        if not result.scorers_data:  # none of the scorers could be executed on this example
+            print(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
     return merged_results
 
 
@@ -283,10 +287,11 @@ if __name__ == "__main__":
     def run_demo():
         response = client.run_evaluation(
             examples=[example1, example2],
-            scorers=[c_scorer, scorer],
+            scorers=[c_scorer, scorer2],
             model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
             aggregator='QWEN'
         )
+        print("RESPONSE", response)
         return response
 
     results = run_demo()
