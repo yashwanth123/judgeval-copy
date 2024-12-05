@@ -30,56 +30,67 @@ class Tracer:
             self.current_span: Optional[TraceSpan] = None
             self.depth = 0
             self._enabled_count = 0  # Track number of active traces
+            self._is_tracing = False  # New flag to track if we're in an active trace
             self.initialized = True
 
     @property
     def enabled(self) -> bool:
-        return self._enabled_count > 0
+        return self._is_tracing
 
-    def observe(self, func=None, *, name=None, metadata=None):
+    def observe(self, func=None, *, name=None, metadata=None, top_level=False):
         """
         Decorator that can be used with or without arguments:
-        @tracer.observe
+        @tracer.observe  # non-top-level by default
         def my_func(): ...
         
         or
         
-        @tracer.observe(name="custom_name", metadata={...})
+        @tracer.observe(top_level=True)  # explicitly mark as top-level
         def my_func(): ...
         """
         if func is None:
-            # Called with arguments: @tracer.observe(name="...")
-            return lambda f: self.observe(f, name=name, metadata=metadata)
+            # Called with arguments: @tracer.observe(...)
+            return lambda f: self.observe(f, name=name, metadata=metadata, top_level=top_level)
         
         # Called without arguments: @tracer.observe
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            self._enabled_count += 1
+            should_trace = self._is_tracing or top_level
             
-            span_name = name or func.__name__
-            span = TraceSpan(
-                name=span_name,
-                start_time=time.time(),
-                parent=self.current_span,
-                depth=self.depth,
-                metadata=metadata
-            )
+            if top_level:
+                self._is_tracing = True
             
-            print(f"{'  ' * self.depth}→ {span.name}")
-            self.current_span = span
-            self.depth += 1
+            if should_trace:
+                self._enabled_count += 1
+                span_name = name or func.__name__
+                span = TraceSpan(
+                    name=span_name,
+                    start_time=time.time(),
+                    parent=self.current_span,
+                    depth=self.depth,
+                    metadata=metadata
+                )
+                
+                print(f"{'  ' * self.depth}→ {span.name}")
+                self.current_span = span
+                self.depth += 1
             
             try:
                 result = func(*args, **kwargs)
-                result_str = self._format_result(result, func.__name__)
-                print(f"{'  ' * self.depth}{result_str}")
+                if should_trace:
+                    result_str = self._format_result(result, func.__name__)
+                    print(f"{'  ' * self.depth}{result_str}")
                 return result
             finally:
-                self.depth -= 1
-                duration = time.time() - span.start_time
-                print(f"{'  ' * self.depth}← {span.name} ({duration:.3f}s)")
-                self.current_span = span.parent
-                self._enabled_count -= 1
+                if should_trace:
+                    self.depth -= 1
+                    duration = time.time() - span.start_time
+                    print(f"{'  ' * self.depth}← {span.name} ({duration:.3f}s)")
+                    self.current_span = span.parent
+                    self._enabled_count -= 1
+                
+                if top_level:
+                    self._is_tracing = False
                 
         return wrapper
 
@@ -122,6 +133,7 @@ class Tracer:
 
     def _format_result(self, result: Any, func_name: str) -> str:
         """Format the result for display based on function and result type"""
+        
         def get_scorer_info(scorer):
             """Helper function to get info regardless of type"""
             if isinstance(scorer, dict):
@@ -152,6 +164,7 @@ class Tracer:
             if isinstance(result, dict) and 'results' in result:
                 summary = []
                 for result_item in result['results']:
+                    print(result_item)
                     scorers_data = result_item['scorers_data']
                     for scorer in scorers_data:
                         summary.append(f"{'  ' * (self.depth + 1)}{scorer['name']}: {scorer['score']:.2f} ({scorer['success']})")
@@ -205,12 +218,28 @@ class Tracer:
                 return "\n".join(output)
             return "No evaluation results"
         
+        elif func_name == "run_demo":
+            if isinstance(result, list):
+                output = ["Demo Results:"]
+                for item in result:
+                    output.append("-" * 40)
+                    output.append(f"Q: {item.input}")
+                    output.append(f"A: {item.actual_output}")
+                    
+                    # Summarize scorer results
+                    for scorer_data in item.scorers_data:
+                        info = get_scorer_info(scorer_data)
+                        output.append(f"{info['name']}: {info['score']:.2f} (success={info['success']})")
+                        if info['reason']:
+                            output.append(f"Reason: {info['reason']}")
+                    output.append("")  # Empty line for readability
+                
+                return "\n".join(output)
+            return "No demo results"
+        
         else:
             return f"{func_name} has outputted {result}"
         
-        
-
-
 class Tracing:
     """Context manager for enabling tracing"""
     def __enter__(self):

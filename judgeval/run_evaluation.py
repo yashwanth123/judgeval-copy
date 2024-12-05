@@ -283,11 +283,11 @@ if __name__ == "__main__":
 
     client = JudgmentClient()
 
-    @tracer.observe
+    @tracer.observe(top_level=True)
     def run_demo():
         response = client.run_evaluation(
             examples=[example1, example2],
-            scorers=[c_scorer, scorer2],
+            scorers=[c_scorer, scorer],
             model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
             aggregator='QWEN'
         )
