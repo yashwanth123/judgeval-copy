@@ -4,13 +4,30 @@ Tracing system for judgeval that allows for function tracing using decorators.
 
 import time
 import functools
-from typing import Optional, Dict, Any, List
+from typing import Optional, Any, List, Literal
 from dataclasses import dataclass
 
 @dataclass
 class TraceEntry:
-    """Represents a single trace entry with its visual representation"""
-    type: str  # 'enter', 'exit', or 'output'
+    """
+    Represents a single trace entry with its visual representation
+    
+    Each TraceEntry is a single line in the trace.
+    The `type` field determines the visual representation of the entry.
+    - `enter` is for when a function is entered, represented by `→`
+    - `exit` is for when a function is exited, represented by `←`
+    - `output` is for when a function outputs a value, represented by `Output:`
+
+    Args:
+        type: The type of trace entry ('enter', 'exit', or 'output')
+        function: Name of the function being traced
+        depth: Indentation level of this trace entry
+        message: Additional message to include in the trace
+        timestamp: Time when this trace entry was created
+        duration: For 'exit' entries, how long the function took to execute
+        output: For 'output' entries, the value that was output
+    """
+    type: Literal['enter', 'exit', 'output']
     function: str
     depth: int
     message: str
