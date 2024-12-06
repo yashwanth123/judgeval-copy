@@ -46,21 +46,65 @@ class TraceEntry:
 
 @dataclass
 class TracedResult:
-    """Stores the result and trace information for a single traced function execution"""
+    """
+    Stores the result and trace information for a single traced function execution.
+
+    This class encapsulates both the return value and the execution trace of a traced function.
+    It provides methods to visualize the complete execution trace.
+
+    Args:
+        result (Any): The value returned by the traced function
+        trace_entries (List[TraceEntry]): List of TraceEntry objects representing the execution trace
+        name (str): Name of the traced function
+
+    Example:
+        traced = TracedResult(
+            result=42,
+            trace_entries=[entry1, entry2],
+            name="my_function"
+        )
+        traced.print_trace()  # Prints the complete execution trace
+    """
     result: Any
     trace_entries: List[TraceEntry]
     name: str
 
     def print_trace(self):
-        """Print the complete trace with proper visual structure"""
+        """
+        Print the complete trace with proper visual structure.
+        
+        Iterates through all trace entries and prints them with appropriate
+        indentation and visual markers (→, ←, Output:) to show the execution flow.
+        Each entry is printed according to its type:
+        - Function entry (→)
+        - Function exit (←) with duration
+        - Function output with the output value
+        """
         for entry in self.trace_entries:
             entry.print_entry()
 
 class Tracer:
-    """Singleton tracer class"""
+    """
+    A singleton tracer class that provides function execution tracing capabilities.
+
+    This class implements the singleton pattern and provides functionality to trace function
+    executions, including their entry, exit, duration, and output values. It maintains a
+    hierarchical trace of function calls with proper depth tracking.
+
+    Attributes:
+        depth (int): Current depth of function call nesting
+        _is_tracing (bool): Flag indicating if tracing is currently active
+        _current_trace_outputs (list): List of TraceEntry objects for the current trace
+        initialized (bool): Flag indicating if the singleton has been initialized
+    """
     _instance = None
 
     def __new__(cls):
+        """Ensure only one instance of Tracer exists (singleton pattern).
+
+        Returns:
+            Tracer: The single instance of the Tracer class
+        """
         if cls._instance is None:
             cls._instance = super(Tracer, cls).__new__(cls)
         return cls._instance
@@ -73,6 +117,26 @@ class Tracer:
             self.initialized = True
 
     def observe(self, func=None, *, name=None, metadata=None, top_level=False):
+        """
+        Decorator to trace function execution with detailed entry/exit information.
+
+        This method can be used as a decorator with or without parameters. It tracks function
+        entry, exit, duration, and output values, maintaining a hierarchical trace structure.
+
+        Args:
+            func (callable, optional): The function to be traced
+            name (str, optional): Custom name for the traced function
+            metadata (dict, optional): Additional metadata for the trace
+            top_level (bool, optional): If True, starts a new trace context
+
+        Returns:
+            callable: Decorated function that includes tracing functionality
+            
+        Example:
+            @tracer.observe(name="custom_name")
+            def my_function():
+                pass
+        """
         if func is None:
             return lambda f: self.observe(f, name=name, metadata=metadata, top_level=top_level)
         
