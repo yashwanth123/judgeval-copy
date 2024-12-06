@@ -1,20 +1,43 @@
 """
-Tracing system for judgeval that allows for function tracing using decorators
-and context managers.
+Tracing system for judgeval that allows for function tracing using decorators.
 """
 
 import time
 import functools
-from typing import Optional, Dict, Callable, Any
+from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 
 @dataclass
-class TraceSpan:
+class TraceEntry:
+    """Represents a single trace entry with its visual representation"""
+    type: str  # 'enter', 'exit', or 'output'
+    function: str
+    depth: int
+    message: str
+    timestamp: float
+    duration: Optional[float] = None
+    output: Any = None
+
+    def print_entry(self):
+        indent = "  " * self.depth
+        if self.type == "enter":
+            print(f"{indent}→ {self.function}")
+        elif self.type == "exit":
+            print(f"{indent}← {self.function} ({self.duration:.3f}s)")
+        elif self.type == "output":
+            print(f"{indent}Output: {self.output}")
+
+@dataclass
+class TracedResult:
+    """Stores the result and trace information for a single traced function execution"""
+    result: Any
+    trace_entries: List[TraceEntry]
     name: str
-    start_time: float
-    parent: Optional['TraceSpan'] = None
-    depth: int = 0
-    metadata: Optional[Dict] = None
+
+    def print_trace(self):
+        """Print the complete trace with proper visual structure"""
+        for entry in self.trace_entries:
+            entry.print_entry()
 
 class Tracer:
     """Singleton tracer class"""
@@ -27,232 +50,95 @@ class Tracer:
 
     def __init__(self):
         if not hasattr(self, 'initialized'):
-            self.current_span: Optional[TraceSpan] = None
             self.depth = 0
-            self._enabled_count = 0  # Track number of active traces
-            self._is_tracing = False  # New flag to track if we're in an active trace
+            self._is_tracing = False
+            self._current_trace_outputs = []
             self.initialized = True
 
-    @property
-    def enabled(self) -> bool:
-        return self._is_tracing
-
     def observe(self, func=None, *, name=None, metadata=None, top_level=False):
-        """
-        Decorator that can be used with or without arguments:
-        @tracer.observe  # non-top-level by default
-        def my_func(): ...
-        
-        or
-        
-        @tracer.observe(top_level=True)  # explicitly mark as top-level
-        def my_func(): ...
-        """
         if func is None:
-            # Called with arguments: @tracer.observe(...)
             return lambda f: self.observe(f, name=name, metadata=metadata, top_level=top_level)
         
-        # Called without arguments: @tracer.observe
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             should_trace = self._is_tracing or top_level
             
             if top_level:
                 self._is_tracing = True
+                self._current_trace_outputs = []
             
             if should_trace:
-                self._enabled_count += 1
                 span_name = name or func.__name__
-                span = TraceSpan(
-                    name=span_name,
-                    start_time=time.time(),
-                    parent=self.current_span,
-                    depth=self.depth,
-                    metadata=metadata
-                )
+                start_time = time.time()
                 
-                print(f"{'  ' * self.depth}→ {span.name}")
-                self.current_span = span
+                # Record function entry
+                self._current_trace_outputs.append(TraceEntry(
+                    type="enter",
+                    function=span_name,
+                    depth=self.depth,
+                    message=f"→ {span_name}",
+                    timestamp=start_time
+                ))
+                
                 self.depth += 1
             
             try:
                 result = func(*args, **kwargs)
                 if should_trace:
-                    result_str = self._format_result(result, func.__name__)
-                    print(f"{'  ' * self.depth}{result_str}")
+                    current_time = time.time()
+                    duration = current_time - start_time
+                    
+                    # Record the output
+                    self._current_trace_outputs.append(TraceEntry(
+                        type="output",
+                        function=span_name,
+                        depth=self.depth,
+                        message=f"Output from {span_name}",
+                        timestamp=current_time,
+                        output=result
+                    ))
+                    
+                    # Record the result timing
+                    self._current_trace_outputs.append(TraceEntry(
+                        type="result",
+                        function=span_name,
+                        depth=self.depth,
+                        message=f"= {span_name} result",
+                        timestamp=current_time,
+                        duration=duration
+                    ))
+                
+                if top_level:
+                    traced_result = TracedResult(
+                        result=result,
+                        trace_entries=self._current_trace_outputs.copy(),
+                        name=span_name
+                    )
+                    return traced_result
                 return result
+                
             finally:
                 if should_trace:
                     self.depth -= 1
-                    duration = time.time() - span.start_time
-                    print(f"{'  ' * self.depth}← {span.name} ({duration:.3f}s)")
-                    self.current_span = span.parent
-                    self._enabled_count -= 1
+                    duration = time.time() - start_time
+                    
+                    # Record function exit
+                    self._current_trace_outputs.append(TraceEntry(
+                        type="exit",
+                        function=span_name,
+                        depth=self.depth,
+                        message=f"← {span_name}",
+                        timestamp=time.time(),
+                        duration=duration
+                    ))
                 
                 if top_level:
                     self._is_tracing = False
-                
+        
         return wrapper
 
-    def span(self, name: str, metadata: Optional[Dict] = None):
-        """Context manager for tracing code blocks"""
-        class SpanContextManager:
-            def __init__(self, tracer, name, metadata):
-                self.tracer = tracer
-                self.name = name
-                self.metadata = metadata
-                self.span = None
-
-            def __enter__(self):
-                if not self.tracer.enabled:
-                    return self
-                
-                self.span = TraceSpan(
-                    name=self.name,
-                    start_time=time.time(),
-                    parent=self.tracer.current_span,
-                    depth=self.tracer.depth,
-                    metadata=self.metadata
-                )
-                
-                print(f"{'  ' * self.tracer.depth}→ {self.name}")
-                self.tracer.current_span = self.span
-                self.tracer.depth += 1
-                return self
-
-            def __exit__(self, exc_type, exc_val, exc_tb):
-                if not self.tracer.enabled:
-                    return
-                
-                self.tracer.depth -= 1
-                duration = time.time() - self.span.start_time
-                print(f"{'  ' * self.tracer.depth}← {self.name} ({duration:.3f}s)")
-                self.tracer.current_span = self.span.parent
-
-        return SpanContextManager(self, name, metadata)
-
-    def _format_result(self, result: Any, func_name: str) -> str:
-        """Format the result for display based on function and result type"""
-        
-        def get_scorer_info(scorer):
-            """Helper function to get info regardless of type"""
-            if isinstance(scorer, dict):
-                return {
-                    'name': scorer['name'],
-                    'score': scorer['score'],
-                    'success': scorer['success'],
-                    'threshold': scorer.get('threshold', None),
-                    'reason': scorer.get('reason', ''),
-                    'evaluation_model': scorer.get('evaluation_model', None),
-                    'verbose_logs': scorer.get('verbose_logs', ''),
-                    'additional_metadata': scorer.get('additional_metadata', {})
-                }
-            else:  # ScorerData object
-                return {
-                    'name': scorer.name,
-                    'score': scorer.score,
-                    'success': scorer.success,
-                    'threshold': getattr(scorer, 'threshold', None),
-                    'reason': getattr(scorer, 'reason', ''),
-                    'evaluation_model': getattr(scorer, 'evaluation_model', None),
-                    'verbose_logs': getattr(scorer, 'verbose_logs', ''),
-                    'additional_metadata': getattr(scorer, 'additional_metadata', {})
-                }
-        
-        # Handle API evaluation results
-        if func_name == "execute_api_eval":
-            if isinstance(result, dict) and 'results' in result:
-                summary = []
-                for result_item in result['results']:
-                    print(result_item)
-                    scorers_data = result_item['scorers_data']
-                    for scorer in scorers_data:
-                        summary.append(f"{'  ' * (self.depth + 1)}{scorer['name']}: {scorer['score']:.2f} ({scorer['success']})")
-                return f"API Response with {len(result['results'])} results:\n" + "\n".join(summary)
-        
-        elif func_name == "run_eval":
-            if isinstance(result, list) and len(result) > 0:
-                output = ["Evaluation Results:"]
-                
-                for item in result:
-                    # Add separator for readability
-                    output.append("-" * 80)
-                    
-                    # Input/Output/Context
-                    output.append(f"Q: {item.input}")
-                    output.append(f"A: {item.actual_output}")
-                    if item.expected_output:
-                        output.append(f"Expected: {item.expected_output}")
-                    if item.context:
-                        output.append(f"Context: {item.context}")
-                    if item.retrieval_context:
-                        output.append(f"Retrieval Context: {item.retrieval_context}")
-                    output.append("")  # Empty line for readability
-                    
-                    # Scorer results
-                    for scorer_data in item.scorers_data:
-                        info = get_scorer_info(scorer_data)
-                        output.append(f"{info['name']}: {info['score']:.2f} (success={info['success']}, threshold={info['threshold']})")
-                        
-                        if info['reason']:
-                            output.append(f"Reason: {info['reason']}")
-                        
-                        # Get claims and verdicts from additional_metadata
-                        if 'claims' in info['additional_metadata']:
-                            output.append("\nClaims:")
-                            for claim in info['additional_metadata']['claims']:
-                                output.append(f"• {claim['claim']}")
-                                output.append(f"  Quote: {claim['quote']}")
-                        
-                        if 'verdicts' in info['additional_metadata']:
-                            output.append("\nVerdicts:")
-                            for verdict in info['additional_metadata']['verdicts']:
-                                if isinstance(verdict, dict):
-                                    output.append(f"• {verdict['verdict']}: {verdict['reason']}")
-                                else:  # FaithfulnessVerdict object
-                                    output.append(f"• {verdict.verdict}: {verdict.reason}")
-                        
-                        output.append(f"\nEvaluation Model: {info['evaluation_model']}")
-                        output.append("")  # Empty line for readability
-                
-                return "\n".join(output)
-            return "No evaluation results"
-        
-        elif func_name == "run_demo":
-            if isinstance(result, list):
-                output = ["Demo Results:"]
-                for item in result:
-                    output.append("-" * 40)
-                    output.append(f"Q: {item.input}")
-                    output.append(f"A: {item.actual_output}")
-                    
-                    # Summarize scorer results
-                    for scorer_data in item.scorers_data:
-                        info = get_scorer_info(scorer_data)
-                        output.append(f"{info['name']}: {info['score']:.2f} (success={info['success']})")
-                        if info['reason']:
-                            output.append(f"Reason: {info['reason']}")
-                    output.append("")  # Empty line for readability
-                
-                return "\n".join(output)
-            return "No demo results"
-        
-        else:
-            return f"{func_name} has outputted {result}"
-        
-class Tracing:
-    """Context manager for enabling tracing"""
-    def __enter__(self):
-        global tracer
-        tracer.enabled = True
-        return tracer
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        global tracer
-        tracer.enabled = False
-
-# Create the global tracer instance at module level
+# Create the global tracer instance
 tracer = Tracer()
 
-# Optional: you can also expose it in __all__ to control what gets imported
-__all__ = ['tracer', 'Tracing', 'TraceSpan']
+# Export only what's needed
+__all__ = ['tracer']

@@ -20,7 +20,7 @@ from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge, MixtureOfJudges
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.common.logger import enable_logging, debug, info, error, example_logging_context
-from judgeval.common.tracer import Tracing, tracer
+from judgeval.common.tracer import tracer
 
 
 @tracer.observe
@@ -287,12 +287,61 @@ if __name__ == "__main__":
     def run_demo():
         response = client.run_evaluation(
             examples=[example1, example2],
-            scorers=[c_scorer, scorer],
+            scorers=[c_scorer, scorer2],
             model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
             aggregator='QWEN'
         )
-        print("RESPONSE", response)
         return response
 
-    results = run_demo()
+    # Run the first demo
+    traced_eval = run_demo()
+    print("\nEvaluation trace:")
+    traced_eval.print_trace()
+
+    # Second example with text processing
+    @tracer.observe
+    def craft_email(text: str) -> str:
+        """Simulates crafting an email with an LLM"""
+        return f"""
+Subject: Re: {text}
+
+Dear valued customer,
+
+Thank you for your message regarding "{text}".
+We appreciate your inquiry and will get back to you shortly.
+
+Best regards,
+AI Assistant
+"""
+    
+
+    import time
+    def make_uppercase(text: str) -> str:
+        """Converts text to uppercase"""
+        # Simulate some processing time
+        time.sleep(5)
+        return text.upper()
+
+
+
+    @tracer.observe(top_level=True)
+    def process_customer_message(message: str):
+        """Process a customer message by crafting an email and making it uppercase"""
+        
+        email = craft_email(message)
+        final_email = make_uppercase(email)
+
+       
+        """Adds random sender and recipient addresses"""
+        from_addr = "ai.assistant@company.com"
+        to_addr = "customer@example.com"
+        return f"From: {from_addr}\nTo: {to_addr}\n{final_email}"
+
+
+
+
+    # Run the second demo
+    traced_text = process_customer_message("When will my order arrive?")
+    print("\nText processing trace:")
+    traced_text.print_trace()
 
