@@ -22,7 +22,7 @@ class EvaluationRun(BaseModel):
     """
 
     # The user will specify whether they want log_results when they call run_eval
-    log_results: bool = False
+    log_results: bool = False  # NOTE: log_results has to be set first because it is used to validate project_name and eval_name
     project_name: Optional[str] = None
     eval_name: Optional[str] = None
     examples: List[Example]
@@ -32,15 +32,19 @@ class EvaluationRun(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     # API Key will be "" until user calls client.run_eval(), then API Key will be set
     judgment_api_key: Optional[str] = ""
-    # The user will specify whether they want log_results when they call run_eval
-    log_results: bool = False
     
+    @field_validator('log_results', mode='before')
+    def validate_log_results(cls, v):
+        if not isinstance(v, bool):
+            raise ValueError(f"log_results must be a boolean. Received {v} of type {type(v)}")
+        return v
+
     @field_validator('project_name')
     def validate_project_name(cls, v, values):
         if values.data.get('log_results', False) and not v:
             debug("No project name provided when log_results is True")
             error("Validation failed: Project name required when logging results")
-            raise ValueError("Project name is required when log_results is True")
+            raise ValueError("Project name is required when log_results is True. Please include the project_name argument.")
         return v
 
     @field_validator('eval_name')
@@ -48,7 +52,7 @@ class EvaluationRun(BaseModel):
         if values.data.get('log_results', False) and not v:
             debug("No eval name provided when log_results is True") 
             error("Validation failed: Eval name required when logging results")
-            raise ValueError("Eval name is required when log_results is True")
+            raise ValueError("Eval name is required when log_results is True. Please include the eval_run_name argument.")
         return v
 
     @field_validator('examples')
