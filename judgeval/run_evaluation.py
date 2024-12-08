@@ -96,8 +96,7 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
     
     return api_results
 
-
-def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = False):
+def run_eval(evaluation_run: EvaluationRun):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
@@ -105,12 +104,15 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
         evaluation_run (EvaluationRun): Stores example and evaluation together for running
     
         Args: 
+            project_name (str): The name of the project the evaluation results belong to
+            eval_name (str): The name of the evaluation run
             examples (List[Example]): The examples to evaluate
             scorers (List[Union[JudgmentScorer, CustomScorer]]): A list of scorers to use for evaluation
             model (str): The model used as a judge when using LLM as a Judge
             aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
             metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
             judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
+            log_results (bool): Whether to log the results to the Judgment API
 
     Returns:
         List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
@@ -155,16 +157,17 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
     if judgment_scorers:
         info("Starting API evaluation")
         debug(f"Creating API evaluation run with {len(judgment_scorers)} scorers")
-        try:
+        try:  # execute an EvaluationRun with just JudgmentScorers
             api_evaluation_run: EvaluationRun = EvaluationRun(
-                name=name,
+                eval_name=evaluation_run.eval_name,
+                project_name=evaluation_run.project_name,
                 examples=evaluation_run.examples,
                 scorers=judgment_scorers,
                 model=evaluation_run.model,
                 aggregator=evaluation_run.aggregator,
                 metadata=evaluation_run.metadata,
                 judgment_api_key=evaluation_run.judgment_api_key,
-                log_results=log_results
+                log_results=evaluation_run.log_results
             )
 
             debug("Sending request to Judgment API")    
@@ -212,14 +215,15 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
         local_results = results
         info(f"Local evaluation complete with {len(local_results)} results")
         
-        if log_results:
+        if evaluation_run.log_results:
             try:
                 res = requests.post(
                     JUDGMENT_EVAL_LOG_API_URL,
                     json={
                         "results": [result.to_dict() for result in local_results],
                         "judgment_api_key": evaluation_run.judgment_api_key,
-                        "name": name
+                        "project_name": evaluation_run.project_name,
+                        "eval_name": evaluation_run.eval_name,
                     }
                 )
                 if not res.ok:
