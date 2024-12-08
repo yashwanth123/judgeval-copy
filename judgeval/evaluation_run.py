@@ -5,14 +5,14 @@ from judgeval.data import Example
 from judgeval.data.datasets import EvalDataset
 from judgeval.scorers import CustomScorer, JudgmentScorer
 from judgeval.constants import ACCEPTABLE_MODELS
-
-
+from judgeval.common.logger import debug, error
 class EvaluationRun(BaseModel):
     """
     Stores example and evaluation scorers together for running an eval task
     
     Args: 
-        name (str): A name for this evaluation run
+        project_name (str): The name of the project the evaluation results belong to
+        eval_name (str): A name for this evaluation run
         examples (List[Example]): The examples to evaluate
         scorers (List[Union[JudgmentScorer, CustomScorer]]): A list of scorers to use for evaluation
         model (str): The model used as a judge when using LLM as a Judge
@@ -20,7 +20,8 @@ class EvaluationRun(BaseModel):
         metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
         judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
     """
-    name: Optional[str] = ""
+    project_name: Optional[str] = None
+    eval_name: Optional[str] = None
     examples: List[Example]
     scorers: List[Union[JudgmentScorer, CustomScorer]]
     model: Union[str, List[str]]
@@ -31,6 +32,22 @@ class EvaluationRun(BaseModel):
     # The user will specify whether they want log_results when they call run_eval
     log_results: bool = False
     
+    @field_validator('project_name')
+    def validate_project_name(cls, v, values):
+        if values.data.get('log_results', False) and not v:
+            debug("No project name provided when log_results is True")
+            error("Validation failed: Project name required when logging results")
+            raise ValueError("Project name is required when log_results is True")
+        return v
+
+    @field_validator('eval_name')
+    def validate_eval_name(cls, v, values):
+        if values.data.get('log_results', False) and not v:
+            debug("No eval name provided when log_results is True") 
+            error("Validation failed: Eval name required when logging results")
+            raise ValueError("Eval name is required when log_results is True")
+        return v
+
     @field_validator('examples')
     def validate_examples(cls, v):
         if not v:
