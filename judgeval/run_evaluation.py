@@ -85,7 +85,7 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
         if api_result.retrieval_context != local_result.retrieval_context:
             raise ValueError("The API and local results are not aligned.")
         
-        # Merge ScorerData
+        # Merge ScorerData from the API and local scorers together
         api_scorer_data = api_result.scorers_data
         local_scorer_data = local_result.scorers_data
         if api_scorer_data is None and local_scorer_data is not None:
@@ -121,14 +121,16 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = 
 
     Args:
         evaluation_run (EvaluationRun): Stores example and evaluation together for running
-    
-        Args: 
-            examples (List[Example]): The examples to evaluate
-            scorers (List[Union[JudgmentScorer, CustomScorer]]): A list of scorers to use for evaluation
-            model (str): The model used as a judge when using LLM as a Judge
-            aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
-            metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
-            judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
+            Args: 
+                examples (List[Example]): The examples to evaluate
+                scorers (List[Union[JudgmentScorer, CustomScorer]]): A list of scorers to use for evaluation
+                model (str): The model used as a judge when using LLM as a Judge
+                aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
+                metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
+                judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
+        
+        name (str): The name of the evaluation run. Used to identify the evaluation run in the DB/Platform
+        log_results (bool): Whether to log the results to the DB
 
     Returns:
         List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
