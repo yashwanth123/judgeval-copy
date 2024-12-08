@@ -282,7 +282,16 @@ if __name__ == "__main__":
             examples=[example1, example2],
             scorers=[c_scorer, scorer],
             model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
-            aggregator='QWEN'
+            aggregator='QWEN',
+            project_name="test_project_91847179247",
+            eval_run_name="test_eval_128487126",
+            log_results=True
         )
         info("Evaluation complete")
         debug(f"Results: {response}")
+
+    # response = client.pull_eval(
+    #     project_name="test_project_91847179247",
+    #     eval_run_name="test_eval_128487126"
+    # )
+    # print(response)
