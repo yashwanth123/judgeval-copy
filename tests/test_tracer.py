@@ -2,12 +2,16 @@
 from judgeval.common.tracer import tracer
 
 
-@tracer.observe(name="generate_movie_review", top_level=True)
+# @tracer.observe(name="generate_movie_review", top_level=True)
 def generate_movie_review(summary: str) -> str:
+
+    trace = tracer.start_trace()
     # Analyze key elements
     plot_quality = analyze_plot(summary)
+    trace.print_trace()
     engagement = analyze_engagement(summary)
     originality = analyze_originality(summary)
+    trace.print_trace()
     
     # Generate final review
     review = compose_review(plot_quality, engagement, originality)
@@ -75,7 +79,6 @@ millions hangs in the balance as time runs out.
 """
 
 result = generate_movie_review(summary)
-result = result.result
 
 print(type(result))
 assert isinstance(result, str)
