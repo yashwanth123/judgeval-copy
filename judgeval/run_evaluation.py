@@ -97,7 +97,25 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
     return api_results
 
 
-def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = False):
+def check_missing_scorer_data(results: List[ScoringResult]) -> List[ScoringResult]:
+    """
+    Checks if any `ScoringResult` objects are missing `scorers_data`.
+
+    If any are missing, logs an error and returns the results.
+    """
+    for i, result in enumerate(results):
+        if not result.scorers_data:
+            error(
+                f"Scorer data is missing for example {i}. "
+                "This is usually caused when the example does not contain "
+                "the fields required by the scorer. "
+                "Check that your example contains the fields required by the scorers. "
+                "TODO add docs link here for reference."
+            )
+    return results
+
+
+def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = False):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
@@ -236,7 +254,8 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
 
     # Aggregate the ScorerData from the API and local evaluations
     debug("Merging API and local results")
-    merged_results = merge_results(api_results, local_results)
+    merged_results: List[ScoringResult] = merge_results(api_results, local_results)
+    merged_results = check_missing_scorer_data(merged_results)
     info(f"Successfully merged {len(merged_results)} results")
     return merged_results
 
