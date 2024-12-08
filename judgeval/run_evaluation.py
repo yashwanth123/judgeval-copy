@@ -258,12 +258,18 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = 
     debug("Merging API and local results")
     merged_results: List[ScoringResult] = merge_results(api_results, local_results)
     merged_results = check_missing_scorer_data(merged_results)
+
     info(f"Successfully merged {len(merged_results)} results")
+
+    for i, result in enumerate(merged_results):
+        if not result.scorers_data:  # none of the scorers could be executed on this example
+            print(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
     return merged_results
 
 
 if __name__ == "__main__":
     from judgeval.common.logger import enable_logging, debug, info
+    from judgeval.common.tracer import tracer
     
     # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
@@ -287,25 +293,9 @@ if __name__ == "__main__":
         additional_metadata={"difficulty": "medium"}
     )
 
+
     scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
     scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
-    model = TogetherJudge()
-
-    # model = MixtureOfJudges()
-    c_scorer = CustomFaithfulnessMetric(
-        threshold=0.6,
-        model=model,
-    )
+    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
     client = JudgmentClient()
-
-    with enable_logging():
-        debug("Starting evaluation")
-        response = client.run_evaluation(
-            examples=[example1, example2],
-            scorers=[c_scorer, scorer],
-            model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
-            aggregator='QWEN'
-        )
-        info("Evaluation complete")
-        debug(f"Results: {response}")
