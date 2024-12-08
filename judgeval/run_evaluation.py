@@ -13,7 +13,7 @@ from judgeval.scorers.score import (
 from judgeval.constants import (
     JUDGMENT_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
-    JudgmentMetric,
+    APIScorer,
 )
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
@@ -36,7 +36,7 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
     
     try:
         # submit API request to execute evals
-        response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump())
+        response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump(warnings='none'))
         response_data = response.json()
     except Exception as e:
         details = response.json().get("detail", "No details provided")
@@ -167,7 +167,7 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
                 log_results=log_results
             )
 
-            debug("Sending request to Judgment API")
+            debug("Sending request to Judgment API")    
             response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
             info(f"Received {len(response_data['results'])} results from API")
         except JudgmentAPIError as e:
@@ -200,6 +200,7 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "",log_results: bool = F
             a_execute_scoring(
                 evaluation_run.examples,
                 custom_scorers,
+                model=evaluation_run.model,
                 ignore_errors=True,
                 skip_on_missing_params=True,
                 show_indicator=True,
@@ -270,12 +271,9 @@ if __name__ == "__main__":
         additional_metadata={"difficulty": "medium"}
     )
 
-    scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
-    scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
-    model = TogetherJudge()
-    c_scorer = CustomFaithfulnessMetric(
-        threshold=0.6,
-        model=model,
-    )
+
+    scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
+    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
     client = JudgmentClient()

@@ -33,7 +33,7 @@ class Example(BaseModel):
     tools_called: Optional[List[str]] = None
     expected_tools: Optional[List[str]] = None
     name: Optional[str] = None
-    example_id: Optional[int] = None
+    example_id: Optional[str] = None
     timestamp: Optional[str] = None
 
     def __post_init__(self):
