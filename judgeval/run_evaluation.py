@@ -268,13 +268,7 @@ if __name__ == "__main__":
 
     scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
     scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
-    model = TogetherJudge()
-
-    # model = MixtureOfJudges()
-    c_scorer = CustomFaithfulnessMetric(
-        threshold=0.6,
-        model=model,
-    )
+    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
     client = JudgmentClient()
 
