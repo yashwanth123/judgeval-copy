@@ -252,80 +252,30 @@ if __name__ == "__main__":
     # Eval using a proprietary Judgment Scorer
     from judgeval.judgment_client import JudgmentClient
 
-    # example1 = Example(
-    #     input="What if these shoes don't fit?",
-    #     actual_output="We offer a 30-day full refund at no extra cost.",
-    #     retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-    # )
+    example1 = Example(
+        input="What if these shoes don't fit?",
+        actual_output="We offer a 30-day full refund at no extra cost.",
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    )
 
-    # example2 = Example(
-    #     input="How do I reset my password?",
-    #     actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-    #     expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-    #     name="Password Reset",
-    #     context=["User Account"],
-    #     retrieval_context=["Password reset instructions"],
-    #     tools_called=["authentication"],
-    #     expected_tools=["authentication"],
-    #     additional_metadata={"difficulty": "medium"}
-    # )
+    example2 = Example(
+        input="How do I reset my password?",
+        actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        name="Password Reset",
+        context=["User Account"],
+        retrieval_context=["Password reset instructions"],
+        tools_called=["authentication"],
+        expected_tools=["authentication"],
+        additional_metadata={"difficulty": "medium"}
+    )
 
-    # scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
-    # scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
-    # model = TogetherJudge()
-    # c_scorer = CustomFaithfulnessMetric(
-    #     threshold=0.6,
-    #     model=model,
-    # )
+    scorer = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.FAITHFULNESS)
+    scorer2 = JudgmentScorer(threshold=0.5, score_type=JudgmentMetric.HALLUCINATION)
+    model = TogetherJudge()
+    c_scorer = CustomFaithfulnessMetric(
+        threshold=0.6,
+        model=model,
+    )
 
-    # client = JudgmentClient()
-
-    @tracer.observe
-    def func_1(input: str) -> str:
-        @tracer.observe
-        def inner_1(text: str) -> str:
-            return text.upper()
-        return inner_1(input)
-
-    @tracer.observe 
-    def func_2(input: str) -> str:
-        @tracer.observe
-        def inner_2(text: str) -> str:
-            return text.lower()
-        return inner_2(input)
-
-    def main():
-        # Start trace explicitly
-        trace = tracer.start_trace("main_execution")
-        
-        # Execute functions
-        result = func_1("hello")
-        result2 = func_2(result)
-        final = result2 + " world"
-        
-        # Print trace info
-        trace.print_trace()
-        print(f"Total duration: {trace.get_duration():.3f}s")
-        
-        return final
-
-    print(main())  # prints: "hello world"
-    print(type(main()))  # prints: <class 'str'>
-
-    def x():
-        # Start trace explicitly
-        trace = tracer.start_trace("x_execution")
-        
-        # Execute functions
-        result = func_1("hello")
-        result2 = func_2(result)
-        final = result2 + " Adfasdfasdfsafdas"
-        
-        # Print trace info
-        trace.print_trace()
-        print(f"Total duration: {trace.get_duration():.3f}s")
-        
-        return final
-    
-    print(x())
-    print(type(x()))
+    client = JudgmentClient()
