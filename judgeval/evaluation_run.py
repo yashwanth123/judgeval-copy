@@ -20,6 +20,9 @@ class EvaluationRun(BaseModel):
         metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
         judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
     """
+
+    # The user will specify whether they want log_results when they call run_eval
+    log_results: bool = False
     project_name: Optional[str] = None
     eval_name: Optional[str] = None
     examples: List[Example]
