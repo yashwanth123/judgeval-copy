@@ -27,7 +27,7 @@ def test_dataset(client: JudgmentClient):
     print(dataset)
     
 
-def test_run_eval(client: JudgmentClient, eval_run_name: str):
+def test_run_eval(client: JudgmentClient):
 
     example1 = Example(
         input="What if these shoes don't fit?",
@@ -49,21 +49,22 @@ def test_run_eval(client: JudgmentClient, eval_run_name: str):
 
     scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
     scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
-    c_scorer = CustomFaithfulnessMetric(
-        threshold=0.6,
-    )
+    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
-    results = client.run_evaluation(
+    PROJECT_NAME = "test_project_12345"
+    EVAL_RUN_NAME = "test_eval_12345"
+    client.run_evaluation(
         examples=[example1, example2],
         scorers=[scorer, c_scorer],
         model="QWEN",
         metadata={"batch": "test"},
-        eval_run_name=eval_run_name,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
         log_results=True,
     )
 
-    results = client.pull_eval(eval_run_name)
-    print(f"Evaluation results for {eval_run_name} from database:", results)
+    results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
+    print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
 
 
 def test_evaluate_dataset(client: JudgmentClient):
@@ -108,7 +109,7 @@ if __name__ == "__main__":
     print("*" * 40)
     
     print("Testing evaluation run")
-    test_run_eval(client, "judgment evaluation run")
+    test_run_eval(client)
     print("Evaluation run successful")
     print("*" * 40)
     
