@@ -16,7 +16,8 @@ from judgeval.common.exceptions import JudgmentAPIError
 from pydantic import BaseModel
 
 class EvalRunRequestBody(BaseModel):
-    name: str
+    eval_name: str
+    project_name: str
     judgment_api_key: str
 
 
@@ -40,15 +41,18 @@ class JudgmentClient:
         model: Union[str, List[str]],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        log_results: bool = False,
+        project_name: str = "",
         eval_run_name: str = "",
-        log_results: bool = False
     ) -> List[ScoringResult]:
         """
         Executes an evaluation of `Example`s using one or more `Scorer`s
         """
         try:
             eval = EvaluationRun(
-                name=eval_run_name,
+                log_results=log_results,
+                project_name=project_name,
+                eval_name=eval_run_name,
                 examples=examples,
                 scorers=scorers,
                 model=model,
@@ -56,7 +60,7 @@ class JudgmentClient:
                 metadata=metadata,
                 judgment_api_key=self.judgment_api_key
             )
-            return run_eval(eval, name=eval_run_name, log_results=log_results)
+            return run_eval(eval)
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
     
@@ -67,6 +71,7 @@ class JudgmentClient:
         model: Union[str, List[str]],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        project_name: str = "",
         eval_run_name: str = "",
         log_results: bool = False
     ) -> List[ScoringResult]:
@@ -75,15 +80,17 @@ class JudgmentClient:
         """
         try:
             evaluation_run = EvaluationRun(
-                name=eval_run_name,
+                log_results=log_results,
+                project_name=project_name,
+                eval_name=eval_run_name,
                 examples=dataset.examples,
                 scorers=scorers,
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,
-            judgment_api_key=self.judgment_api_key
+                judgment_api_key=self.judgment_api_key
             )
-            return run_eval(evaluation_run, name=eval_run_name, log_results=log_results)
+            return run_eval(evaluation_run)
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
 
@@ -121,9 +128,12 @@ class JudgmentClient:
         return dataset
     
     # Maybe add option where you can pass in the EvaluationRun object and it will pull the eval results from the backend
-    def pull_eval(self, eval_run_name: str) -> List[ScoringResult]:
-        eval_run_request_body = EvalRunRequestBody(name=eval_run_name, judgment_api_key=self.judgment_api_key)
-        eval_run = requests.post(JUDGMENT_EVAL_FETCH_API_URL, json=eval_run_request_body.model_dump())
+    def pull_eval(self, project_name: str, eval_run_name: str) -> List[ScoringResult]:
+        eval_run_request_body = EvalRunRequestBody(project_name=project_name, 
+                                                   eval_name=eval_run_name, 
+                                                   judgment_api_key=self.judgment_api_key)
+        eval_run = requests.post(JUDGMENT_EVAL_FETCH_API_URL, 
+                                 json=eval_run_request_body.model_dump())
         if eval_run.status_code != requests.codes.ok:
             raise ValueError(f"Error fetching eval results: {eval_run.json()}")
         eval_results = []
