@@ -85,7 +85,7 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
         if api_result.retrieval_context != local_result.retrieval_context:
             raise ValueError("The API and local results are not aligned.")
         
-        # Merge ScorerData
+        # Merge ScorerData from the API and local scorers together
         api_scorer_data = api_result.scorers_data
         local_scorer_data = local_result.scorers_data
         if api_scorer_data is None and local_scorer_data is not None:
@@ -96,7 +96,25 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
     
     return api_results
 
-def run_eval(evaluation_run: EvaluationRun):
+
+def check_missing_scorer_data(results: List[ScoringResult]) -> List[ScoringResult]:
+    """
+    Checks if any `ScoringResult` objects are missing `scorers_data`.
+
+    If any are missing, logs an error and returns the results.
+    """
+    for i, result in enumerate(results):
+        if not result.scorers_data:
+            error(
+                f"Scorer data is missing for example {i}. "
+                "This is usually caused when the example does not contain "
+                "the fields required by the scorer. "
+                "Check that your example contains the fields required by the scorers. "
+                "TODO add docs link here for reference."
+            )
+    return results
+
+def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = False):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
@@ -113,6 +131,7 @@ def run_eval(evaluation_run: EvaluationRun):
             metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
             judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
             log_results (bool): Whether to log the results to the Judgment API
+
 
     Returns:
         List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
@@ -240,13 +259,20 @@ def run_eval(evaluation_run: EvaluationRun):
 
     # Aggregate the ScorerData from the API and local evaluations
     debug("Merging API and local results")
-    merged_results = merge_results(api_results, local_results)
+    merged_results: List[ScoringResult] = merge_results(api_results, local_results)
+    merged_results = check_missing_scorer_data(merged_results)
+
     info(f"Successfully merged {len(merged_results)} results")
+
+    for i, result in enumerate(merged_results):
+        if not result.scorers_data:  # none of the scorers could be executed on this example
+            print(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
     return merged_results
 
 
 if __name__ == "__main__":
     from judgeval.common.logger import enable_logging, debug, info
+    from judgeval.common.tracer import tracer
     
     # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
@@ -270,28 +296,10 @@ if __name__ == "__main__":
         additional_metadata={"difficulty": "medium"}
     )
 
+
     scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
     scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
     c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
+
     client = JudgmentClient()
-
-    with enable_logging():
-        debug("Starting evaluation")
-        response = client.run_evaluation(
-            examples=[example1, example2],
-            scorers=[c_scorer, scorer],
-            model=["QWEN", "MISTRAL_8x7B_INSTRUCT"],
-            aggregator='QWEN',
-            project_name="test_project_91847179247",
-            eval_run_name="test_eval_128487126",
-            log_results=True
-        )
-        info("Evaluation complete")
-        debug(f"Results: {response}")
-
-    # response = client.pull_eval(
-    #     project_name="test_project_91847179247",
-    #     eval_run_name="test_eval_128487126"
-    # )
-    # print(response)
