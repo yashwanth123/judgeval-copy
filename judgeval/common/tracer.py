@@ -91,6 +91,54 @@ class TraceClient:
         """
         return time.time() - self.start_time
     
+    def condense_trace(self, entries: List[dict]) -> List[dict]:
+        """
+        Condenses trace entries into a single entry for each function.
+        
+        Groups entries by function call and combines them into a single entry with:
+        - depth: deepest depth for this function call
+        - duration: time from first to last timestamp 
+        - function: function name
+        - inputs: non-None inputs
+        - output: non-None outputs
+        - timestamp: first timestamp of the function call
+        """
+        condensed = []
+        current_func = None
+        current_entry = None
+
+        for entry in entries:
+            if entry["type"] == "enter":
+                # Start of new function call
+                current_func = entry["function"]
+                current_entry = {
+                    "depth": entry["depth"],
+                    "function": entry["function"],
+                    "timestamp": entry["timestamp"],
+                    "inputs": None,
+                    "output": None
+                }
+            
+            elif entry["type"] == "exit" and entry["function"] == current_func:
+                # End of current function
+                current_entry["duration"] = entry["timestamp"] - current_entry["timestamp"]
+                condensed.append(current_entry)
+                current_func = None
+                current_entry = None
+            
+            elif current_func and entry["function"] == current_func:
+                # Additional entries for current function
+                if entry["depth"] > current_entry["depth"]:
+                    current_entry["depth"] = entry["depth"]
+                
+                if entry["type"] == "input" and entry["inputs"]:
+                    current_entry["inputs"] = entry["inputs"]
+                    
+                if entry["type"] == "output" and entry["output"]:
+                    current_entry["output"] = entry["output"]
+
+        return condensed
+
     def save_trace(self) -> dict:
         """
         Save the current trace to the database.
@@ -99,6 +147,9 @@ class TraceClient:
         # Calculate total elapsed time
         total_duration = self.get_duration()
         
+        raw_entries = [entry.to_dict() for entry in self.entries]
+        condensed_entries = self.condense_trace(raw_entries)
+
         # Create trace document
         trace_data = {
             "trace_id": self.trace_id,
@@ -111,7 +162,7 @@ class TraceClient:
                 "completion_tokens": 0,  # Dummy value
                 "total_tokens": 0,  # Dummy value
             },  # TODO: Add token counts
-            "entries": [entry.to_dict() for entry in self.entries]
+            "entries": condensed_entries
         }
 
         # Save trace data by making POST request to API
