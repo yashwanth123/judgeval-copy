@@ -69,9 +69,6 @@ class TraceClient:
         return time.time() - self.start_time
 
 class Tracer:
-    """
-    A singleton tracer class that provides function execution tracing capabilities.
-    """
     _instance = None
 
     def __new__(cls):
@@ -83,10 +80,17 @@ class Tracer:
         if not hasattr(self, 'initialized'):
             self.depth = 0
             self._current_trace: Optional[TraceClient] = None
+            self.api_key: Optional[str] = None
             self.initialized = True
-            
+    
+    def configure(self, api_key: str):
+        """Configure the tracer with an API key"""
+        self.api_key = api_key
+        
     def start_trace(self, name: str = None) -> TraceClient:
         """Start a new trace context"""
+        if not self.api_key:
+            raise ValueError("Tracer must be configured with an API key first")
         trace_id = str(uuid.uuid4())
         self._current_trace = TraceClient(self, trace_id, name or "unnamed_trace")
         return self._current_trace
