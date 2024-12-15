@@ -54,6 +54,17 @@ class TraceEntry:
     
     def to_dict(self):
         """Convert the trace entry to a dictionary format"""
+        # Try to serialize output to check if it's JSON serializable
+        try:
+            import json
+            # Test serialization
+            json.dumps(self.output)
+            output = self.output
+        except (TypeError, OverflowError, ValueError):
+            import warnings
+            warnings.warn(f"Output for function {self.function} is not JSON serializable. Setting to None.")
+            output = None
+
         return {
             "type": self.type,
             "function": self.function,
@@ -61,9 +72,8 @@ class TraceEntry:
             "message": self.message,
             "timestamp": self.timestamp,
             "duration": self.duration,
-            # TODO: converting these to strings may be a problem
-            "output": str(self.output),  # Convert output to string to ensure JSON serializable
-            "inputs": str(self.inputs) if self.inputs else None  # Convert inputs to string
+            "output": output,
+            "inputs": self.inputs if self.inputs else None
         }
 
 class TraceClient:
@@ -231,7 +241,7 @@ class Tracer:
                 
                 # Record function inputs
                 inputs = {
-                    'args': args,
+                    'args': list(args),  # Convert args tuple to list
                     'kwargs': kwargs
                 }
                 self._current_trace.add_entry(TraceEntry(
