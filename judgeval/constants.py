@@ -29,7 +29,7 @@ ROOT_API = "http://127.0.0.1:8000"
 JUDGMENT_EVAL_API_URL = f"{ROOT_API}/evaluate/"
 JUDGMENT_DATASETS_PUSH_API_URL = f"{ROOT_API}/datasets/push/"
 JUDGMENT_DATASETS_PULL_API_URL = f"{ROOT_API}/datasets/pull/"
-JUDGMENT_EVAL_LOG_API_URL = f"{ROOT_API}/log_custom_eval_results/"
+JUDGMENT_EVAL_LOG_API_URL = f"{ROOT_API}/log_eval_results/"
 JUDGMENT_EVAL_FETCH_API_URL = f"{ROOT_API}/fetch_eval_results/"
 TOGETHER_SUPPORTED_MODELS = {
     "QWEN": "Qwen/Qwen2-72B-Instruct",
