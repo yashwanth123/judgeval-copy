@@ -315,7 +315,7 @@ class CustomFaithfulnessMetric(CustomScorer):
         strict_mode: bool = False,
         verbose_mode: bool = False,
     ):
-        super().__init__("customfaithfulness", threshold)
+        super().__init__(score_type="CUSTOM FAITHFULNESS", threshold=threshold)
         self.threshold = 1 if strict_mode else threshold
         self.using_native_model = True  # NOTE: SETTING THIS FOR LITELLM and TOGETHER usage
         self.include_reason = include_reason
@@ -413,8 +413,7 @@ class CustomFaithfulnessMetric(CustomScorer):
         )
 
         if self.using_native_model:
-            res, cost = await self.model.a_generate(prompt)
-            self.evaluation_cost += cost
+            res = await self.model.a_generate(prompt)
             data = trimAndLoadJson(res, self)
             return data["reason"]
         else:
@@ -441,8 +440,7 @@ class CustomFaithfulnessMetric(CustomScorer):
         )
 
         if self.using_native_model:
-            res, cost = self.model.generate(prompt)
-            self.evaluation_cost += cost
+            res = self.model.generate(prompt)
             data = trimAndLoadJson(res, self)
             return data["reason"]
         else:
@@ -468,8 +466,7 @@ class CustomFaithfulnessMetric(CustomScorer):
         prompt = prompt.compile(claims=claims, retrieval_context=retrieval_context)
 
         if self.using_native_model:
-            res, cost = await self.model.a_generate(prompt)
-            self.evaluation_cost += cost
+            res = await self.model.a_generate(prompt)
             data = trimAndLoadJson(res, self)
             verdicts = [
                 FaithfulnessVerdict(**item) for item in data["verdicts"]
@@ -500,8 +497,7 @@ class CustomFaithfulnessMetric(CustomScorer):
         claims = [claim["claim"] for claim in self.claims]
         prompt = prompt.compile(claims=claims, retrieval_context=retrieval_context)
         if self.using_native_model:
-            res, cost = self.model.generate(prompt)
-            self.evaluation_cost += cost
+            res = self.model.generate(prompt)
             data = trimAndLoadJson(res, self)
             verdicts = [
                 FaithfulnessVerdict(**item) for item in data["verdicts"]
@@ -528,8 +524,7 @@ class CustomFaithfulnessMetric(CustomScorer):
             prompt = langfuse.get_prompt("CLAIM_GENERATION")
         prompt = prompt.compile(text=actual_output)
         if self.using_native_model:
-            res, cost = await self.model.a_generate(prompt)
-            self.evaluation_cost += cost
+            res = await self.model.a_generate(prompt)
             data = trimAndLoadJson(res, self)
             return data["claims"]
         else:
@@ -548,8 +543,7 @@ class CustomFaithfulnessMetric(CustomScorer):
             prompt = langfuse.get_prompt("CLAIM_GENERATION")
         prompt = prompt.compile(text=actual_output)
         if self.using_native_model:
-            res, cost = self.model.generate(prompt)
-            self.evaluation_cost += cost
+            res = self.model.generate(prompt)
             data = trimAndLoadJson(res, self)
             return data["claims"]
         else:
@@ -592,7 +586,7 @@ class CustomFaithfulnessMetric(CustomScorer):
 
     @property
     def __name__(self):
-        return "Faithfulness"
+        return "Custom Faithfulness"
 
 async def example():
     
