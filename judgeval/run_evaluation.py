@@ -220,6 +220,14 @@ def run_eval(evaluation_run: EvaluationRun):
                 # there may be some stuff in here that doesn't belong in ScoringResult
                 # TODO: come back and refactor this to have ScoringResult take in **kwargs
                 filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
+                
+                # Convert scorers_data dicts to ScorerData objects
+                if "scorers_data" in filtered_result and filtered_result["scorers_data"]:
+                    filtered_result["scorers_data"] = [
+                        ScorerData(**scorer_dict) 
+                        for scorer_dict in filtered_result["scorers_data"]
+                    ]
+                
                 api_results.append(ScoringResult(**filtered_result))
 
     # Run local evals
@@ -244,29 +252,6 @@ def run_eval(evaluation_run: EvaluationRun):
         )
         local_results = results
         info(f"Local evaluation complete with {len(local_results)} results")
-        
-        if evaluation_run.log_results:
-            try:
-                res = requests.post(
-                    JUDGMENT_EVAL_LOG_API_URL,
-                    json={
-                        "results": [result.to_dict() for result in local_results],
-                        "judgment_api_key": evaluation_run.judgment_api_key,
-                        "project_name": evaluation_run.project_name,
-                        "eval_name": evaluation_run.eval_name,
-                    }
-                )
-                if not res.ok:
-                    response_data = res.json()
-                    error_message = response_data.get('detail', 'An unknown error occurred.')
-                    error(f"Error {res.status_code}: {error_message}")
-                    raise Exception(f"Error {res.status_code}: {error_message}")
-            except requests.exceptions.RequestException as e:
-                error(f"Request failed while saving Custom Metric Eval results to DB: {str(e)}")
-                raise JudgmentAPIError(f"Request failed while saving Custom Metric Eval results to DB: {str(e)}")
-            except Exception as e:
-                error(f"Failed to save Custom Metric Eval results to DB: {str(e)}")
-                raise ValueError(f"Failed to save Custom Metric Eval results to DB: {str(e)}")
 
     # Aggregate the ScorerData from the API and local evaluations
     debug("Merging API and local results")
@@ -274,6 +259,29 @@ def run_eval(evaluation_run: EvaluationRun):
     merged_results = check_missing_scorer_data(merged_results)
 
     info(f"Successfully merged {len(merged_results)} results")
+
+    if evaluation_run.log_results:
+        try:
+            res = requests.post(
+                JUDGMENT_EVAL_LOG_API_URL,
+                json={
+                    "results": [result.to_dict() for result in merged_results],
+                    "judgment_api_key": evaluation_run.judgment_api_key,
+                    "project_name": evaluation_run.project_name,
+                    "eval_name": evaluation_run.eval_name,
+                }
+            )
+            if not res.ok:
+                response_data = res.json()
+                error_message = response_data.get('detail', 'An unknown error occurred.')
+                error(f"Error {res.status_code}: {error_message}")
+                raise Exception(f"Error {res.status_code}: {error_message}")
+        except requests.exceptions.RequestException as e:
+            error(f"Request failed while saving evaluation results to DB: {str(e)}")
+            raise JudgmentAPIError(f"Request failed while saving evaluation results to DB: {str(e)}")
+        except Exception as e:
+            error(f"Failed to save evaluation results to DB: {str(e)}")
+            raise ValueError(f"Failed to save evaluation results to DB: {str(e)}")
 
     for i, result in enumerate(merged_results):
         if not result.scorers_data:  # none of the scorers could be executed on this example
