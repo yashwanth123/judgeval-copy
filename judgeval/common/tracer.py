@@ -4,9 +4,11 @@ Tracing system for judgeval that allows for function tracing using decorators.
 
 import time
 import functools
+import uuid
+
 from typing import Optional, Any, List, Literal
 from dataclasses import dataclass
-import uuid
+from datetime import datetime 
 
 @dataclass
 class TraceEntry:
@@ -15,26 +17,26 @@ class TraceEntry:
     
     Each TraceEntry is a single line in the trace.
     The `type` field determines the visual representation of the entry.
-    - `enter` is for when a function is entered, represented by `→`
-    - `exit` is for when a function is exited, represented by `←`
-    - `output` is for when a function outputs a value, represented by `Output:`
+        - `enter` is for when a function is entered, represented by `→`
+        - `exit` is for when a function is exited, represented by `←`
+        - `output` is for when a function outputs a value, represented by `Output:`
+        - `input` is for function input parameters, represented by `Input:`
 
-    Args:
-        type: The type of trace entry ('enter', 'exit', or 'output')
-        function: Name of the function being traced
-        depth: Indentation level of this trace entry
-        message: Additional message to include in the trace
-        timestamp: Time when this trace entry was created
-        duration: For 'exit' entries, how long the function took to execute
-        output: For 'output' entries, the value that was output
+    function: Name of the function being traced
+    depth: Indentation level of this trace entry
+    message: Additional message to include in the trace
+    timestamp: Time when this trace entry was created
+    duration: For 'exit' entries, how long the function took to execute
+    output: For 'output' entries, the value that was output
     """
-    type: Literal['enter', 'exit', 'output']
+    type: Literal['enter', 'exit', 'output', 'input']
     function: str
     depth: int
     message: str
     timestamp: float
     duration: Optional[float] = None
     output: Any = None
+    inputs: dict = None
 
     def print_entry(self):
         indent = "  " * self.depth
@@ -44,6 +46,22 @@ class TraceEntry:
             print(f"{indent}← {self.function} ({self.duration:.3f}s)")
         elif self.type == "output":
             print(f"{indent}Output: {self.output}")
+        elif self.type == "input":
+            print(f"{indent}Input: {self.inputs}")
+    
+    def to_dict(self):
+        """Convert the trace entry to a dictionary format"""
+        return {
+            "type": self.type,
+            "function": self.function,
+            "depth": self.depth,
+            "message": self.message,
+            "timestamp": self.timestamp,
+            "duration": self.duration,
+            # TODO: converting these to strings may be a problem
+            "output": str(self.output),  # Convert output to string to ensure JSON serializable
+            "inputs": str(self.inputs) if self.inputs else None  # Convert inputs to string
+        }
 
 class TraceClient:
     """Client for managing a single trace context"""
@@ -67,6 +85,33 @@ class TraceClient:
     def get_duration(self) -> float:
         """Get the total duration of this trace"""
         return time.time() - self.start_time
+    
+    def save_trace(self) -> dict:
+        """
+        Save the current trace to the database.
+        Returns the trace data that was saved.
+        """
+        # Calculate total elapsed time
+        total_duration = self.get_duration()
+        
+        # Create trace document
+        trace_data = {
+            "trace_id": self.trace_id,
+            "api_key": self.tracer.api_key,
+            "name": self.name,
+            "created_at": datetime.fromtimestamp(self.start_time).isoformat(),
+            "duration": total_duration,
+            "token_counts": {
+                "prompt_tokens": 0,  # Dummy value
+                "completion_tokens": 0,  # Dummy value
+                "total_tokens": 0,  # Dummy value
+            },  # TODO: Add token counts
+            "entries": [entry.to_dict() for entry in self.entries]
+        }
+
+        # TODO: Save the trace data to the database
+        
+        return trace_data
 
 class Tracer:
     _instance = None
@@ -119,6 +164,20 @@ class Tracer:
                     depth=self.depth,
                     message=f"→ {span_name}",
                     timestamp=start_time
+                ))
+                
+                # Record function inputs
+                inputs = {
+                    'args': args,
+                    'kwargs': kwargs
+                }
+                self._current_trace.add_entry(TraceEntry(
+                    type="input",
+                    function=span_name,
+                    depth=self.depth + 1,  # Indent inputs under function entry
+                    message=f"Inputs to {span_name}",
+                    timestamp=time.time(),
+                    inputs=inputs
                 ))
                 
                 self.depth += 1
