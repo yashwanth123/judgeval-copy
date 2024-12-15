@@ -33,6 +33,7 @@ def test_run_eval(client: JudgmentClient):
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",
         retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+        trace_id="2231abe3-e7e0-4909-8ab7-b4ab60b645c6"
     )
 
     example2 = Example(
@@ -73,6 +74,7 @@ def test_evaluate_dataset(client: JudgmentClient):
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",
         retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+        trace_id="2231abe3-e7e0-4909-8ab7-b4ab60b645c6"
     )
 
     example2 = Example(

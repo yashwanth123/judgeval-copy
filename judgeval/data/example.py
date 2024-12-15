@@ -35,6 +35,7 @@ class Example(BaseModel):
     name: Optional[str] = None
     example_id: Optional[str] = None
     timestamp: Optional[str] = None
+    trace_id: Optional[str] = None
 
     def __post_init__(self):
         # Ensure `context` is None or a list of strings
@@ -104,5 +105,6 @@ class Example(BaseModel):
             f"expected_tools={self.expected_tools}, "
             f"name={self.name}, "
             f"example_id={self.example_id}, "
-            f"timestamp={self.timestamp})"
+            f"timestamp={self.timestamp}, "
+            f"trace_id={self.trace_id})"
         )

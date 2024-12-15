@@ -34,7 +34,7 @@ class ProcessExample(BaseModel):
         None, alias="additionalMetadata"
     )
     comments: Optional[str] = Field(None)
-
+    trace_id: Optional[str] = Field(None)
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def update_scorer_data(self, scorer_data: ScorerData):
@@ -109,6 +109,7 @@ def create_process_example(
         evaluationCost=None,
         order=order,
         additionalMetadata=example.additional_metadata,
+        trace_id=example.trace_id
     )
     return process_ex
 

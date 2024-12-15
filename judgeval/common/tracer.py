@@ -152,7 +152,7 @@ class TraceClient:
     def save_trace(self) -> dict:
         """
         Save the current trace to the database.
-        Returns the trace data that was saved.
+        Returns a tuple of (trace_id, trace_data) where trace_data is the trace data that was saved.
         """
         # Calculate total elapsed time
         total_duration = self.get_duration()
@@ -184,7 +184,7 @@ class TraceClient:
             }
         )
         response.raise_for_status()
-        return trace_data
+        return self.trace_id, trace_data
 
 class Tracer:
     _instance = None
