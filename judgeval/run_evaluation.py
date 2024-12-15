@@ -4,12 +4,17 @@ from typing import List, Dict
 from datetime import datetime
 from fastapi import HTTPException
 
-from judgeval.data import Example
-from judgeval.scorers import CustomScorer, JudgmentScorer
-from judgeval.scorers.score import (
-    ScoringResult,
-    a_execute_scoring,
+from judgeval.data import (
+    Example, 
+    ScorerData, 
+    ScoringResult
 )
+from judgeval.scorers import (
+    CustomScorer, 
+    JudgmentScorer
+)
+from judgeval.scorers.score import a_execute_scoring
+
 from judgeval.constants import (
     JUDGMENT_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
@@ -19,7 +24,13 @@ from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge, MixtureOfJudges
 from judgeval.evaluation_run import EvaluationRun
-from judgeval.common.logger import enable_logging, debug, info, error, example_logging_context
+from judgeval.common.logger import (
+    enable_logging, 
+    debug, 
+    info, 
+    error, 
+    example_logging_context
+)
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
@@ -114,7 +125,7 @@ def check_missing_scorer_data(results: List[ScoringResult]) -> List[ScoringResul
             )
     return results
 
-def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = False):
+def run_eval(evaluation_run: EvaluationRun):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
@@ -190,7 +201,7 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = 
             )
 
             debug("Sending request to Judgment API")    
-            response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
+            response_data: List[Dict] = execute_api_eval(api_evaluation_run)  # ScoringResults
             info(f"Received {len(response_data['results'])} results from API")
         except JudgmentAPIError as e:
             # TODO: Replace with logger.error()
@@ -280,7 +291,7 @@ if __name__ == "__main__":
 
     example1 = Example(
         input="What if these shoes don't fit?",
-        actual_output="We offer a 30-day full refund at no extra cost.",
+        actual_output="We offer a 30-day full refund at no extra cost.",  # replace this with your code's actual output
         retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
     )
 
