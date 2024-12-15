@@ -4,11 +4,14 @@ Tracing system for judgeval that allows for function tracing using decorators.
 
 import time
 import functools
+import requests
 import uuid
 
 from typing import Optional, Any, List, Literal
 from dataclasses import dataclass
 from datetime import datetime 
+
+from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 
 @dataclass
 class TraceEntry:
@@ -83,7 +86,9 @@ class TraceClient:
             entry.print_entry()
             
     def get_duration(self) -> float:
-        """Get the total duration of this trace"""
+        """
+        Get the total duration of this trace
+        """
         return time.time() - self.start_time
     
     def save_trace(self) -> dict:
@@ -109,8 +114,15 @@ class TraceClient:
             "entries": [entry.to_dict() for entry in self.entries]
         }
 
-        # TODO: Save the trace data to the database
-        
+        # Save trace data by making POST request to API
+        response = requests.post(
+            JUDGMENT_TRACES_SAVE_API_URL,
+            json=trace_data,
+            headers={
+                "Content-Type": "application/json",
+            }
+        )
+        response.raise_for_status()
         return trace_data
 
 class Tracer:
