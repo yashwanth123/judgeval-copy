@@ -348,7 +348,7 @@ class CustomFaithfulnessMetric(CustomScorer):
                 self.additional_metadata["claims"] = self.claims  # Add claims generated to metadata
 
                 self.verdicts = self._generate_verdicts(test_case.retrieval_context)
-                self.additional_metadata["verdicts"] = self.verdicts  # Add verdicts generated to metadata
+                self.additional_metadata["verdicts"] = [v.model_dump() for v in self.verdicts]  # Add verdicts generated to metadata
                 
                 self.score = self._calculate_score()
                 self.reason = self._generate_reason()
@@ -382,7 +382,7 @@ class CustomFaithfulnessMetric(CustomScorer):
             self.additional_metadata["claims"] = self.claims  # Add claims generated to metadata
 
             self.verdicts = await self._a_generate_verdicts(test_case.retrieval_context)  
-            self.additional_metadata["verdicts"] = self.verdicts  # Add verdicts generated to metadata
+            self.additional_metadata["verdicts"] = [v.model_dump() for v in self.verdicts]  # Add verdicts generated to metadata
 
             self.score = self._calculate_score()
             self.reason = await self._a_generate_reason()

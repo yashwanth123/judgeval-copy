@@ -36,7 +36,7 @@ class ScoringResult:
         """Convert the ScoringResult instance to a dictionary, properly serializing scorer_data."""
         return {
             "success": self.success,
-            "scorers_data": [scorer.model_dump() for scorer in self.scorers_data] if self.scorers_data else None,
+            "scorers_data": [scorer_data.to_dict() for scorer_data in self.scorers_data] if self.scorers_data else None,
             "input": self.input,
             "actual_output": self.actual_output,
             "expected_output": self.expected_output,

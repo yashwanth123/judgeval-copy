@@ -23,12 +23,28 @@ class ScorerData(BaseModel):
     success: bool
     score: Optional[float] = None
     reason: Optional[str] = None
-    strict_mode: Optional[bool] = Field(False, alias="strictMode")
-    evaluation_model: Union[List[str], str] = Field(None, alias="evaluationModel")
+    strict_mode: Optional[bool] = None
+    evaluation_model: Union[List[str], str] = None
     error: Optional[str] = None
-    evaluation_cost: Union[float, None] = Field(None, alias="evaluationCost")
-    verbose_logs: Optional[str] = Field(None, alias="verboseLogs")
-    additional_metadata: Optional[Dict] = Field(None, alias="additionalMetadata")
+    evaluation_cost: Union[float, None] = None
+    verbose_logs: Optional[str] = None
+    additional_metadata: Optional[Dict] = None
+
+    def to_dict(self) -> dict:
+        """Convert the ScorerData instance to a JSON-serializable dictionary."""
+        return {
+            "name": self.name,
+            "threshold": self.threshold,
+            "success": self.success,
+            "score": self.score,
+            "reason": self.reason,
+            "strict_mode": self.strict_mode,
+            "evaluation_model": self.evaluation_model,
+            "error": self.error,
+            "evaluation_cost": self.evaluation_cost,
+            "verbose_logs": self.verbose_logs,
+            "additional_metadata": self.additional_metadata
+        }
 
 
 def create_scorer_data(scorer: CustomScorer) -> ScorerData:
@@ -48,11 +64,11 @@ def create_scorer_data(scorer: CustomScorer) -> ScorerData:
             score=None,
             reason=None,
             success=False,
-            strictMode=scorer.strict_mode,
-            evaluationModel=scorer.evaluation_model,
+            strict_mode=scorer.strict_mode,
+            evaluation_model=scorer.evaluation_model,
             error=scorer.error,
-            evaluationCost=scorer.evaluation_cost,
-            verboseLogs=scorer.verbose_logs,
+            evaluation_cost=scorer.evaluation_cost,
+            verbose_logs=scorer.verbose_logs,
         )
     else:  # standard execution, no error
         return ScorerData(
@@ -61,10 +77,10 @@ def create_scorer_data(scorer: CustomScorer) -> ScorerData:
             threshold=scorer.threshold,
             reason=scorer.reason,
             success=scorer.success_check(),
-            strictMode=scorer.strict_mode,
-            evaluationModel=scorer.evaluation_model,
+            strict_mode=scorer.strict_mode,
+            evaluation_model=scorer.evaluation_model,
             error=None,
-            evaluationCost=scorer.evaluation_cost,
-            verboseLogs=scorer.verbose_logs,
-            additionalMetadata=scorer.additional_metadata,
+            evaluation_cost=scorer.evaluation_cost,
+            verbose_logs=scorer.verbose_logs,
+            additional_metadata=scorer.additional_metadata,
         )
