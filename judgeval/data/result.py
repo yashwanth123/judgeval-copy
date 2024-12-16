@@ -17,6 +17,7 @@ class ScoringResult:
         expected_output (Optional[str]): The expected output of the example
         context (Optional[List[str]]): The context of the example
         retrieval_context (Optional[List[str]]): The retrieval context of the example
+        trace_id (Optional[str]): The trace id of the example
         
     """
     # Fields for scoring outputs 
@@ -29,17 +30,19 @@ class ScoringResult:
     expected_output: Optional[str] = None
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
-
+    trace_id: Optional[str] = None
+    
     def to_dict(self) -> dict:
         """Convert the ScoringResult instance to a dictionary, properly serializing scorer_data."""
         return {
             "success": self.success,
-            "scorers_data": [scorer.model_dump() for scorer in self.scorers_data] if self.scorers_data else None,
+            "scorers_data": [scorer_data.to_dict() for scorer_data in self.scorers_data] if self.scorers_data else None,
             "input": self.input,
             "actual_output": self.actual_output,
             "expected_output": self.expected_output,
             "context": self.context,
-            "retrieval_context": self.retrieval_context
+            "retrieval_context": self.retrieval_context,
+            "trace_id": self.trace_id
         }
     
     def __str__(self) -> str:
@@ -50,7 +53,8 @@ class ScoringResult:
             actual_output={self.actual_output}, \
             expected_output={self.expected_output}, \
             context={self.context}, \
-            retrieval_context={self.retrieval_context})"
+            retrieval_context={self.retrieval_context}, \
+            trace_id={self.trace_id})"
 
 
 def generate_scoring_result(
@@ -70,4 +74,5 @@ def generate_scoring_result(
         expected_output=process_example.expected_output,
         context=process_example.context,
         retrieval_context=process_example.retrieval_context,
+        trace_id=process_example.trace_id
     )

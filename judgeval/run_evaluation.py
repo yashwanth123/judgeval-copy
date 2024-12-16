@@ -4,12 +4,17 @@ from typing import List, Dict
 from datetime import datetime
 from fastapi import HTTPException
 
-from judgeval.data import Example
-from judgeval.scorers import CustomScorer, JudgmentScorer
-from judgeval.scorers.score import (
-    ScoringResult,
-    a_execute_scoring,
+from judgeval.data import (
+    Example, 
+    ScorerData, 
+    ScoringResult
 )
+from judgeval.scorers import (
+    CustomScorer, 
+    JudgmentScorer
+)
+from judgeval.scorers.score import a_execute_scoring
+
 from judgeval.constants import (
     JUDGMENT_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
@@ -19,7 +24,13 @@ from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.judges import TogetherJudge, MixtureOfJudges
 from judgeval.evaluation_run import EvaluationRun
-from judgeval.common.logger import enable_logging, debug, info, error, example_logging_context
+from judgeval.common.logger import (
+    enable_logging, 
+    debug, 
+    info, 
+    error, 
+    example_logging_context
+)
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
@@ -114,7 +125,7 @@ def check_missing_scorer_data(results: List[ScoringResult]) -> List[ScoringResul
             )
     return results
 
-def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = False):
+def run_eval(evaluation_run: EvaluationRun):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
@@ -190,7 +201,7 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = 
             )
 
             debug("Sending request to Judgment API")    
-            response_data = execute_api_eval(api_evaluation_run)  # List[Dict] representing ScoringResults
+            response_data: List[Dict] = execute_api_eval(api_evaluation_run)  # ScoringResults
             info(f"Received {len(response_data['results'])} results from API")
         except JudgmentAPIError as e:
             # TODO: Replace with logger.error()
@@ -209,6 +220,14 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = 
                 # there may be some stuff in here that doesn't belong in ScoringResult
                 # TODO: come back and refactor this to have ScoringResult take in **kwargs
                 filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
+                
+                # Convert scorers_data dicts to ScorerData objects
+                if "scorers_data" in filtered_result and filtered_result["scorers_data"]:
+                    filtered_result["scorers_data"] = [
+                        ScorerData(**scorer_dict) 
+                        for scorer_dict in filtered_result["scorers_data"]
+                    ]
+                
                 api_results.append(ScoringResult(**filtered_result))
 
     # Run local evals
@@ -233,29 +252,6 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = 
         )
         local_results = results
         info(f"Local evaluation complete with {len(local_results)} results")
-        
-        if evaluation_run.log_results:
-            try:
-                res = requests.post(
-                    JUDGMENT_EVAL_LOG_API_URL,
-                    json={
-                        "results": [result.to_dict() for result in local_results],
-                        "judgment_api_key": evaluation_run.judgment_api_key,
-                        "project_name": evaluation_run.project_name,
-                        "eval_name": evaluation_run.eval_name,
-                    }
-                )
-                if not res.ok:
-                    response_data = res.json()
-                    error_message = response_data.get('detail', 'An unknown error occurred.')
-                    error(f"Error {res.status_code}: {error_message}")
-                    raise Exception(f"Error {res.status_code}: {error_message}")
-            except requests.exceptions.RequestException as e:
-                error(f"Request failed while saving Custom Metric Eval results to DB: {str(e)}")
-                raise JudgmentAPIError(f"Request failed while saving Custom Metric Eval results to DB: {str(e)}")
-            except Exception as e:
-                error(f"Failed to save Custom Metric Eval results to DB: {str(e)}")
-                raise ValueError(f"Failed to save Custom Metric Eval results to DB: {str(e)}")
 
     # Aggregate the ScorerData from the API and local evaluations
     debug("Merging API and local results")
@@ -263,6 +259,29 @@ def run_eval(evaluation_run: EvaluationRun, name: str = "", log_results: bool = 
     merged_results = check_missing_scorer_data(merged_results)
 
     info(f"Successfully merged {len(merged_results)} results")
+
+    if evaluation_run.log_results:
+        try:
+            res = requests.post(
+                JUDGMENT_EVAL_LOG_API_URL,
+                json={
+                    "results": [result.to_dict() for result in merged_results],
+                    "judgment_api_key": evaluation_run.judgment_api_key,
+                    "project_name": evaluation_run.project_name,
+                    "eval_name": evaluation_run.eval_name,
+                }
+            )
+            if not res.ok:
+                response_data = res.json()
+                error_message = response_data.get('detail', 'An unknown error occurred.')
+                error(f"Error {res.status_code}: {error_message}")
+                raise Exception(f"Error {res.status_code}: {error_message}")
+        except requests.exceptions.RequestException as e:
+            error(f"Request failed while saving evaluation results to DB: {str(e)}")
+            raise JudgmentAPIError(f"Request failed while saving evaluation results to DB: {str(e)}")
+        except Exception as e:
+            error(f"Failed to save evaluation results to DB: {str(e)}")
+            raise ValueError(f"Failed to save evaluation results to DB: {str(e)}")
 
     for i, result in enumerate(merged_results):
         if not result.scorers_data:  # none of the scorers could be executed on this example
@@ -280,7 +299,7 @@ if __name__ == "__main__":
 
     example1 = Example(
         input="What if these shoes don't fit?",
-        actual_output="We offer a 30-day full refund at no extra cost.",
+        actual_output="We offer a 30-day full refund at no extra cost.",  # replace this with your code's actual output
         retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
     )
 
