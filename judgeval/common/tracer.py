@@ -7,7 +7,7 @@ import functools
 import requests
 import uuid
 
-from typing import Optional, Any, List, Literal
+from typing import Optional, Any, List, Literal, Tuple
 from dataclasses import dataclass
 from datetime import datetime 
 
@@ -56,10 +56,15 @@ class TraceEntry:
         """Convert the trace entry to a dictionary format"""
         # Try to serialize output to check if it's JSON serializable
         try:
-            import json
-            # Test serialization
-            json.dumps(self.output)
-            output = self.output
+            # If output is a Pydantic model, serialize it
+            from pydantic import BaseModel
+            if isinstance(self.output, BaseModel):
+                output = self.output.model_dump()
+            else:
+                # Test regular JSON serialization
+                import json
+                json.dumps(self.output)
+                output = self.output
         except (TypeError, OverflowError, ValueError):
             import warnings
             warnings.warn(f"Output for function {self.function} is not JSON serializable. Setting to None.")
@@ -149,7 +154,7 @@ class TraceClient:
 
         return condensed
 
-    def save_trace(self) -> dict:
+    def save_trace(self) -> Tuple[str, dict]:
         """
         Save the current trace to the database.
         Returns a tuple of (trace_id, trace_data) where trace_data is the trace data that was saved.
