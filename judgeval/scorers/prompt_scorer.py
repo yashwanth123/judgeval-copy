@@ -136,10 +136,8 @@ class PromptScorer(CustomScorer):
         judge_prompt = self.build_measure_prompt(example)
         schema = self.build_schema()
         prompt = self.enforce_prompt_format(judge_prompt=judge_prompt, schema=schema)
-        print(f"Prompt: {prompt}")
         if self.using_native_model:
             res = await self.model.a_generate(prompt)
-            print(f"Response: {res}")
             response = parse_response_json(res, self)
             self.response = response
 
