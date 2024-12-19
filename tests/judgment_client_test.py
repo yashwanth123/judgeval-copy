@@ -10,7 +10,9 @@ from judgeval.constants import APIScorer
 from judgeval.judges import TogetherJudge
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def get_client():
     return JudgmentClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
