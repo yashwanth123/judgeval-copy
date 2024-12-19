@@ -1,41 +1,40 @@
 """
-Code that implements a baseline customizable metric.
+Code that implements a prompt-based scorer for evaluating examples.
 
-The CustomizableMetric class is a base class that can be used to create custom metrics.
-In order to implement a subclass of CustomizableMetric, you need to implement the following methods:
-- build_measure_prompt: builds the prompt that is sent to the model inside of the `evaluate()` method
-- is_successful: returns a boolean indicating whether the metric was successful
+The PromptScorer class is a base class that can be used to create custom scoring metrics using LLM prompts.
+To implement a subclass of PromptScorer, you need to implement the following methods:
+- build_measure_prompt(): builds the conversation prompt that is sent to the LLM judge
+- build_schema(): defines the expected response schema from the LLM
+- process_response(): parses the response from the LLM judge
+- success_check(): determines whether the evaluation was successful
 
-The core idea of the CustomizableMetric is to provide a flexible way to create 
-custom metrics that simply require a prompt to be sent to a model, a JSON response to be parsed,
-and a boolean indicating whether the metric was successful. 
+The core idea of PromptScorer is to provide a flexible way to create custom scoring metrics
+by leveraging LLM judges to evaluate examples. The scorer constructs a prompt, sends it to 
+the judge, and parses the structured response to determine a score.
 
-For example, if you wanted to use the CustomizableMetric class to create a metric for RCACoPilot accuracy,
-you'd simply tweak the build_measure_prompt method to construct the prompt for evaluating the accuracy of an
-RCA CoPilot response (given a Testcase), and the is_successful method to return a boolean indicating whether the
-response was accurate.
+For example, the SentimentScorer subclass uses PromptScorer to detect negative sentiment in responses
+by prompting an LLM to rate the negativity on a 1-5 scale and provide a reason for the rating.
 
-NOTE: There are some things to keep in mind when creating the prompt in the build_measure_prompt method:
-- The prompt should instruct the LLM to generate an output JSON that contains a "score" and "reason" field.
-- The "score" field can be anything that you determine to be the result of the evaluation
-- The "reason" field should contain a string that explains why the score was calculated as it was
+The PromptScorer supports both synchronous and asynchronous evaluation modes, includes optional
+reason fields in responses, and can operate in strict mode with higher thresholds.
 
-In the context of the RCACoPilot example, the score could be whether or not the hypothesis was matching the gold hypothesis,
-and the reason could be why the hypothesis was or was not matching the gold hypothesis.
+NOTE: When implementing build_measure_prompt and build_schema:
+- The prompt should guide the LLM to generate a response matching your schema
+- The schema should include "score" and optionally "reason" fields
+- The score field type and range should match your scoring criteria
+- The reason field provides explanatory context for the score
 """
 
 from abc import abstractmethod
-from typing import List, Optional, Union, Tuple, Any
+from typing import List, Optional, Union, Tuple, Any, Mapping
 from pydantic import BaseModel
 
 from judgeval.data import Example
 from judgeval.scorers import CustomScorer
-from judgeval.judges import judgevalJudge
 from judgeval.scorers.utils import (scorer_progress_meter, 
                                     parse_response_json,
                                     get_or_create_event_loop,
                                     create_verbose_logs)
-from judgeval.judges.utils import create_judge
 
 
 class ReasonScore(BaseModel):
@@ -251,3 +250,84 @@ class PromptScorer(CustomScorer):
     @property
     def __name__(self):
         return self.name
+
+
+class ClassifierScorer(PromptScorer):
+
+    """
+    This is a PromptScorer that takes 
+    1. a system role that may involve the Example object
+    2. options for scores on the example
+    
+    and uses a judge to execute the evaluation from the system role and classify into one of the options
+
+    ex:
+    system_role = "You are a judge that evaluates whether the response is positive or negative. The response is: {example.actual_output}"
+    options = {"positive": 1, "negative": 0}
+    """
+
+    def __init__(self, name: str, conversation: List[dict], options: Mapping[str, float], threshold: float = 0.5, include_reason: bool = True, 
+                 async_mode: bool = True, strict_mode: bool = False, verbose_mode: bool = False):
+        super().__init__(name, threshold, include_reason, async_mode, strict_mode, verbose_mode)
+        self.conversation = conversation
+        self.options = options
+
+    def build_measure_prompt(self, example: Example) -> List[dict]:
+        replacement_words = {
+            "{{actual_output}}": example.actual_output,
+            "{{expected_output}}": example.expected_output,
+            "{{context}}": example.context,
+            "{{retrieval_context}}": example.retrieval_context,
+            "{{tools_called}}": example.tools_called,
+            "{{expected_tools}}": example.expected_tools,
+        }
+        # Make a copy of the conversation to avoid modifying the original
+        conversation_copy = [dict(message) for message in self.conversation]
+        
+        # Only replace if double brackets are found in the content
+        for message in conversation_copy:
+            content = message["content"]
+            if "{{" in content:
+                for key, value in replacement_words.items():
+                    if key in content:
+                        message["content"] = content.replace(key, str(value))
+        return conversation_copy
+
+    def build_schema(self) -> dict:
+        return self.options
+    
+    def enforce_prompt_format(self, judge_prompt: List[dict], schema: dict) -> List[dict]:
+        """
+        Enforces the judge model to choose an option from the schema.
+
+        We want the model to choose an option from the schema and a reason for the choice.
+        """
+        options = list(schema.keys())
+        options_str = ", ".join(options)
+        
+        system_role = judge_prompt[0]["content"]
+        system_role += (
+            f"\n\nYou must choose one of the following options: {options_str}. "
+            "Format your response as a JSON object with two fields:\n"
+            "1. 'choice': Your selected option (must be one of the provided choices)\n"
+            "2. 'reason': A brief explanation for why you made this choice\n\n"
+            "Example response format:\n"
+            "{\n"
+            '    "choice": "<one of the valid options>",\n'
+            '    "reason": "<your explanation>"\n'
+            "}"
+        )
+        
+        judge_prompt[0]["content"] = system_role
+        return judge_prompt
+
+    def process_response(self, response: dict) -> Tuple[float, str]:
+        choice = response.get("choice")
+        if choice not in self.options:
+            raise ValueError(f"Invalid choice: {choice}. Expected one of: {self.options.keys()}")
+        reason = response.get("reason", "No reason could be found in model response.")
+        return self.options[choice], reason
+
+    def success_check(self, **kwargs) -> bool:
+        return self.score >= self.threshold
+

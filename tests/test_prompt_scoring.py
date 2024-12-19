@@ -7,7 +7,7 @@ Toy example in this case to determine the sentiment
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.judges import TogetherJudge
-from judgeval.scorers import PromptScorer
+from judgeval.scorers import PromptScorer, ClassifierScorer
 
 
 qwen = TogetherJudge()
@@ -77,15 +77,36 @@ def main():
         actual_output="That's not my problem. You should have read the instructions more carefully.",
     )
 
-    scorer = SentimentScorer()
+    # scorer = SentimentScorer()
+    scorer = ClassifierScorer(
+        name="Sentiment Classifier",
+        conversation=[{"role": "system", "content": "Is the response positive (Y/N)? The response is: {{actual_output}}."}],
+        options={"Y": 1, "N": 0},
+        threshold=0.5,
+        include_reason=True,
+    )
 
-    client = JudgmentClient()
-    results = client.run_evaluation(
-        [pos_example, neg_example],
-        [scorer],
-        model="QWEN"
-    ) 
-    print(results)
+    import requests 
+    import os
+    response = requests.post(
+        "http://127.0.0.1:8000/custom_scorer/",
+        json={
+            "conversation": [{"role": "system", "content": "Is the response positive (Y/N)? The response is: {{actual_output}}."}],
+            "options": {"Y": 1, "N": 0},
+            "example": pos_example.model_dump(),
+            "model": "QWEN",
+            "judgment_api_key": os.getenv("JUDGMENT_API_KEY")
+        }
+    )
+    print(response.json())
+
+    # client = JudgmentClient()
+    # results = client.run_evaluation(
+    #     [pos_example, neg_example],
+    #     [scorer],
+    #     model="QWEN"
+    # ) 
+    # print(results)
 
 if __name__ == "__main__":
     main()
