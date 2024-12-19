@@ -87,9 +87,11 @@ def main():
     )
 
     import requests 
+    from dotenv import load_dotenv
+    load_dotenv()
     import os
     response = requests.post(
-        "http://127.0.0.1:8000/custom_scorer/",
+        "http://127.0.0.1:8000/classifier_eval/",
         json={
             "conversation": [{"role": "system", "content": "Is the response positive (Y/N)? The response is: {{actual_output}}."}],
             "options": {"Y": 1, "N": 0},
