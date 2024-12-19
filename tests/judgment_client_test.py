@@ -52,8 +52,8 @@ def test_run_eval(client: JudgmentClient):
     scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
     c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
-    PROJECT_NAME = "test_project_12345"
-    EVAL_RUN_NAME = "test_eval_12345"
+    PROJECT_NAME = "test_project_JOSEPH"
+    EVAL_RUN_NAME = "test_eval_JOSEPH"
     client.run_evaluation(
         examples=[example1, example2],
         scorers=[scorer, c_scorer],
@@ -102,21 +102,21 @@ def test_evaluate_dataset(client: JudgmentClient):
 if __name__ == "__main__":
     # Test client functionality
     client = get_client()
-    print("Client initialized successfully")
-    print("*" * 40)
+    # print("Client initialized successfully")
+    # print("*" * 40)
 
-    print("Testing dataset creation, pushing, and pulling")
-    test_dataset(client)
-    print("Dataset creation, pushing, and pulling successful")
-    print("*" * 40)
+    # print("Testing dataset creation, pushing, and pulling")
+    # test_dataset(client)
+    # print("Dataset creation, pushing, and pulling successful")
+    # print("*" * 40)
     
     print("Testing evaluation run")
     test_run_eval(client)
     print("Evaluation run successful")
     print("*" * 40)
     
-    print("Testing dataset evaluation")
-    test_evaluate_dataset(client)
-    print("Dataset evaluation successful")
-    print("*" * 40)
-    print("All tests passed successfully")
+    # print("Testing dataset evaluation")
+    # test_evaluate_dataset(client)
+    # print("Dataset evaluation successful")
+    # print("*" * 40)
+    # print("All tests passed successfully")

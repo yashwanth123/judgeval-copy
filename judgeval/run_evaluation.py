@@ -199,6 +199,7 @@ def run_eval(evaluation_run: EvaluationRun):
                 judgment_api_key=evaluation_run.judgment_api_key,
                 log_results=evaluation_run.log_results
             )
+            print(api_evaluation_run.model_dump())
 
             debug("Sending request to Judgment API")    
             response_data: List[Dict] = execute_api_eval(api_evaluation_run)  # ScoringResults
