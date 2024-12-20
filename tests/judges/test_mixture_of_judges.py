@@ -383,3 +383,35 @@ def test_get_model_name(mixture_judge):
 def test_model_list_consistency(mixture_judge):
     """Test that both methods return the same list of models."""
     assert mixture_judge.load_model() == mixture_judge.get_model_name()
+
+@pytest.mark.asyncio
+async def test_invalid_input_type_async(mixture_judge):
+    with pytest.raises(TypeError, match="Input must be a string or a list of dictionaries"):
+        await mixture_judge.a_generate(input=123)
+
+@pytest.mark.asyncio
+async def test_invalid_input_type_none_async(mixture_judge):
+    with pytest.raises(TypeError, match="Input must be a string or a list of dictionaries"):
+        await mixture_judge.a_generate(input=None)
+
+@pytest.mark.asyncio
+async def test_get_completion_error_async(mocker, mixture_judge):
+    mock_get_completion = mocker.patch('judgeval.judges.mixture_of_judges.aget_completion_multiple_models')
+    mock_get_completion.side_effect = Exception("API error")
+    
+    with pytest.raises(Exception, match="API error"):
+        await mixture_judge.a_generate(input="test query")
+
+@pytest.mark.asyncio
+async def test_get_chat_completion_error_async(mocker, mixture_judge):
+    mock_get_completion = mocker.patch('judgeval.judges.mixture_of_judges.aget_completion_multiple_models')
+    mock_chat_completion = mocker.patch('judgeval.judges.mixture_of_judges.aget_chat_completion')
+    
+    # Mock successful initial completions
+    mock_get_completion.return_value = ["response1", "response2"]
+    
+    # Mock aggregator error
+    mock_chat_completion.side_effect = Exception("Aggregator error")
+    
+    with pytest.raises(Exception, match="Aggregator error"):
+        await mixture_judge.a_generate(input="test query")
