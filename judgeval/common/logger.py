@@ -7,7 +7,10 @@ from contextlib import contextmanager
 
 # Global variables
 logger = None
-LOGGING_ENABLED = False
+class LoggingState:
+    enabled = False
+
+LOGGING_STATE = LoggingState()
 
 # Add these as module-level variables
 current_example_id = None
@@ -15,18 +18,21 @@ current_timestamp = None
 
 
 @contextmanager
-def enable_logging():
+def enable_logging(path: str = "./logs"):
     """
     Context manager to temporarily enable logging for a specific block of code.
     """
-    global LOGGING_ENABLED
-    LOGGING_ENABLED = True
+    global logger
+    LOGGING_STATE.enabled = True
+    # Initialize logger if not already initialized
+    if logger is None:
+        logger = _initialize_logger(path=path)
     try:
         logger.info("Logging enabled")
         yield
     finally:
         logger.info("Logging disabled")
-        LOGGING_ENABLED = False
+        LOGGING_STATE.enabled = False
 
 def _initialize_logger(
     name: str = "judgeval",
@@ -97,12 +103,12 @@ def _initialize_logger(
     return logger
 
 # Initialize the global logger when module is imported
-logger = _initialize_logger()
+# logger = _initialize_logger()
 
 def log_if_enabled(func):
     """Decorator to check if logging is enabled before executing logging statements"""
     def wrapper(*args, **kwargs):
-        if LOGGING_ENABLED:
+        if LOGGING_STATE.enabled:
             return func(*args, **kwargs)
     return wrapper
 
@@ -156,7 +162,7 @@ def create_example_handler(
 @contextmanager
 def example_logging_context(timestamp: str, example_idx: int):
     """Context manager for example-specific logging"""
-    if not LOGGING_ENABLED:
+    if not LOGGING_STATE.enabled:
         yield
         return
         
