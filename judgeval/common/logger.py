@@ -31,7 +31,8 @@ def enable_logging():
 def _initialize_logger(
     name: str = "judgeval",
     max_bytes: int = 1024 * 1024,  # 1MB
-    backup_count: int = 5
+    backup_count: int = 5,
+    path: str = "./logs"  # Added path parameter with default
 ) -> logging.Logger:
     """
     Initialize the global logger instance if it doesn't exist.
@@ -39,9 +40,8 @@ def _initialize_logger(
     """
     global logger
     
-    # Clear existing log file
-    log_dir = Path('./logs')
-    log_dir.mkdir(exist_ok=True)
+    log_dir = Path(path)
+    log_dir.mkdir(exist_ok=True, parents=True)
     log_file = log_dir / f"{name}.log"
     if log_file.exists():
         log_file.unlink()  # Delete existing log file
@@ -50,7 +50,7 @@ def _initialize_logger(
         return logger
         
     # Create logs directory if it doesn't exist
-    log_dir = Path('./logs')
+    log_dir = Path(path)
     log_dir.mkdir(exist_ok=True)
     
     # Create formatter
@@ -126,10 +126,14 @@ def error(msg: str, example_idx: int = None):
     """Log error message if logging is enabled"""
     logger.error(msg)
 
-def create_example_handler(timestamp: str, example_idx: int) -> RotatingFileHandler:
+def create_example_handler(
+    timestamp: str, 
+    example_idx: int,
+    path: str = "./logs"  # Added path parameter with default
+) -> RotatingFileHandler:
     """Creates a file handler for a specific example"""
     debug(f"Creating example handler for timestamp={timestamp}, example_idx={example_idx}")
-    log_dir = Path('./logs/examples')
+    log_dir = Path(path) / "examples"
     log_dir.mkdir(exist_ok=True, parents=True)
     
     formatter = logging.Formatter(
