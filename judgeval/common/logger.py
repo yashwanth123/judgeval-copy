@@ -9,6 +9,7 @@ from contextlib import contextmanager
 logger = None
 class LoggingState:
     enabled = False
+    path = None
 
 LOGGING_STATE = LoggingState()
 
@@ -18,21 +19,23 @@ current_timestamp = None
 
 
 @contextmanager
-def enable_logging(path: str = "./logs"):
+def enable_logging(name: str = "judgeval", path: str = "./logs", max_bytes: int = 1024 * 1024, backup_count: int = 5):
     """
     Context manager to temporarily enable logging for a specific block of code.
     """
     global logger
     LOGGING_STATE.enabled = True
+    LOGGING_STATE.path = path
     # Initialize logger if not already initialized
     if logger is None:
-        logger = _initialize_logger(path=path)
+        logger = _initialize_logger(name=name, path=path, max_bytes=max_bytes, backup_count=backup_count)
     try:
         logger.info("Logging enabled")
         yield
     finally:
         logger.info("Logging disabled")
         LOGGING_STATE.enabled = False
+        LOGGING_STATE.path = None
 
 def _initialize_logger(
     name: str = "judgeval",
@@ -172,7 +175,7 @@ def example_logging_context(timestamp: str, example_idx: int):
     current_example_id = example_idx
     current_timestamp = timestamp
     
-    handler = create_example_handler(timestamp, example_idx)
+    handler = create_example_handler(timestamp, example_idx, path=LOGGING_STATE.path)
     if handler:
         logger.addHandler(handler)
     try:
