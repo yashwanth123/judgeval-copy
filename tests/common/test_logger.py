@@ -32,14 +32,14 @@ def clean_logs():
     yield
     
     # Clean after test
-    if log_dir.exists():
-        for file in log_dir.glob('**/*'):
-            if file.is_file():
-                file.unlink()
-        for dir in reversed(list(log_dir.glob('**/*'))):
-            if dir.is_dir():
-                dir.rmdir()
-        log_dir.rmdir()
+    # if log_dir.exists():
+    #     for file in log_dir.glob('**/*'):
+    #         if file.is_file():
+    #             file.unlink()
+    #     for dir in reversed(list(log_dir.glob('**/*'))):
+    #         if dir.is_dir():
+    #             dir.rmdir()
+    #     log_dir.rmdir()
 
 def test_enable_logging_context(clean_logs):
     """Test that logging is properly enabled and disabled with context manager"""
@@ -67,22 +67,11 @@ def test_logging_levels(clean_logs):
     log_dir = Path(TEST_LOG_PATH)
     log_file = log_dir / "judgeval.log"
     
-    # Ensure directory exists
-    log_dir.mkdir(parents=True, exist_ok=True)
-    
     with enable_logging(path=TEST_LOG_PATH):
         debug("Debug message")
         info("Info message")
         warning("Warning message")
         error("Error message")
-        
-        # List all files in log directory
-        print(f"Log directory: {TEST_LOG_PATH}")
-        log_files = list(Path(TEST_LOG_PATH).glob('**/*'))
-        for file in log_files:
-            if file.is_file():
-                print(f"Found log file: {file}")
-                print(f"File content: {file.read_text()}")
     
     assert log_file.exists()
     content = log_file.read_text()
@@ -114,8 +103,8 @@ def test_example_logging_context(clean_logs):
     timestamp = "2024-03-21_103045"
     example_idx = 123
     
-    with enable_logging():
-        with example_logging_context(timestamp, example_idx, path=TEST_LOG_PATH):
+    with enable_logging(path=TEST_LOG_PATH):
+        with example_logging_context(timestamp, example_idx):
             info("Test example message")
     
     # Check example-specific log file
@@ -129,10 +118,10 @@ def test_example_logging_context(clean_logs):
 
 def test_nested_example_contexts(clean_logs):
     """Test that nested example contexts work correctly"""
-    with enable_logging():
-        with example_logging_context("time1", 1, path=TEST_LOG_PATH):
+    with enable_logging(path=TEST_LOG_PATH):
+        with example_logging_context("time1", 1):
             info("Message 1")
-            with example_logging_context("time2", 2, path=TEST_LOG_PATH):
+            with example_logging_context("time2", 2):
                 info("Message 2")
             info("Back to 1")
     
@@ -143,14 +132,7 @@ def test_nested_example_contexts(clean_logs):
 def test_logger_rotation(clean_logs):
     """Test that log files rotate when they exceed max size"""
     # Create a logger with very small max_bytes to test rotation
-    test_logger = _initialize_logger(
-        "rotation_test",
-        max_bytes=50,
-        backup_count=2,
-        path=TEST_LOG_PATH
-    )
-    
-    with enable_logging():
+    with enable_logging(name="rotation_test", path=TEST_LOG_PATH, max_bytes=50, backup_count=2):
         # Write enough data to trigger multiple rotations
         for i in range(10):
             info(f"This is a long message that will cause rotation {i}")
@@ -164,8 +146,8 @@ def test_logger_rotation(clean_logs):
 
 def test_formatter_without_example_context(clean_logs):
     """Test that logs are properly formatted without example context"""
-    with enable_logging():
-        info("Regular message", path=TEST_LOG_PATH)
+    with enable_logging(name="judgeval", path=TEST_LOG_PATH):
+        info("Regular message")
     
     content = (Path(TEST_LOG_PATH) / "judgeval.log").read_text()
     assert "[Example_" not in content
