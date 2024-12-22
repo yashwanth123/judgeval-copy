@@ -33,6 +33,33 @@ def clean_env():
         elif key in os.environ:
             del os.environ[key]
 
+@pytest.fixture
+def mock_telemetry(mocker):
+    """Fixture to mock OpenTelemetry setup and provide mock span for testing"""
+    # Create the mock chain
+    mock_span = mocker.MagicMock()
+    mock_context_manager = mocker.MagicMock()
+    mock_context_manager.__enter__.return_value = mock_span
+    mock_tracer = mocker.MagicMock()
+    mock_tracer.start_as_current_span.return_value = mock_context_manager
+    
+    # Mock OpenTelemetry setup
+    mocker.patch('opentelemetry.trace.get_tracer', return_value=mock_tracer)
+    mocker.patch('opentelemetry.trace.set_tracer_provider')
+    mocker.patch('opentelemetry.trace.get_tracer_provider')
+    
+    # Reload telemetry module to recreate tracer with our mock
+    import importlib
+    import judgeval.common.telemetry
+    importlib.reload(judgeval.common.telemetry)
+    
+    # Return the mock objects for test assertions
+    return mocker.MagicMock(
+        span=mock_span,
+        context_manager=mock_context_manager,
+        tracer=mock_tracer
+    )
+
 def test_get_unique_id(clean_env):
     """Test unique ID generation and persistence"""
     id1 = get_unique_id()
@@ -77,27 +104,59 @@ def test_telemetry_context_managers_opt_out(clean_env, context_manager, args):
     with context_manager(*args) as span:
         assert span is None
 
-def test_capture_synthesizer_run(mocker, clean_env):
-    """Test synthesizer run capture with proper span context"""
-    # Mock the span context
-    mock_span_context = mocker.MagicMock(spec=SpanContext)
-    mock_span_context.trace_id = 1234567890123456789
-    mock_span_context.span_id = 9876543210
-    
-    # Mock the span with proper get_span_context method
-    mock_span = mocker.MagicMock()
-    mock_span.get_span_context.return_value = mock_span_context
-    
-    # Mock the trace module directly
-    mock_trace = mocker.patch('judgeval.common.telemetry.trace')
-    mock_tracer = mocker.MagicMock()
-    mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
-    mock_trace.get_tracer.return_value = mock_tracer
-    
-    # Use the context manager
+def test_capture_synthesizer_run(mock_telemetry, mocker, clean_env):
+    """Test synthesizer run capture"""
     with capture_synthesizer_run(max_generations=5, method="test_method") as span:
-        assert span is not None
-        assert span == mock_span  # Verify we got our mock span
-        mock_span.set_attribute.assert_called_once_with("user.unique_id", mocker.ANY)
+        # Verify we got the mock span
+        assert span is mock_telemetry.span
+        
+        # Verify the span was created with correct parameters
+        mock_telemetry.tracer.start_as_current_span.assert_called_once_with(
+            "Invoked synthesizer (5) | Method: test_method"
+        )
+        
+        # Verify attributes were set
+        mock_telemetry.span.set_attribute.assert_called_once_with("user.unique_id", mocker.ANY)
 
-    # No need to verify span creation details since we're using the real tracer
+def test_capture_red_teamer_run(mock_telemetry, mocker, clean_env):
+    """Test red teamer run capture"""
+    with capture_red_teamer_run(task="test_task") as span:
+        # Verify we got the mock span
+        assert span is mock_telemetry.span
+        
+        # Verify the span was created with correct parameters
+        mock_telemetry.tracer.start_as_current_span.assert_called_once_with(
+            "Invoked red teamer: (test_task)"
+        )
+        
+        # Verify attributes were set
+        mock_telemetry.span.set_attribute.assert_called_once_with("user.unique_id", mocker.ANY)
+
+def test_capture_metric_type(mock_telemetry, mocker, clean_env):
+    """Test metric type capture"""
+    with capture_metric_type(metric_name="test_metric") as span:
+        # Verify we got the mock span
+        assert span is mock_telemetry.span
+        
+        # Verify the span was created with correct parameters
+        mock_telemetry.tracer.start_as_current_span.assert_called_once_with(
+            "test_metric"
+        )
+        
+        # Verify attributes were set
+        mock_telemetry.span.set_attribute.assert_called_once_with("user.unique_id", mocker.ANY)
+
+def test_capture_evaluation_run(mock_telemetry, mocker, clean_env):
+    """Test evaluation run capture"""
+    with capture_evaluation_run(type="test_type") as span:
+        # Verify we got the mock span
+        assert span is mock_telemetry.span
+        
+        # Verify the span was created with correct parameters
+        mock_telemetry.tracer.start_as_current_span.assert_called_once_with(
+            "Evaluation run: test_type"
+        )
+        
+        # Verify attributes were set
+        mock_telemetry.span.set_attribute.assert_called_once_with("user.unique_id", mocker.ANY)
+
