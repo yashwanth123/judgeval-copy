@@ -32,14 +32,14 @@ def clean_logs():
     yield
     
     # Clean after test
-    # if log_dir.exists():
-    #     for file in log_dir.glob('**/*'):
-    #         if file.is_file():
-    #             file.unlink()
-    #     for dir in reversed(list(log_dir.glob('**/*'))):
-    #         if dir.is_dir():
-    #             dir.rmdir()
-    #     log_dir.rmdir()
+    if log_dir.exists():
+        for file in log_dir.glob('**/*'):
+            if file.is_file():
+                file.unlink()
+        for dir in reversed(list(log_dir.glob('**/*'))):
+            if dir.is_dir():
+                dir.rmdir()
+        log_dir.rmdir()
 
 def test_enable_logging_context(clean_logs):
     """Test that logging is properly enabled and disabled with context manager"""
