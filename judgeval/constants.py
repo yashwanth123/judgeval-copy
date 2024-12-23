@@ -16,13 +16,11 @@ class APIScorer(Enum):
     ANSWER_RELEVANCY = "answer_relevancy"
     HALLUCINATION = "hallucination"
     SUMMARIZATION = "summarization"
-    GEVAL = "geval"
     CONTEXTUAL_RECALL = "contextual_recall"
     CONTEXTUAL_RELEVANCY = "contextual_relevancy"
     CONTEXTUAL_PRECISION = "contextual_precision"
-    KNOWLEDGE_RETENTION = "knowledge_retention"
     TOOL_CORRECTNESS = "tool_correctness"
-    CUSTOM = "custom"
+    
 
 ROOT_API = "http://127.0.0.1:8000"
 # ROOT_API = "https://api.judgmentlabs.ai"  # TODO replace this with the actual API root
