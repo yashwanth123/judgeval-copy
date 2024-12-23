@@ -132,25 +132,26 @@ async def afetch_together_api_response(model: str, messages: List[Mapping], resp
     """
     ASYNCHRONOUSLY Fetches a single response from the Together API for a given model and messages.
     """
-    if messages is None or messages == []:
-        raise ValueError("Messages cannot be empty")
+    request = ChatCompletionRequest(
+        model=model,
+        messages=messages,
+        response_format=response_format
+    )
     
-    # Add validation
-    validate_chat_messages(messages)
+    debug(f"Calling Together API with model: {request.model}")
+    debug(f"Messages: {request.messages}")
     
-    if model not in TOGETHER_SUPPORTED_MODELS:
-        raise ValueError(f"Model {model} is not in the list of supported TogetherAI models: {TOGETHER_SUPPORTED_MODELS}.")
-    
-    if response_format is not None:
+    if request.response_format is not None:
+        debug(f"Using response format: {request.response_format}")
         response = await async_together_client.chat.completions.create(
-            model=TOGETHER_SUPPORTED_MODELS.get(model),
-            messages=messages,
-            response_format=response_format
+            model=TOGETHER_SUPPORTED_MODELS.get(request.model),
+            messages=request.messages,
+            response_format=request.response_format
         )
     else:
         response = await async_together_client.chat.completions.create(
-            model=TOGETHER_SUPPORTED_MODELS.get(model),
-            messages=messages,
+            model=TOGETHER_SUPPORTED_MODELS.get(request.model),
+            messages=request.messages,
         )
     return response.choices[0].message.content
 
@@ -259,32 +260,27 @@ def fetch_litellm_api_response(model: str, messages: List[Mapping], response_for
     """
     Fetches a single response from the Litellm API for a given model and messages.
     """
-    debug(f"Calling LiteLLM API with model: {model}")
-    debug(f"Messages: {messages}")
+    request = ChatCompletionRequest(
+        model=model,
+        messages=messages,
+        response_format=response_format
+    )
     
-    if messages is None or messages == []:
-        raise ValueError("Messages cannot be empty")
+    debug(f"Calling LiteLLM API with model: {request.model}")
+    debug(f"Messages: {request.messages}")
     
-    # Add validation
-    validate_chat_messages(messages)
-    
-    if model not in LITELLM_SUPPORTED_MODELS:
-        error(f"Model {model} not in supported LiteLLM models: {LITELLM_SUPPORTED_MODELS}")
-        raise ValueError(f"Model {model} is not in the list of supported Litellm models: {LITELLM_SUPPORTED_MODELS}.")
-    
-    if response_format is not None:
-        debug(f"Using response format: {response_format}")
+    if request.response_format is not None:
+        debug(f"Using response format: {request.response_format}")
         response = litellm.completion(
-            model=model,
-            messages=messages,
-            response_format=response_format
+            model=request.model,
+            messages=request.messages,
+            response_format=request.response_format
         )
     else:
         response = litellm.completion(
-            model=model,
-            messages=messages,  
+            model=request.model,
+            messages=request.messages,
         )
-    debug(f"Received response: {response.choices[0].message.content[:100]}...")
     return response.choices[0].message.content
 
 
