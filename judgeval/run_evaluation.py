@@ -290,7 +290,7 @@ def run_eval(evaluation_run: EvaluationRun):
 
 if __name__ == "__main__":
     from judgeval.common.logger import enable_logging, debug, info
-    from judgeval.common.tracer import Tracer
+    from judgeval.common.tracer import Tracer, TracedOpenAI
     
     # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
@@ -323,11 +323,10 @@ if __name__ == "__main__":
     # client = JudgmentClient()
 
     import time
-    from openai import OpenAI
 
     # Initialize the tracer
     judgment = Tracer(api_key="YOUR_API_KEY")
-    client = OpenAI()
+    client = TracedOpenAI()
 
     @judgment.observe
     def make_upper(input):
@@ -341,18 +340,18 @@ if __name__ == "__main__":
     
     @judgment.observe
     def make_poem(input):
-        time.sleep(1.5)
-        
+        client = TracedOpenAI()
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": input + " make it a haiku"}],
+            messages=[{"role": "user", "content": input + " use this word and make it a haiku"}],
         )
-        return response.choices[0].message.content
+        return make_lower(response.choices[0].message.content)
+    
 
     def test_evaluation_mixed(input):
         with judgment.start_trace("test_evaluation") as trace:
-            result = make_poem(make_lower(make_upper(input)))
+            result = make_poem(make_upper(input))
             return result, trace
 
-    result3, trace = test_evaluation_mixed("hello")
+    result3, trace = test_evaluation_mixed("hello the world is flat")
     trace.print_trace()

@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from typing import Optional, Any, List, Literal, Tuple, Generator
 from dataclasses import dataclass
 from datetime import datetime 
+from openai import OpenAI
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 
@@ -322,3 +323,39 @@ class Tracer:
             
         return wrapper
 
+
+class TracedOpenAI(OpenAI):
+    """
+    OpenAI client that automatically traces all API calls.
+    Usage:
+        client = TracedOpenAI()
+        response = client.chat.completions.create(...)
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tracer = Tracer._instance  # Get the global tracer instance
+        
+        # Store the original create method
+        original_create = self.chat.completions.create
+        
+        # Replace with our traced version
+        def traced_create(*args, **kwargs):
+            if self.tracer and self.tracer._current_trace:
+                with self.tracer._current_trace.span("llm_call") as span:
+                    # Record the input
+                    span.record_input({
+                        "model": kwargs.get("model"),
+                        "messages": kwargs.get("messages")
+                    })
+                    
+                    # Make the API call
+                    response = original_create(*args, **kwargs)
+                    
+                    # Record the output
+                    span.record_output(response.choices[0].message.content)
+                    return response
+            else:
+                # If no trace context, just call the original method
+                return original_create(*args, **kwargs)
+                
+        self.chat.completions.create = traced_create
