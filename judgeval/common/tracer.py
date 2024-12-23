@@ -6,8 +6,8 @@ import time
 import functools
 import requests
 import uuid
-
-from typing import Optional, Any, List, Literal, Tuple
+from contextlib import contextmanager
+from typing import Optional, Any, List, Literal, Tuple, Generator
 from dataclasses import dataclass
 from datetime import datetime 
 
@@ -44,7 +44,7 @@ class TraceEntry:
     def print_entry(self):
         indent = "  " * self.depth
         if self.type == "enter":
-            print(f"{indent}→ {self.function}")
+            print(f"{indent}→ {self.function} (trace: {self.message})")
         elif self.type == "exit":
             print(f"{indent}← {self.function} ({self.duration:.3f}s)")
         elif self.type == "output":
@@ -89,7 +89,67 @@ class TraceClient:
         self.name = name
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
+        self._current_span = None
         
+    @contextmanager
+    def span(self, name: str):
+        """Context manager for creating a trace span"""
+        start_time = time.time()
+        
+        # Record span entry
+        self.add_entry(TraceEntry(
+            type="enter",
+            function=name,
+            depth=self.tracer.depth,
+            message=name,
+            timestamp=start_time
+        ))
+        
+        self.tracer.depth += 1
+        prev_span = self._current_span
+        self._current_span = name
+        
+        try:
+            yield self
+        finally:
+            self.tracer.depth -= 1
+            duration = time.time() - start_time
+            
+            # Record span exit
+            self.add_entry(TraceEntry(
+                type="exit",
+                function=name,
+                depth=self.tracer.depth,
+                message=f"← {name}",
+                timestamp=time.time(),
+                duration=duration
+            ))
+            self._current_span = prev_span
+
+    def record_input(self, inputs: dict):
+        """Record input parameters for the current span"""
+        if self._current_span:
+            self.add_entry(TraceEntry(
+                type="input",
+                function=self._current_span,
+                depth=self.tracer.depth,
+                message=f"Inputs to {self._current_span}",
+                timestamp=time.time(),
+                inputs=inputs
+            ))
+
+    def record_output(self, output: Any):
+        """Record output for the current span"""
+        if self._current_span:
+            self.add_entry(TraceEntry(
+                type="output",
+                function=self._current_span,
+                depth=self.tracer.depth,
+                message=f"Output from {self._current_span}",
+                timestamp=time.time(),
+                output=output
+            ))
+
     def add_entry(self, entry: TraceEntry):
         """Add a trace entry to this trace context"""
         self.entries.append(entry)
@@ -194,29 +254,38 @@ class TraceClient:
 class Tracer:
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(Tracer, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, api_key: Optional[str] = None):
         if not hasattr(self, 'initialized'):
+
+            if not api_key:
+                raise ValueError("Tracer must be configured with an API key first")
+            
             self.depth = 0
             self._current_trace: Optional[TraceClient] = None
-            self.api_key: Optional[str] = None
             self.initialized = True
-    
-    def configure(self, api_key: str):
-        """Configure the tracer with an API key"""
-        self.api_key = api_key
         
-    def start_trace(self, name: str = None) -> TraceClient:
-        """Start a new trace context"""
-        if not self.api_key:
-            raise ValueError("Tracer must be configured with an API key first")
+        if api_key:
+            self.api_key = api_key
+        
+    @contextmanager
+    def start_trace(self, name: str = None) -> Generator[TraceClient, None, None]:
+        """Start a new trace context using a context manager"""
         trace_id = str(uuid.uuid4())
-        self._current_trace = TraceClient(self, trace_id, name or "unnamed_trace")
-        return self._current_trace
+        trace = TraceClient(self, trace_id, name or "unnamed_trace")
+        prev_trace = self._current_trace
+        self._current_trace = trace
+        
+        # Automatically create top-level span
+        with trace.span(name or "unnamed_trace") as span:
+            try:
+                yield trace
+            finally:
+                self._current_trace = prev_trace
 
     def observe(self, func=None, *, name=None):
         """
@@ -233,68 +302,23 @@ class Tracer:
         def wrapper(*args, **kwargs):
             if self._current_trace:
                 span_name = name or func.__name__
-                start_time = time.time()
                 
-                # Record function entry
-                self._current_trace.add_entry(TraceEntry(
-                    type="enter",
-                    function=span_name,
-                    depth=self.depth,
-                    message=f"→ {span_name}",
-                    timestamp=start_time
-                ))
-                
-                # Record function inputs
-                inputs = {
-                    'args': list(args),  # Convert args tuple to list
-                    'kwargs': kwargs
-                }
-                self._current_trace.add_entry(TraceEntry(
-                    type="input",
-                    function=span_name,
-                    depth=self.depth + 1,  # Indent inputs under function entry
-                    message=f"Inputs to {span_name}",
-                    timestamp=time.time(),
-                    inputs=inputs
-                ))
-                
-                self.depth += 1
-                
-                try:
+                with self._current_trace.span(span_name) as span:
+                    # Record inputs
+                    span.record_input({
+                        'args': list(args),
+                        'kwargs': kwargs
+                    })
+                    
+                    # Execute function
                     result = func(*args, **kwargs)
                     
-                    # Record the output
-                    self._current_trace.add_entry(TraceEntry(
-                        type="output",
-                        function=span_name,
-                        depth=self.depth,
-                        message=f"Output from {span_name}",
-                        timestamp=time.time(),
-                        output=result
-                    ))
+                    # Record output
+                    span.record_output(result)
                     
                     return result
-                    
-                finally:
-                    self.depth -= 1
-                    duration = time.time() - start_time
-                    
-                    # Record function exit
-                    self._current_trace.add_entry(TraceEntry(
-                        type="exit",
-                        function=span_name,
-                        depth=self.depth,
-                        message=f"← {span_name}",
-                        timestamp=time.time(),
-                        duration=duration
-                    ))
             
             return func(*args, **kwargs)
             
         return wrapper
 
-# Create the global tracer instance
-tracer = Tracer()
-
-# Export only what's needed
-__all__ = ['tracer']

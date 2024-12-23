@@ -290,34 +290,69 @@ def run_eval(evaluation_run: EvaluationRun):
 
 if __name__ == "__main__":
     from judgeval.common.logger import enable_logging, debug, info
-    from judgeval.common.tracer import tracer
+    from judgeval.common.tracer import Tracer
     
     # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
     from judgeval.judgment_client import JudgmentClient
 
-    example1 = Example(
-        input="What if these shoes don't fit?",
-        actual_output="We offer a 30-day full refund at no extra cost.",  # replace this with your code's actual output
-        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-    )
+    # example1 = Example(
+    #     input="What if these shoes don't fit?",
+    #     actual_output="We offer a 30-day full refund at no extra cost.",  # replace this with your code's actual output
+    #     retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    # )
 
-    example2 = Example(
-        input="How do I reset my password?",
-        actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-        expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-        name="Password Reset",
-        context=["User Account"],
-        retrieval_context=["Password reset instructions"],
-        tools_called=["authentication"],
-        expected_tools=["authentication"],
-        additional_metadata={"difficulty": "medium"}
-    )
-
-
-    scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
-    scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
-    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
+    # example2 = Example(
+    #     input="How do I reset my password?",
+    #     actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+    #     expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+    #     name="Password Reset",
+    #     context=["User Account"],
+    #     retrieval_context=["Password reset instructions"],
+    #     tools_called=["authentication"],
+    #     expected_tools=["authentication"],
+    #     additional_metadata={"difficulty": "medium"}
+    # )
 
 
-    client = JudgmentClient()
+    # scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    # scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
+    # c_scorer = CustomFaithfulnessMetric(threshold=0.6)
+
+
+    # client = JudgmentClient()
+
+    import time
+    from openai import OpenAI
+
+    # Initialize the tracer
+    judgment = Tracer(api_key="YOUR_API_KEY")
+    client = OpenAI()
+
+    @judgment.observe
+    def make_upper(input):
+        time.sleep(1)
+        return input.upper()
+
+    @judgment.observe
+    def make_lower(input):
+        time.sleep(1.2)
+        return input.lower()
+    
+    @judgment.observe
+    def make_poem(input):
+        time.sleep(1.5)
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": input + " make it a haiku"}],
+        )
+        return response.choices[0].message.content
+
+    def test_evaluation_mixed(input):
+        with judgment.start_trace("test_evaluation") as trace:
+            result = make_poem(make_lower(make_upper(input)))
+            return result, trace
+
+    result3, trace = test_evaluation_mixed("hello")
+    trace.print_trace()
