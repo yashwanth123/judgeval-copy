@@ -290,34 +290,34 @@ def run_eval(evaluation_run: EvaluationRun):
 
 if __name__ == "__main__":
     from judgeval.common.logger import enable_logging, debug, info
-    from judgeval.common.tracer import Tracer, TracedOpenAI
+    from judgeval.common.tracer import Tracer
     
     # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
     from judgeval.judgment_client import JudgmentClient
 
-    # example1 = Example(
-    #     input="What if these shoes don't fit?",
-    #     actual_output="We offer a 30-day full refund at no extra cost.",  # replace this with your code's actual output
-    #     retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-    # )
+    example1 = Example(
+        input="What if these shoes don't fit?",
+        actual_output="We offer a 30-day full refund at no extra cost.",  # replace this with your code's actual output
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    )
 
-    # example2 = Example(
-    #     input="How do I reset my password?",
-    #     actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-    #     expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-    #     name="Password Reset",
-    #     context=["User Account"],
-    #     retrieval_context=["Password reset instructions"],
-    #     tools_called=["authentication"],
-    #     expected_tools=["authentication"],
-    #     additional_metadata={"difficulty": "medium"}
-    # )
-
-
-    # scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
-    # scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
-    # c_scorer = CustomFaithfulnessMetric(threshold=0.6)
+    example2 = Example(
+        input="How do I reset my password?",
+        actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        name="Password Reset",
+        context=["User Account"],
+        retrieval_context=["Password reset instructions"],
+        tools_called=["authentication"],
+        expected_tools=["authentication"],
+        additional_metadata={"difficulty": "medium"}
+    )
 
 
-    # client = JudgmentClient()
+    scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
+    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
+
+
+    client = JudgmentClient()

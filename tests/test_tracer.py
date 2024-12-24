@@ -24,8 +24,8 @@ def make_poem(input):
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are a poet. Make a haiku from the input."},
-            {"role": "user", "content": input + " use this phrase and make it a haiku"}],
+            {"role": "system", "content": "You are a poet. Make a short haiku from the input."},
+            {"role": "user", "content": input}],
     )
     return make_lower(response.choices[0].message.content)
 
@@ -33,7 +33,9 @@ def make_poem(input):
 def test_evaluation_mixed(input):
     with judgment.start_trace("test_evaluation") as trace:
         result = make_poem(make_upper(input))
-        return result, trace
+        
+    trace.print_trace()
+    trace.save_trace()
+    return result
 
-result3, trace = test_evaluation_mixed("hello the world is flat")
-trace.print_trace()
+result3 = test_evaluation_mixed("hello the world is flat")
