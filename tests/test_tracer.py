@@ -31,11 +31,11 @@ def make_poem(input):
 
 
 def test_evaluation_mixed(input):
-    with judgment.start_trace("test_evaluation") as trace:
+    with judgment.trace("test_evaluation") as trace:
         result = make_poem(make_upper(input))
-        
-    trace.print_trace()
-    trace.save_trace()
+
+    trace.print()
+    trace.save()
     return result
 
 result3 = test_evaluation_mixed("hello the world is flat")

@@ -156,7 +156,7 @@ class TraceClient:
         self.entries.append(entry)
         return self
         
-    def print_trace(self):
+    def print(self):
         """Print the complete trace with proper visual structure"""
         for entry in self.entries:
             entry.print_entry()
@@ -215,7 +215,7 @@ class TraceClient:
 
         return condensed
 
-    def save_trace(self) -> Tuple[str, dict]:
+    def save(self) -> Tuple[str, dict]:
         """
         Save the current trace to the database.
         Returns a tuple of (trace_id, trace_data) where trace_data is the trace data that was saved.
@@ -241,15 +241,16 @@ class TraceClient:
             "entries": condensed_entries
         }
 
-        # Save trace data by making POST request to API
-        response = requests.post(
-            JUDGMENT_TRACES_SAVE_API_URL,
-            json=trace_data,
-            headers={
-                "Content-Type": "application/json",
-            }
-        )
-        response.raise_for_status()
+        # # Save trace data by making POST request to API
+        # response = requests.post(
+        #     JUDGMENT_TRACES_SAVE_API_URL,
+        #     json=trace_data,
+        #     headers={
+        #         "Content-Type": "application/json",
+        #     }
+        # )
+        # response.raise_for_status()
+        print(trace_data)
         return self.trace_id, trace_data
 
 class Tracer:
@@ -274,7 +275,7 @@ class Tracer:
             self.api_key = api_key
         
     @contextmanager
-    def start_trace(self, name: str = None) -> Generator[TraceClient, None, None]:
+    def trace(self, name: str = None) -> Generator[TraceClient, None, None]:
         """Start a new trace context using a context manager"""
         trace_id = str(uuid.uuid4())
         trace = TraceClient(self, trace_id, name or "unnamed_trace")
@@ -339,17 +340,23 @@ def wrap_openai(client: OpenAI) -> OpenAI:
     def traced_create(*args, **kwargs):
         if tracer and tracer._current_trace:
             with tracer._current_trace.span("llm_call") as span:
+
+                # Make the API call
+                response = original_create(*args, **kwargs)
+
                 # Record the input
                 span.record_input({
                     "model": kwargs.get("model"), 
-                    "messages": kwargs.get("messages")
+                    "messages": kwargs.get("messages"),
+                    "prompt_tokens": response.usage.prompt_tokens,
                 })
                 
-                # Make the API call
-                response = original_create(*args, **kwargs)
-                
                 # Record the output
-                span.record_output(response.choices[0].message.content)
+                span.record_output({
+                    "content": response.choices[0].message.content,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens
+                })
                 return response
         else:
             # If no trace context, just call the original method
