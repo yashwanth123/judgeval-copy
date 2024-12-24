@@ -343,7 +343,9 @@ def wrap(client: Any) -> Any:
     def traced_create(*args, **kwargs):
         if not (tracer and tracer._current_trace):
             return original_create(*args, **kwargs)
-            
+
+        # TODO: this is dangerous and prone to errors in future updates to how the class works.
+        # If we add more model providers here, we need to add support for it here in the span names
         span_name = "OPENAI_API_CALL" if isinstance(client, OpenAI) else "TOGETHER_API_CALL" if isinstance(client, Together) else "ANTHROPIC_API_CALL"
         with tracer._current_trace.span(span_name) as span:
             # Record the input based on client type
