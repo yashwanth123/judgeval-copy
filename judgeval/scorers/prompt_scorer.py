@@ -331,3 +331,5 @@ class ClassifierScorer(PromptScorer):
     def success_check(self, **kwargs) -> bool:
         return self.score >= self.threshold
 
+    def __str__(self):
+        return f"ClassifierScorer(name={self.name}, conversation={self.conversation}, threshold={self.threshold}, options={self.options})"

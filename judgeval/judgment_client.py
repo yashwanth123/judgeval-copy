@@ -8,7 +8,7 @@ import requests
 from judgeval.constants import ROOT_API
 from judgeval.data.datasets import EvalDataset
 from judgeval.data import ScoringResult, Example
-from judgeval.scorers import JudgmentScorer, CustomScorer
+from judgeval.scorers import JudgmentScorer, CustomScorer, ClassifierScorer
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.run_evaluation import run_eval
 from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL
@@ -155,3 +155,32 @@ class JudgmentClient:
             return True, response.json()
         else:
             return False, response.json().get("detail", "Error validating API key")
+
+    def fetch_classifier_scorer(self, scorer_name: str) -> ClassifierScorer:
+        """
+        Fetches a classifier scorer configuration from the Judgment API.
+
+        Args:
+            scorer_name (str): Name of the custom scorer to fetch
+
+        Returns:
+            ClassifierScorer: The configured classifier scorer object
+
+        Raises:
+            JudgmentAPIError: If the scorer cannot be fetched or doesn't exist
+        """
+        request_body = {
+            "scorer_name": scorer_name,
+            "judgment_api_key": self.judgment_api_key
+        }
+        
+        response = requests.post(
+            f"{ROOT_API}/fetch_scorer/",
+            json=request_body
+        )
+        
+        if response.status_code != 200:
+            raise JudgmentAPIError(f"Failed to fetch classifier scorer '{scorer_name}': {response.json().get('detail', '')}")
+            
+        scorer_config = response.json()
+        return ClassifierScorer(**scorer_config)
