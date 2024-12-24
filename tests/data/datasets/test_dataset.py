@@ -82,6 +82,8 @@ def test_push_server_error(mock_post, dataset):
     result = dataset.push("test_alias")
     assert result is False
 
+    mock_post.assert_called_once()
+
 @patch('requests.post')
 def test_pull_success(mock_post, dataset):
     mock_response = Mock()
@@ -173,4 +175,3 @@ def test_str_representation(dataset, sample_example, sample_ground_truth):
     assert "EvalDataset" in str_rep
     assert "ground_truths" in str_rep
     assert "examples" in str_rep
-    
