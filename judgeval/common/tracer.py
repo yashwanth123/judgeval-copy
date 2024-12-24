@@ -349,7 +349,7 @@ def wrap(client: Any) -> Any:
         span_name = "OPENAI_API_CALL" if isinstance(client, OpenAI) else "TOGETHER_API_CALL" if isinstance(client, Together) else "ANTHROPIC_API_CALL"
         with tracer._current_trace.span(span_name) as span:
             # Record the input based on client type
-            if isinstance(client, OpenAI) or isinstance(client, Together):
+            if isinstance(client, (OpenAI, Together)):
                 input_data = {
                     "model": kwargs.get("model"),
                     "messages": kwargs.get("messages"),
@@ -367,7 +367,7 @@ def wrap(client: Any) -> Any:
             response = original_create(*args, **kwargs)
             
             # Record the output based on client type
-            if isinstance(client, OpenAI) or isinstance(client, Together):
+            if isinstance(client, (OpenAI, Together)):
                 output_data = {
                     "content": response.choices[0].message.content,
                     "usage": {
@@ -391,7 +391,7 @@ def wrap(client: Any) -> Any:
             return response
             
     # Replace the original method with our traced version
-    if isinstance(client, OpenAI) or isinstance(client, Together):
+    if isinstance(client, (OpenAI, Together)):
         client.chat.completions.create = traced_create
     elif isinstance(client, Anthropic):
         client.messages.create = traced_create
