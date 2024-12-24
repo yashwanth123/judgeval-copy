@@ -20,9 +20,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       PYTHONPATH: "."
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
-      LITELLM_API_KEY: ${{ secrets.LITELLM_API_KEY }}
 
     steps:
       - name: Checkout code
@@ -42,5 +39,8 @@ jobs:
           
 
       - name: Run tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
         run: |
           pipenv run pytest
