@@ -1,89 +1,39 @@
 
-from judgeval.common.tracer import tracer
+from openai import OpenAI
+from judgeval.common.tracer import Tracer, wrap_openai
+
+import time
+
+# Initialize the tracer
+judgment = Tracer(api_key="YOUR_API_KEY")
+client = wrap_openai(OpenAI())
+
+@judgment.observe
+def make_upper(input):
+    time.sleep(1)
+    return input.upper()
+
+@judgment.observe
+def make_lower(input):
+    time.sleep(1.2)
+    response = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": "You must convert the input to lowercase."}, {"role": "user", "content": input}])
+    return response.choices[0].message.content
+
+@judgment.observe
+def make_poem(input):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a poet. Make a haiku from the input."},
+            {"role": "user", "content": input + " use this phrase and make it a haiku"}],
+    )
+    return make_lower(response.choices[0].message.content)
 
 
-# @tracer.observe(name="generate_movie_review", top_level=True)
-def generate_movie_review(summary: str) -> str:
+def test_evaluation_mixed(input):
+    with judgment.start_trace("test_evaluation") as trace:
+        result = make_poem(make_upper(input))
+        return result, trace
 
-    trace = tracer.start_trace()
-    # Analyze key elements
-    plot_quality = analyze_plot(summary)
-    trace.print_trace()
-    engagement = analyze_engagement(summary)
-    originality = analyze_originality(summary)
-    trace.print_trace()
-    
-    # Generate final review
-    review = compose_review(plot_quality, engagement, originality)
-    return review
-
-@tracer.observe(name="analyze_plot")
-def analyze_plot(summary: str) -> dict:
-    # Analyze plot elements like structure, pacing, coherence
-    return {
-        "structure": 8,  # 1-10 rating
-        "pacing": 7,
-        "coherence": 9,
-        "notes": "Well structured plot with good pacing"
-    }
-
-@tracer.observe(name="analyze_engagement") 
-def analyze_engagement(summary: str) -> dict:
-    # Analyze how engaging/interesting the story seems
-    return {
-        "interest_level": 8,
-        "emotional_impact": 7,
-        "memorability": 8,
-        "notes": "Engaging story with emotional resonance"
-    }
-
-@tracer.observe(name="analyze_originality")
-def analyze_originality(summary: str) -> dict:
-    # Analyze uniqueness and creativity
-    return {
-        "uniqueness": 6,
-        "creativity": 7,
-        "innovation": 5,
-        "notes": "Some fresh elements but follows familiar patterns"
-    }
-
-@tracer.observe(name="compose_review")
-def compose_review(plot: dict, engagement: dict, originality: dict) -> str:
-    # Calculate overall score
-    plot_score = sum([plot["structure"], plot["pacing"], plot["coherence"]]) / 3
-    engagement_score = sum([engagement["interest_level"], 
-                            engagement["emotional_impact"],
-                            engagement["memorability"]]) / 3
-    originality_score = sum([originality["uniqueness"],
-                            originality["creativity"], 
-                            originality["innovation"]]) / 3
-    
-    overall_score = (plot_score + engagement_score + originality_score) / 3
-    
-    # Generate review text
-    review = f"""Movie Review:
-Plot: {plot['notes']} ({plot_score:.1f}/10)
-Engagement: {engagement['notes']} ({engagement_score:.1f}/10) 
-Originality: {originality['notes']} ({originality_score:.1f}/10)
-
-Overall Score: {overall_score:.1f}/10
-"""
-    return review
-
-# Test the workflow
-summary = """
-A brilliant mathematician discovers a pattern that could predict global catastrophes. 
-As she races to convince authorities of the impending doom, she must confront her own 
-past traumas and decide whether to trust the pattern or her instincts. The fate of 
-millions hangs in the balance as time runs out.
-"""
-
-result = generate_movie_review(summary)
-
-print(type(result))
-assert isinstance(result, str)
-# assert "Movie Review:" in result
-# assert "Overall Score:" in result
-
-# Print the trace
-# result.print_trace()
+result3, trace = test_evaluation_mixed("hello the world is flat")
+trace.print_trace()

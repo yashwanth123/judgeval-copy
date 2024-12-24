@@ -321,37 +321,3 @@ if __name__ == "__main__":
 
 
     # client = JudgmentClient()
-
-    import time
-
-    # Initialize the tracer
-    judgment = Tracer(api_key="YOUR_API_KEY")
-    client = TracedOpenAI()
-
-    @judgment.observe
-    def make_upper(input):
-        time.sleep(1)
-        return input.upper()
-
-    @judgment.observe
-    def make_lower(input):
-        time.sleep(1.2)
-        return input.lower()
-    
-    @judgment.observe
-    def make_poem(input):
-        client = TracedOpenAI()
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": input + " use this word and make it a haiku"}],
-        )
-        return make_lower(response.choices[0].message.content)
-    
-
-    def test_evaluation_mixed(input):
-        with judgment.start_trace("test_evaluation") as trace:
-            result = make_poem(make_upper(input))
-            return result, trace
-
-    result3, trace = test_evaluation_mixed("hello the world is flat")
-    trace.print_trace()
