@@ -20,6 +20,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       PYTHONPATH: "."
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
 
     steps:
       - name: Checkout code
@@ -38,15 +40,6 @@ jobs:
           pipenv install --dev
           
 
-      - name: Debug Environment
-        run: |
-          echo "TOGETHER_API_KEY exists: ${{ secrets.TOGETHER_API_KEY != '' }}"
-          echo "OPENAI_API_KEY exists: ${{ secrets.OPENAI_API_KEY != '' }}"
-
       - name: Run tests
         run: |
-          PIPENV_DOTENV_LOCATION=.env pipenv run pytest -v
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
-          PYTHONPATH: "."
+          pipenv run pytest
