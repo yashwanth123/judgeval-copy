@@ -38,15 +38,21 @@ jobs:
           pipenv install --dev
           
 
+      - name: Debug Environment
+        run: |
+          echo "TOGETHER_API_KEY exists: ${{ secrets.TOGETHER_API_KEY != '' }}"
+          echo "OPENAI_API_KEY exists: ${{ secrets.OPENAI_API_KEY != '' }}"
+
       - name: Run tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           PYTHONPATH: "."
-        shell: bash
         run: |
-          # Export all necessary environment variables
-          export TOGETHER_API_KEY=${{ secrets.TOGETHER_API_KEY }}
-          export OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          export PYTHONPATH="."
-          pipenv run pytest
+          # Create .env file for pipenv
+          echo "TOGETHER_API_KEY=${{ secrets.TOGETHER_API_KEY }}" > .env
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "PYTHONPATH=." >> .env
+          
+          # Run tests
+          pipenv run pytest -v
