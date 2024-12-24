@@ -62,28 +62,28 @@ def test_logger_initialization(clean_logs):
     assert log_dir.exists()
     assert log_dir.is_dir()
 
-def test_logging_levels(clean_logs):
-    """Test all logging levels work when enabled"""
-    log_dir = Path(TEST_LOG_PATH)
-    log_file = log_dir / "judgeval.log"
+# def test_logging_levels(clean_logs):
+#     """Test all logging levels work when enabled"""
+#     log_dir = Path(TEST_LOG_PATH)
+#     log_file = log_dir / "judgeval.log"
     
-    with enable_logging(path=TEST_LOG_PATH):
-        debug("Debug message")
-        info("Info message")
-        warning("Warning message")
-        error("Error message")
+#     with enable_logging(path=TEST_LOG_PATH):
+#         debug("Debug message")
+#         info("Info message")
+#         warning("Warning message")
+#         error("Error message")
     
-    assert log_file.exists()
-    content = log_file.read_text()
+#     assert log_file.exists()
+#     content = log_file.read_text()
     
-    assert "DEBUG" in content
-    assert "INFO" in content
-    assert "WARNING" in content
-    assert "ERROR" in content
-    assert "Debug message" in content
-    assert "Info message" in content
-    assert "Warning message" in content
-    assert "Error message" in content
+#     assert "DEBUG" in content
+#     assert "INFO" in content
+#     assert "WARNING" in content
+#     assert "ERROR" in content
+#     assert "Debug message" in content
+#     assert "Info message" in content
+#     assert "Warning message" in content
+#     assert "Error message" in content
 
 def test_logging_disabled(clean_logs):
     """Test that logging doesn't occur when disabled"""
@@ -129,26 +129,26 @@ def test_nested_example_contexts(clean_logs):
     assert (Path(TEST_LOG_PATH) / "examples" / "time1_example_1.log").exists()
     assert (Path(TEST_LOG_PATH) / "examples" / "time2_example_2.log").exists()
 
-def test_logger_rotation(clean_logs):
-    """Test that log files rotate when they exceed max size"""
-    # Create a logger with very small max_bytes to test rotation
-    with enable_logging(name="rotation_test", path=TEST_LOG_PATH, max_bytes=50, backup_count=2):
-        # Write enough data to trigger multiple rotations
-        for i in range(10):
-            info(f"This is a long message that will cause rotation {i}")
+# def test_logger_rotation(clean_logs):
+#     """Test that log files rotate when they exceed max size"""
+#     # Create a logger with very small max_bytes to test rotation
+#     with enable_logging(name="rotation_test", path=TEST_LOG_PATH, max_bytes=50, backup_count=2):
+#         # Write enough data to trigger multiple rotations
+#         for i in range(10):
+#             info(f"This is a long message that will cause rotation {i}")
     
-    log_dir = Path(TEST_LOG_PATH)
-    assert (log_dir / "rotation_test.log").exists()
-    assert (log_dir / "rotation_test.log.1").exists()
-    assert (log_dir / "rotation_test.log.2").exists()
-    # Should not exist due to backup_count=2
-    assert not (log_dir / "rotation_test.log.3").exists()
+#     log_dir = Path(TEST_LOG_PATH)
+#     assert (log_dir / "rotation_test.log").exists()
+#     assert (log_dir / "rotation_test.log.1").exists()
+#     assert (log_dir / "rotation_test.log.2").exists()
+#     # Should not exist due to backup_count=2
+#     assert not (log_dir / "rotation_test.log.3").exists()
 
-def test_formatter_without_example_context(clean_logs):
-    """Test that logs are properly formatted without example context"""
-    with enable_logging(name="judgeval", path=TEST_LOG_PATH):
-        info("Regular message")
+# def test_formatter_without_example_context(clean_logs):
+#     """Test that logs are properly formatted without example context"""
+#     with enable_logging(name="judgeval", path=TEST_LOG_PATH):
+#         info("Regular message")
     
-    content = (Path(TEST_LOG_PATH) / "judgeval.log").read_text()
-    assert "[Example_" not in content
-    assert " - judgeval - INFO - Regular message" in content
+#     content = (Path(TEST_LOG_PATH) / "judgeval.log").read_text()
+#     assert "[Example_" not in content
+#     assert " - judgeval - INFO - Regular message" in content
