@@ -1,34 +1,49 @@
-
 from openai import OpenAI
-from judgeval.common.tracer import Tracer, wrap_openai
+from together import Together
+from anthropic import Anthropic
+from judgeval.common.tracer import Tracer, wrap
 
 import time
 
-# Initialize the tracer
+# Initialize the tracer and clients
 judgment = Tracer(api_key="YOUR_API_KEY")
-client = wrap_openai(OpenAI())
+openai_client = wrap(OpenAI())
+anthropic_client = wrap(Anthropic())
 
 @judgment.observe
 def make_upper(input):
-    time.sleep(1)
     return input.upper()
 
 @judgment.observe
 def make_lower(input):
-    time.sleep(1.2)
-    response = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": "You must convert the input to lowercase."}, {"role": "user", "content": input}])
-    return response.choices[0].message.content
+    return input.lower()
 
 @judgment.observe
 def make_poem(input):
-    response = client.chat.completions.create(
+    
+    # Using Anthropic API
+    anthropic_response = anthropic_client.messages.create(
+        model="claude-3-sonnet-20240229",
+        messages=[{
+            "role": "user",
+            "content": input
+        }],
+        max_tokens=30
+    )
+    anthropic_result = anthropic_response.content[0].text
+    
+    # Using OpenAI API
+    openai_response = openai_client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are a poet. Make a short haiku from the input."},
-            {"role": "user", "content": input}],
+            {"role": "system", "content": "Make a short sentence with the input."},
+            {"role": "user", "content": input}
+        ]
     )
-    return make_lower(response.choices[0].message.content)
-
+    openai_result = openai_response.choices[0].message.content
+    print(openai_result)
+    
+    return make_lower(anthropic_result +  openai_result)
 
 def test_evaluation_mixed(input):
     with judgment.trace("test_evaluation") as trace:

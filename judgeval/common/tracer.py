@@ -11,6 +11,8 @@ from typing import Optional, Any, List, Literal, Tuple, Generator
 from dataclasses import dataclass
 from datetime import datetime 
 from openai import OpenAI
+from together import Together
+from anthropic import Anthropic
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 
@@ -241,16 +243,16 @@ class TraceClient:
             "entries": condensed_entries
         }
 
-        # # Save trace data by making POST request to API
-        # response = requests.post(
-        #     JUDGMENT_TRACES_SAVE_API_URL,
-        #     json=trace_data,
-        #     headers={
-        #         "Content-Type": "application/json",
-        #     }
-        # )
-        # response.raise_for_status()
-        print(trace_data)
+        # Save trace data by making POST request to API
+        response = requests.post(
+            JUDGMENT_TRACES_SAVE_API_URL,
+            json=trace_data,
+            headers={
+                "Content-Type": "application/json",
+            }
+        )
+        response.raise_for_status()
+        
         return self.trace_id, trace_data
 
 class Tracer:
@@ -324,43 +326,72 @@ class Tracer:
             
         return wrapper
 
-def wrap_openai(client: OpenAI) -> OpenAI:
+def wrap(client: Any) -> Any:
     """
-    Wraps an OpenAI client to add tracing capabilities.
-    Usage:
-        client = OpenAI()
-        traced_client = wrap_openai(client)
+    Wraps an API client to add tracing capabilities.
+    Supports OpenAI, Together, and Anthropic clients.
     """
     tracer = Tracer._instance  # Get the global tracer instance
     
-    # Store the original create method
-    original_create = client.chat.completions.create
+    if isinstance(client, OpenAI) or isinstance(client, Together):
+        original_create = client.chat.completions.create
+    elif isinstance(client, Anthropic):
+        original_create = client.messages.create
+    else:
+        raise ValueError(f"Unsupported client type: {type(client)}")
     
-    # Replace with our traced version
     def traced_create(*args, **kwargs):
-        if tracer and tracer._current_trace:
-            with tracer._current_trace.span("llm_call") as span:
-
-                # Make the API call
-                response = original_create(*args, **kwargs)
-
-                # Record the input
-                span.record_input({
-                    "model": kwargs.get("model"), 
-                    "messages": kwargs.get("messages"),
-                    "prompt_tokens": response.usage.prompt_tokens,
-                })
-                
-                # Record the output
-                span.record_output({
-                    "content": response.choices[0].message.content,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens
-                })
-                return response
-        else:
-            # If no trace context, just call the original method
+        if not (tracer and tracer._current_trace):
             return original_create(*args, **kwargs)
             
-    client.chat.completions.create = traced_create
+        span_name = "OPENAI_API_CALL" if isinstance(client, OpenAI) else "TOGETHER_API_CALL" if isinstance(client, Together) else "ANTHROPIC_API_CALL"
+        with tracer._current_trace.span(span_name) as span:
+            # Record the input based on client type
+            if isinstance(client, OpenAI) or isinstance(client, Together):
+                input_data = {
+                    "model": kwargs.get("model"),
+                    "messages": kwargs.get("messages"),
+                }
+            elif isinstance(client, Anthropic):
+                input_data = {
+                    "model": kwargs.get("model"),
+                    "messages": kwargs.get("messages"),
+                    "max_tokens": kwargs.get("max_tokens")
+                }
+            
+            span.record_input(input_data)
+            
+            # Make the API call
+            response = original_create(*args, **kwargs)
+            
+            # Record the output based on client type
+            if isinstance(client, OpenAI) or isinstance(client, Together):
+                output_data = {
+                    "content": response.choices[0].message.content,
+                    "usage": {
+                        "prompt_tokens": response.usage.prompt_tokens,
+                        "completion_tokens": response.usage.completion_tokens,
+                        "total_tokens": response.usage.total_tokens
+                    }
+                }
+            
+            elif isinstance(client, Anthropic):
+                output_data = {
+                    "content": response.content[0].text,
+                    "usage": {
+                        "input_tokens": response.usage.input_tokens,
+                        "output_tokens": response.usage.output_tokens,
+                        "total_tokens": response.usage.input_tokens + response.usage.output_tokens
+                    }
+                }
+            
+            span.record_output(output_data)
+            return response
+            
+    # Replace the original method with our traced version
+    if isinstance(client, OpenAI) or isinstance(client, Together):
+        client.chat.completions.create = traced_create
+    elif isinstance(client, Anthropic):
+        client.messages.create = traced_create
+        
     return client
