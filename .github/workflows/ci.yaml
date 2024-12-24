@@ -1,5 +1,6 @@
 name: CI
 
+# Run on pull request, when first opened, and when approved, don't allow until the approved unit test pass
 on:
   push:
   pull_request:
@@ -17,6 +18,8 @@ jobs:
           - "3.11"
     name: Test
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHONPATH: "."
 
     steps:
       - name: Checkout code
@@ -29,8 +32,11 @@ jobs:
 
       - name: Install dependencies
         run: |
+          ls
+          pwd
           pip install pipenv
           pipenv install --dev
+          
 
       - name: Run tests
         run: |
