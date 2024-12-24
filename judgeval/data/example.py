@@ -37,41 +37,6 @@ class Example(BaseModel):
     timestamp: Optional[str] = None
     trace_id: Optional[str] = None
 
-    def __post_init__(self):
-        # Ensure `context` is None or a list of strings
-        if self.context is not None:
-            if not isinstance(self.context, list) or not all(
-                isinstance(item, str) for item in self.context
-            ):
-                raise TypeError("'context' must be None or a list of strings")
-
-        # Ensure `retrieval_context` is None or a list of strings
-        if self.retrieval_context is not None:
-            if not isinstance(self.retrieval_context, list) or not all(
-                isinstance(item, str) for item in self.retrieval_context
-            ):
-                raise TypeError(
-                    "'retrieval_context' must be None or a list of strings"
-                )
-
-        # Ensure `tools_called` is None or a list of strings
-        if self.tools_called is not None:
-            if not isinstance(self.tools_called, list) or not all(
-                isinstance(item, str) for item in self.tools_called
-            ):
-                raise TypeError(
-                    "'tools_called' must be None or a list of strings"
-                )
-
-        # Ensure `expected_tools` is None or a list of strings
-        if self.expected_tools is not None:
-            if not isinstance(self.expected_tools, list) or not all(
-                isinstance(item, str) for item in self.expected_tools
-            ):
-                raise TypeError(
-                    "'expected_tools' must be None or a list of strings"
-                )
-
     def __init__(self, **data):
         super().__init__(**data)
         # Set timestamp if not provided
