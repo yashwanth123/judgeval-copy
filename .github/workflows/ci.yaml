@@ -44,15 +44,9 @@ jobs:
           echo "OPENAI_API_KEY exists: ${{ secrets.OPENAI_API_KEY != '' }}"
 
       - name: Run tests
+        run: |
+          PIPENV_DOTENV_LOCATION=.env pipenv run pytest -v
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           PYTHONPATH: "."
-        run: |
-          # Create .env file for pipenv
-          echo "TOGETHER_API_KEY=${{ secrets.TOGETHER_API_KEY }}" > .env
-          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
-          echo "PYTHONPATH=." >> .env
-          
-          # Run tests
-          pipenv run pytest -v
