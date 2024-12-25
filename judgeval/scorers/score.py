@@ -273,8 +273,15 @@ async def a_execute_scoring(
     semaphore = asyncio.Semaphore(max_concurrent)
 
     async def execute_with_semaphore(func: Callable, *args, **kwargs):
-        async with semaphore:
-            return await func(*args, **kwargs)
+        try:
+            async with semaphore:
+                return await func(*args, **kwargs)
+        except Exception as e:
+            error(f"Error executing function: {e}")
+            if kwargs.get('ignore_errors', False):
+                # Return None when ignoring errors
+                return None
+            raise
 
     if verbose_mode is not None:
         for scorer in scorers:
