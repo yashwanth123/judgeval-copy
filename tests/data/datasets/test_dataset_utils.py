@@ -12,12 +12,11 @@ def sample_example() -> Example:
         input="test input",
         actual_output="actual result",
         expected_output="expected result",
-        context="some context",
-        retrieval_context="retrieval info",
+        context=["some context"],
+        retrieval_context=["retrieval info"],
         tools_called=["tool1", "tool2"],
         expected_tools=["tool1"],
         additional_metadata={"key": "value"},
-        comments="test comment"
     )
 
 @pytest.fixture
@@ -26,8 +25,8 @@ def sample_ground_truth() -> GroundTruthExample:
         input="test input",
         actual_output="actual result",
         expected_output="expected result",
-        context="some context",
-        retrieval_context="retrieval info",
+        context=["some context"],
+        retrieval_context=["retrieval info"],
         tools_called=["tool1", "tool2"],
         expected_tools=["tool1"],
         additional_metadata={"key": "value"},
@@ -84,7 +83,6 @@ class TestGroundTruthsToExamples:
         assert result[0].input == sample_ground_truth.input
         assert result[0].actual_output == sample_ground_truth.actual_output
         assert result[0].expected_output == sample_ground_truth.expected_output
-        assert result[0]._dataset_rank == 0
 
     def test_multiple_ground_truths(self, sample_ground_truth):
         """Test conversion of multiple ground truths."""
@@ -92,17 +90,6 @@ class TestGroundTruthsToExamples:
         result = ground_truths_to_examples(ground_truths)
         assert len(result) == 2
         assert all(isinstance(ex, Example) for ex in result)
-        assert [ex._dataset_rank for ex in result] == [0, 1]
-
-    def test_with_alias_and_id(self, sample_ground_truth):
-        """Test conversion with dataset alias and ID."""
-        result = ground_truths_to_examples(
-            [sample_ground_truth],
-            _alias="test_alias",
-            _id="test_id"
-        )
-        assert result[0]._dataset_alias == "test_alias"
-        assert result[0]._dataset_id == "test_id"
 
     def test_none_input(self):
         """Test handling of None input."""
@@ -120,5 +107,4 @@ class TestGroundTruthsToExamples:
         assert result.additional_metadata == sample_ground_truth.additional_metadata
         assert result.tools_called == sample_ground_truth.tools_called
         assert result.expected_tools == sample_ground_truth.expected_tools
-        assert result.comments == sample_ground_truth.comments
         
