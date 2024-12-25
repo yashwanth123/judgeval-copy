@@ -9,7 +9,6 @@ from typing import Optional, Dict, Union, List
 from abc import abstractmethod
 
 from judgeval.common.logger import debug, info, warning, error
-from judgeval.data import Example
 from judgeval.judges import judgevalJudge
 from judgeval.judges.utils import create_judge
 
@@ -84,7 +83,7 @@ class CustomScorer:
         self.evaluation_model = self.model.get_model_name()
 
     @abstractmethod
-    def score_example(self, example: Example, *args, **kwargs) -> float:
+    def score_example(self, example, *args, **kwargs) -> float:
         """
         Measures the score on a single example
         """
@@ -93,7 +92,7 @@ class CustomScorer:
         raise NotImplementedError("You must implement the `score` method in your custom scorer")
 
     @abstractmethod
-    async def a_score_example(self, example: Example, *args, **kwargs) -> float:
+    async def a_score_example(self, example, *args, **kwargs) -> float:
         """
         Asynchronously measures the score on a single example
         """
