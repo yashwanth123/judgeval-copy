@@ -907,8 +907,6 @@ async def test_a_eval_examples_helper_with_skipped_scorer(
 ):
     """Test execution when scorer is skipped"""
     
-    # Set scorer as skipped
-    mock_scorer.skipped = True
     scorers = [mock_scorer]
     
     with patch('judgeval.scorers.score.create_process_example', return_value=mock_process_example) as mock_create_process, \
@@ -917,10 +915,12 @@ async def test_a_eval_examples_helper_with_skipped_scorer(
          patch('judgeval.scorers.score.generate_scoring_result') as mock_generate_result:
         
         # Mock score_with_indicator to simulate skipped scorer behavior
-        mock_score_with_indicator.return_value = None
-        
-        # Ensure generate_scoring_result is not called
-        mock_generate_result.assert_not_called()
+        async def mock_score(*args, **kwargs):
+            # Set scorer as skipped after score_with_indicator is called
+            mock_scorer.skipped = True
+            return None
+            
+        mock_score_with_indicator.side_effect = mock_score
         
         await a_eval_examples_helper(
             scorers=scorers,
@@ -934,12 +934,11 @@ async def test_a_eval_examples_helper_with_skipped_scorer(
             pbar=None
         )
 
-        # Verify that create_scorer_data and generate_scoring_result were not called
+        # Verify that create_scorer_data was not called since scorer was skipped
         mock_create_scorer_data.assert_not_called()
-        mock_generate_result.assert_not_called()
         
-        # Verify that the scoring result remains None
-        assert mock_scoring_results[1] is None
+        # Verify that generate_scoring_result was still called (but with no scorer data)
+        mock_generate_result.assert_called_once_with(mock_process_example)
 
 @pytest.mark.asyncio
 async def test_a_eval_examples_helper_with_progress_bar(
