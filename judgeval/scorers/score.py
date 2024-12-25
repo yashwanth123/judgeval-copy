@@ -413,7 +413,7 @@ async def a_eval_examples_helper(
     # the results and update the process example with the scorer data
     for scorer in scorers:
         # At this point, the scorer has been executed and already contains data.
-        if scorer.skipped:
+        if getattr(scorer, 'skipped', False):
             continue
         
         scorer_data = create_scorer_data(scorer)  # Fetch scorer data from completed scorer evaluation
