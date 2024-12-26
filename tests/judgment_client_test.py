@@ -60,8 +60,7 @@ def test_run_eval(client: JudgmentClient):
     EVAL_RUN_NAME = "test_eval_JOSEPH"
     client.run_evaluation(
         examples=[example1, example2],
-        # scorers=[scorer, c_scorer],
-        scorers=[scorer],
+        scorers=[scorer, c_scorer],
         model="QWEN",
         metadata={"batch": "test"},
         project_name=PROJECT_NAME,
@@ -106,6 +105,7 @@ def test_evaluate_dataset(client: JudgmentClient):
     
 def test_classifier_scorer(client: JudgmentClient):
     classifier_scorer = client.fetch_classifier_scorer("ToneScorer")
+    faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
     
     example1 = Example(
         input="What if these shoes don't fit?",
@@ -115,7 +115,7 @@ def test_classifier_scorer(client: JudgmentClient):
     
     res = client.run_evaluation(
         examples=[example1],
-        scorers=[classifier_scorer],
+        scorers=[classifier_scorer, faithfulness_scorer],
         model="QWEN",
     )
     print(res)
