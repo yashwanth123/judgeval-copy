@@ -183,4 +183,5 @@ class JudgmentClient:
             raise JudgmentAPIError(f"Failed to fetch classifier scorer '{scorer_name}': {response.json().get('detail', '')}")
             
         scorer_config = response.json()
+        
         return ClassifierScorer(**scorer_config)

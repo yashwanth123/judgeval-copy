@@ -11,7 +11,8 @@ from judgeval.data import (
 )
 from judgeval.scorers import (
     CustomScorer, 
-    JudgmentScorer
+    JudgmentScorer,
+    ClassifierScorer
 )
 from judgeval.scorers.score import a_execute_scoring
 
@@ -45,11 +46,13 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
                     object. 
     """
     
+    print(f"{evaluation_run.model_dump(warnings=True)=}")
     try:
         # submit API request to execute evals
-        response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump(warnings='none'))
+        response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump(warnings=True))
         response_data = response.json()
     except Exception as e:
+        print(f"Error: {e}")
         details = response.json().get("detail", "No details provided")
         raise JudgmentAPIError("An error occurred while executing the Judgment API request: " + details)
     # Check if the response status code is not 2XX
@@ -172,7 +175,7 @@ def run_eval(evaluation_run: EvaluationRun):
     judgment_scorers: List[JudgmentScorer] = []
     custom_scorers: List[CustomScorer] = []
     for scorer in evaluation_run.scorers:
-        if isinstance(scorer, JudgmentScorer):
+        if isinstance(scorer, JudgmentScorer) or isinstance(scorer, ClassifierScorer):
             judgment_scorers.append(scorer)
             debug(f"Added judgment scorer: {type(scorer).__name__}")
         else:
@@ -183,6 +186,9 @@ def run_eval(evaluation_run: EvaluationRun):
     
     api_results: List[ScoringResult] = []
     local_results: List[ScoringResult] = []
+    
+    print(f"{judgment_scorers=}")
+    print(f"{custom_scorers=}")
     # Execute evaluation using Judgment API
     if judgment_scorers:
         info("Starting API evaluation")
