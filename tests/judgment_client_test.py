@@ -15,8 +15,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def get_client():
-    return JudgmentClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
-
+    # return JudgmentClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
+    return JudgmentClient(judgment_api_key=os.getenv("UI_JUDGMENT_API_KEY"))
 
 def test_dataset(client: JudgmentClient):
     dataset: EvalDataset = client.create_dataset()
@@ -102,16 +102,11 @@ def test_evaluate_dataset(client: JudgmentClient):
     print(res)
     
 def test_classifier_scorer(client: JudgmentClient):
-    classifier_scorer = client.fetch_classifier_scorer("Helpfulness Scorer")
-    classifier_scorer.conversation = [
-        {**msg, "content": msg.pop("message")} 
-        for msg in classifier_scorer.conversation
-    ]
-    print(f"Conversation: {classifier_scorer.conversation=}")
+    classifier_scorer = client.fetch_classifier_scorer("ToneScorer")
     
     example1 = Example(
         input="What if these shoes don't fit?",
-        actual_output="We offer a 30-day full refund at no extra cost.",
+        actual_output="We offer a 30-day full refund at no extra cost, you would have known that if you read the website stupid!",
         retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
     )
     
