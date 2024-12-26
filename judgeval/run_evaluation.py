@@ -46,7 +46,6 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
                     object. 
     """
     
-    print(f"{evaluation_run.model_dump(warnings=True)=}")
     try:
         # submit API request to execute evals
         response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump(warnings=True))

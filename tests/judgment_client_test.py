@@ -118,7 +118,7 @@ def test_classifier_scorer(client: JudgmentClient):
     res = client.run_evaluation(
         examples=[example1],
         scorers=[classifier_scorer],
-        model="gpt-4o",
+        model="QWEN",
     )
     print(res)
 
