@@ -17,6 +17,8 @@ load_dotenv()
 def get_client():
     return JudgmentClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
 
+def get_ui_client():
+    return JudgmentClient(judgment_api_key=os.getenv("UI_JUDGMENT_API_KEY"))
 
 def test_dataset(client: JudgmentClient):
     dataset: EvalDataset = client.create_dataset()
@@ -55,8 +57,9 @@ def test_run_eval(client: JudgmentClient):
     c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
     PROJECT_NAME = "test_project_JOSEPH"
-    EVAL_RUN_NAME = "test_eval_JOSEPH"
-    client.run_evaluation(
+    EVAL_RUN_NAME = "yomadude"
+    
+    actual_eval_run_name, _ = client.run_evaluation(
         examples=[example1, example2],
         scorers=[scorer, c_scorer],
         model="QWEN",
@@ -66,8 +69,10 @@ def test_run_eval(client: JudgmentClient):
         log_results=True,
     )
 
-    results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
-    print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
+    print(f"{actual_eval_run_name=}")
+
+    results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=actual_eval_run_name)
+    print(f"Evaluation results for {actual_eval_run_name} from database:", results)
 
 
 def test_evaluate_dataset(client: JudgmentClient):
@@ -104,8 +109,10 @@ def test_evaluate_dataset(client: JudgmentClient):
 if __name__ == "__main__":
     # Test client functionality
     client = get_client()
-    # print("Client initialized successfully")
-    # print("*" * 40)
+    ui_client = get_ui_client()
+    print("Client initialized successfully")
+    print("*" * 40)
+
 
     # print("Testing dataset creation, pushing, and pulling")
     # test_dataset(client)
@@ -113,7 +120,7 @@ if __name__ == "__main__":
     # print("*" * 40)
     
     print("Testing evaluation run")
-    test_run_eval(client)
+    test_run_eval(ui_client)
     print("Evaluation run successful")
     print("*" * 40)
     
@@ -121,4 +128,5 @@ if __name__ == "__main__":
     # test_evaluate_dataset(client)
     # print("Dataset evaluation successful")
     # print("*" * 40)
-    # print("All tests passed successfully")
+    
+    print("All tests passed successfully")
