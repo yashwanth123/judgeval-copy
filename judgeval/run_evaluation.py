@@ -186,8 +186,6 @@ def run_eval(evaluation_run: EvaluationRun):
     api_results: List[ScoringResult] = []
     local_results: List[ScoringResult] = []
     
-    print(f"{judgment_scorers=}")
-    print(f"{custom_scorers=}")
     # Execute evaluation using Judgment API
     if judgment_scorers:
         info("Starting API evaluation")
