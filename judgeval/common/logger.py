@@ -7,7 +7,11 @@ from contextlib import contextmanager
 
 # Global variables
 logger = None
-LOGGING_ENABLED = False
+class LoggingState:
+    enabled = False
+    path = None
+
+LOGGING_STATE = LoggingState()
 
 # Add these as module-level variables
 current_example_id = None
@@ -15,23 +19,29 @@ current_timestamp = None
 
 
 @contextmanager
-def enable_logging():
+def enable_logging(name: str = "judgeval", path: str = "./logs", max_bytes: int = 1024 * 1024, backup_count: int = 5):
     """
     Context manager to temporarily enable logging for a specific block of code.
     """
-    global LOGGING_ENABLED
-    LOGGING_ENABLED = True
+    global logger
+    LOGGING_STATE.enabled = True
+    LOGGING_STATE.path = path
+    # Initialize logger if not already initialized
+    if logger is None:
+        logger = _initialize_logger(name=name, path=path, max_bytes=max_bytes, backup_count=backup_count)
     try:
         logger.info("Logging enabled")
         yield
     finally:
         logger.info("Logging disabled")
-        LOGGING_ENABLED = False
+        LOGGING_STATE.enabled = False
+        LOGGING_STATE.path = None
 
 def _initialize_logger(
     name: str = "judgeval",
     max_bytes: int = 1024 * 1024,  # 1MB
-    backup_count: int = 5
+    backup_count: int = 5,
+    path: str = "./logs"  # Added path parameter with default
 ) -> logging.Logger:
     """
     Initialize the global logger instance if it doesn't exist.
@@ -39,9 +49,8 @@ def _initialize_logger(
     """
     global logger
     
-    # Clear existing log file
-    log_dir = Path('./logs')
-    log_dir.mkdir(exist_ok=True)
+    log_dir = Path(path)
+    log_dir.mkdir(exist_ok=True, parents=True)
     log_file = log_dir / f"{name}.log"
     if log_file.exists():
         log_file.unlink()  # Delete existing log file
@@ -50,7 +59,7 @@ def _initialize_logger(
         return logger
         
     # Create logs directory if it doesn't exist
-    log_dir = Path('./logs')
+    log_dir = Path(path)
     log_dir.mkdir(exist_ok=True)
     
     # Create formatter
@@ -97,12 +106,12 @@ def _initialize_logger(
     return logger
 
 # Initialize the global logger when module is imported
-logger = _initialize_logger()
+# logger = _initialize_logger()
 
 def log_if_enabled(func):
     """Decorator to check if logging is enabled before executing logging statements"""
     def wrapper(*args, **kwargs):
-        if LOGGING_ENABLED:
+        if LOGGING_STATE.enabled:
             return func(*args, **kwargs)
     return wrapper
 
@@ -126,10 +135,14 @@ def error(msg: str, example_idx: int = None):
     """Log error message if logging is enabled"""
     logger.error(msg)
 
-def create_example_handler(timestamp: str, example_idx: int) -> RotatingFileHandler:
+def create_example_handler(
+    timestamp: str, 
+    example_idx: int,
+    path: str = "./logs"  # Added path parameter with default
+) -> RotatingFileHandler:
     """Creates a file handler for a specific example"""
     debug(f"Creating example handler for timestamp={timestamp}, example_idx={example_idx}")
-    log_dir = Path('./logs/examples')
+    log_dir = Path(path) / "examples"
     log_dir.mkdir(exist_ok=True, parents=True)
     
     formatter = logging.Formatter(
@@ -152,7 +165,7 @@ def create_example_handler(timestamp: str, example_idx: int) -> RotatingFileHand
 @contextmanager
 def example_logging_context(timestamp: str, example_idx: int):
     """Context manager for example-specific logging"""
-    if not LOGGING_ENABLED:
+    if not LOGGING_STATE.enabled:
         yield
         return
         
@@ -162,7 +175,7 @@ def example_logging_context(timestamp: str, example_idx: int):
     current_example_id = example_idx
     current_timestamp = timestamp
     
-    handler = create_example_handler(timestamp, example_idx)
+    handler = create_example_handler(timestamp, example_idx, path=LOGGING_STATE.path)
     if handler:
         logger.addHandler(handler)
     try:

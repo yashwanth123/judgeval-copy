@@ -27,6 +27,7 @@ class TogetherJudge(judgevalJudge):
             convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
             return fetch_together_api_response(self.model, convo, response_format=schema)
         elif isinstance(input, list):
+            convo = input
             return fetch_together_api_response(self.model, convo, response_format=schema)
         else:
             error(f"Invalid input type received: {type(input)}")
@@ -39,7 +40,8 @@ class TogetherJudge(judgevalJudge):
             res = await afetch_together_api_response(self.model, convo, response_format=schema)
             return res
         elif isinstance(input, list):
-            res = await afetch_together_api_response(self.model, input, response_format=schema)
+            convo = input
+            res = await afetch_together_api_response(self.model, convo, response_format=schema)
             return res
         else:
             error(f"Invalid input type received: {type(input)}")
