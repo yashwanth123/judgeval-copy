@@ -14,6 +14,8 @@ uvicorn = "*"
 deepeval = "*"
 supabase = "*"
 requests = "*"
+pandas = "*"
+anthropic = "*"
 
 [dev-packages]
 pytest = "*"

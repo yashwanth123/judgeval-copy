@@ -273,8 +273,15 @@ async def a_execute_scoring(
     semaphore = asyncio.Semaphore(max_concurrent)
 
     async def execute_with_semaphore(func: Callable, *args, **kwargs):
-        async with semaphore:
-            return await func(*args, **kwargs)
+        try:
+            async with semaphore:
+                return await func(*args, **kwargs)
+        except Exception as e:
+            error(f"Error executing function: {e}")
+            if kwargs.get('ignore_errors', False):
+                # Return None when ignoring errors
+                return None
+            raise
 
     if verbose_mode is not None:
         for scorer in scorers:
@@ -406,7 +413,7 @@ async def a_eval_examples_helper(
     # the results and update the process example with the scorer data
     for scorer in scorers:
         # At this point, the scorer has been executed and already contains data.
-        if scorer.skipped:
+        if getattr(scorer, 'skipped', False):
             continue
         
         scorer_data = create_scorer_data(scorer)  # Fetch scorer data from completed scorer evaluation

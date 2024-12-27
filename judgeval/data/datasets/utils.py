@@ -14,6 +14,11 @@ def examples_to_ground_truths(examples: List[Example]) -> List[GroundTruthExampl
     Returns:
         List[GroundTruthExample]: A list of `GroundTruthExample` objects.
     """
+
+    if not isinstance(examples, list):
+        raise TypeError("Input should be a list of `Example` objects")
+
+    ground_truths = []
     ground_truths = []
     for e in examples:
         g_truth = {
@@ -45,6 +50,10 @@ def ground_truths_to_examples(
     Returns:
         List[Example]: A list of `Example` objects.
     """
+
+    if not isinstance(ground_truths, list):
+        raise TypeError("Input should be a list of `GroundTruthExample` objects")
+
     examples = []
     for index, ground_truth in enumerate(ground_truths):
         e = Example(

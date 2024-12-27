@@ -13,28 +13,24 @@ class ProcessExample(BaseModel):
     """
     name: str
     input: Optional[str] = None
-    actual_output: Optional[str] = Field(None, alias="actualOutput")
-    expected_output: Optional[str] = Field(None, alias="expectedOutput")
-    context: Optional[list] = Field(None)
-    retrieval_context: Optional[list] = Field(None, alias="retrievalContext")
-    tools_called: Optional[list] = Field(None, alias="toolsCalled")
-    expected_tools: Optional[list] = Field(None, alias="expectedTools")
+    actual_output: Optional[str] = None
+    expected_output: Optional[str] = None
+    context: Optional[list] = None
+    retrieval_context: Optional[list] = None
+    tools_called: Optional[list] = None
+    expected_tools: Optional[list] = None
 
     # make these optional, not all test cases in a conversation will be evaluated
-    success: Union[bool, None] = Field(None)
-    scorers_data: Union[List[ScorerData], None] = Field(
-        None, alias="scorersData"
-    )
-    run_duration: Union[float, None] = Field(None, alias="runDuration")
-    evaluation_cost: Union[float, None] = Field(None, alias="evaluationCost")
+    success: Optional[bool] = None
+    scorers_data: Optional[List[ScorerData]] = None
+    run_duration: Optional[float] = None 
+    evaluation_cost: Optional[float] = None
 
-    order: Union[int, None] = Field(None)
+    order: Optional[int] =  None
     # These should map 1 to 1 from golden
-    additional_metadata: Optional[Dict] = Field(
-        None, alias="additionalMetadata"
-    )
-    comments: Optional[str] = Field(None)
-    trace_id: Optional[str] = Field(None)
+    additional_metadata: Optional[Dict] = None
+    comments: Optional[str] = None
+    trace_id: Optional[str] = None
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def update_scorer_data(self, scorer_data: ScorerData):
@@ -65,12 +61,12 @@ class ProcessExample(BaseModel):
     @model_validator(mode="before")
     def check_input(cls, values: Dict[str, Any]):
         input = values.get("input")
-        actual_output = values.get("actualOutput")
+        actual_output = values.get("actual_output")
 
         if (input is None or actual_output is None):
-            error(f"Validation error: Required fields missing. input={input}, actualOutput={actual_output}")
+            error(f"Validation error: Required fields missing. input={input}, actual_output={actual_output}")
             raise ValueError(
-                "'input' and 'actualOutput' must be provided."
+                "'input' and 'actual_output' must be provided."
             )
 
         return values
@@ -97,18 +93,18 @@ def create_process_example(
     process_ex = ProcessExample(
         name=name,
         input=example.input,
-        actualOutput=example.actual_output,
-        expectedOutput=example.expected_output,
+        actual_output=example.actual_output,
+        expected_output=example.expected_output,
         context=example.context,
-        retrievalContext=example.retrieval_context,
-        toolsCalled=example.tools_called,
-        expectedTools=example.expected_tools,
+        retrieval_context=example.retrieval_context,
+        tools_called=example.tools_called,
+        expected_tools=example.expected_tools,
         success=success,
-        scorersData=scorers_data,
-        runDuration=None,
-        evaluationCost=None,
+        scorers_data=scorers_data,
+        run_duration=None,
+        evaluation_cost=None,
         order=order,
-        additionalMetadata=example.additional_metadata,
+        additional_metadata=example.additional_metadata,
         trace_id=example.trace_id
     )
     return process_ex

@@ -68,7 +68,7 @@ class PromptScorer(CustomScorer):
         """
         Synchronous method for scoring an example using the prompt criteria.
         """
-        with scorer_progress_meter(self, _show_indicator=_show_indicator):
+        with scorer_progress_meter(self, display_meter=_show_indicator):
             if self.async_mode:
                 loop = get_or_create_event_loop()
                 loop.run_until_complete(
@@ -217,7 +217,7 @@ class PromptScorer(CustomScorer):
             # create formatting string for schema enforcement
             # schema is a map between key and type of the value 
             for key, key_type in schema.items():
-                SCHEMA_ENFORCEMENT_PROMPT += f'"{key}": <{key}> ({key_type}), '
+                SCHEMA_ENFORCEMENT_PROMPT += f'"{key}": <{key}> ({key_type.__name__}), '
             SCHEMA_ENFORCEMENT_PROMPT = SCHEMA_ENFORCEMENT_PROMPT[:-2] + "}"  # remove trailing comma and space
             judge_prompt[0]["content"] += SCHEMA_ENFORCEMENT_PROMPT
             return judge_prompt

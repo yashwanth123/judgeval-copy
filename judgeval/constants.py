@@ -5,7 +5,7 @@ Constant variables used throughout source code
 from enum import Enum
 import litellm
 
-class APIScorer(Enum):  
+class APIScorer(str, Enum):  
     """
     Collection of proprietary scorers implemented by Judgment.
 
@@ -20,7 +20,13 @@ class APIScorer(Enum):
     CONTEXTUAL_RELEVANCY = "contextual_relevancy"
     CONTEXTUAL_PRECISION = "contextual_precision"
     TOOL_CORRECTNESS = "tool_correctness"
-    
+
+    @classmethod
+    def _missing_(cls, value):
+        # Handle case-insensitive lookup
+        for member in cls:
+            if member.value == value.lower():
+                return member
 
 ROOT_API = "http://127.0.0.1:8000"
 # ROOT_API = "https://api.judgmentlabs.ai"  # TODO replace this with the actual API root
