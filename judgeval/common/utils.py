@@ -9,7 +9,7 @@ NOTE: any function beginning with 'a', e.g. 'afetch_together_api_response', is a
 """
 
 import concurrent.futures
-from typing import List, Mapping, Dict, Union
+from typing import List, Mapping, Dict, Union, Optional, Literal, Any
 import asyncio
 import litellm
 import pydantic
@@ -27,6 +27,63 @@ class CustomModelParameters(pydantic.BaseModel):
     model_name: str
     secret_key: str
     litellm_base_url: str
+    
+    @pydantic.field_validator('model_name')
+    def validate_model_name(cls, v):
+        if not v:
+            raise ValueError("Model name cannot be empty")
+        return v
+    
+    @pydantic.field_validator('secret_key')
+    def validate_secret_key(cls, v):
+        if not v:
+            raise ValueError("Secret key cannot be empty")
+        return v
+    
+    @pydantic.field_validator('litellm_base_url')
+    def validate_litellm_base_url(cls, v):
+        if not v:
+            raise ValueError("Litellm base URL cannot be empty")
+        return v
+
+class ChatCompletionRequest(pydantic.BaseModel):
+    model: str
+    messages: List[Dict[str, str]]
+    response_format: Optional[Union[pydantic.BaseModel, Dict[str, Any]]] = None
+    
+    @pydantic.field_validator('messages')
+    def validate_messages(cls, messages):
+        if not messages:
+            raise ValueError("Messages cannot be empty")
+            
+        for msg in messages:
+            if not isinstance(msg, dict):
+                raise TypeError("Message must be a dictionary")
+            if 'role' not in msg:
+                raise ValueError("Message missing required 'role' field")
+            if 'content' not in msg:
+                raise ValueError("Message missing required 'content' field")
+            if msg['role'] not in ['system', 'user', 'assistant']:
+                raise ValueError(f"Invalid role '{msg['role']}'. Must be 'system', 'user', or 'assistant'")
+        
+        return messages
+
+    @pydantic.field_validator('model')
+    def validate_model(cls, model):
+        if not model:
+            raise ValueError("Model cannot be empty")
+        if model not in TOGETHER_SUPPORTED_MODELS and model not in LITELLM_SUPPORTED_MODELS:
+            raise ValueError(f"Model {model} is not in the list of supported models.")
+        return model
+    
+    @pydantic.field_validator('response_format', mode='before')
+    def validate_response_format(cls, response_format):
+        if response_format is not None:
+            if not isinstance(response_format, (dict, pydantic.BaseModel)):
+                raise TypeError("Response format must be a dictionary or pydantic model")
+            # Optional: Add additional validation for required fields if needed
+            # For example, checking for 'type': 'json' in OpenAI's format
+        return response_format
 
 os.environ['LITELLM_LOG'] = 'DEBUG'
 
@@ -41,25 +98,32 @@ def fetch_together_api_response(model: str, messages: List[Mapping], response_fo
     """
     Fetches a single response from the Together API for a given model and messages.
     """
-    debug(f"Calling Together API with model: {model}")
-    debug(f"Messages: {messages}")
+    # Validate request
+    if messages is None or messages == []:
+        raise ValueError("Messages cannot be empty")
     
-    if model not in TOGETHER_SUPPORTED_MODELS:
-        error(f"Model {model} not in supported Together models: {TOGETHER_SUPPORTED_MODELS}")
-        raise ValueError(f"Model {model} is not in the list of supported TogetherAI models: {TOGETHER_SUPPORTED_MODELS}.")
-    
-    if response_format is not None:
-        debug(f"Using response format: {response_format}")
-        response = together_client.chat.completions.create(
-            model=TOGETHER_SUPPORTED_MODELS.get(model),
+    request = ChatCompletionRequest(
+            model=model,
             messages=messages,
             response_format=response_format
+    )
+    
+    debug(f"Calling Together API with model: {request.model}")
+    debug(f"Messages: {request.messages}")
+    
+    if request.response_format is not None:
+        debug(f"Using response format: {request.response_format}")
+        response = together_client.chat.completions.create(
+            model=TOGETHER_SUPPORTED_MODELS.get(request.model),
+            messages=request.messages,
+            response_format=request.response_format
         )
     else:
         response = together_client.chat.completions.create(
-            model=TOGETHER_SUPPORTED_MODELS.get(model),
-            messages=messages,
+            model=TOGETHER_SUPPORTED_MODELS.get(request.model),
+            messages=request.messages,
         )
+    
     debug(f"Received response: {response.choices[0].message.content[:100]}...")
     return response.choices[0].message.content
 
@@ -68,19 +132,26 @@ async def afetch_together_api_response(model: str, messages: List[Mapping], resp
     """
     ASYNCHRONOUSLY Fetches a single response from the Together API for a given model and messages.
     """
-    if model not in TOGETHER_SUPPORTED_MODELS:
-        raise ValueError(f"Model {model} is not in the list of supported TogetherAI models: {TOGETHER_SUPPORTED_MODELS}.")
+    request = ChatCompletionRequest(
+        model=model,
+        messages=messages,
+        response_format=response_format
+    )
     
-    if response_format is not None:
+    debug(f"Calling Together API with model: {request.model}")
+    debug(f"Messages: {request.messages}")
+    
+    if request.response_format is not None:
+        debug(f"Using response format: {request.response_format}")
         response = await async_together_client.chat.completions.create(
-            model=TOGETHER_SUPPORTED_MODELS.get(model),
-            messages=messages,
-            response_format=response_format
+            model=TOGETHER_SUPPORTED_MODELS.get(request.model),
+            messages=request.messages,
+            response_format=request.response_format
         )
     else:
         response = await async_together_client.chat.completions.create(
-            model=TOGETHER_SUPPORTED_MODELS.get(model),
-            messages=messages,
+            model=TOGETHER_SUPPORTED_MODELS.get(request.model),
+            messages=request.messages,
         )
     return response.choices[0].message.content
 
@@ -97,6 +168,24 @@ def query_together_api_multiple_calls(models: List[str], messages: List[List[Map
     Returns:
         List[str]: TogetherAI responses for each model and message pair in order. Any exceptions in the thread call result in a None.
     """
+    # Check for empty models list
+    if not models:
+        raise ValueError("Models list cannot be empty")
+
+    # Validate all models are supported
+    for model in models:
+        if model not in TOGETHER_SUPPORTED_MODELS:
+            raise ValueError(f"Model {model} is not in the list of supported TogetherAI models: {TOGETHER_SUPPORTED_MODELS}.")
+
+    # Validate input lengths match
+    if response_formats is None:
+        response_formats = [None] * len(models)
+    if not (len(models) == len(messages) == len(response_formats)):
+        raise ValueError("Number of models, messages, and response formats must be the same")
+
+    # Validate message format
+    validate_batched_chat_messages(messages)
+
     num_workers = int(os.getenv('NUM_WORKER_THREADS', MAX_WORKER_THREADS))  
     # Initialize results to maintain ordered outputs
     out = [None] * len(messages)
@@ -128,6 +217,24 @@ async def aquery_together_api_multiple_calls(models: List[str], messages: List[L
     Returns:
         List[str]: TogetherAI responses for each model and message pair in order. Any exceptions in the thread call result in a None.
     """
+    # Check for empty models list
+    if not models:
+        raise ValueError("Models list cannot be empty")
+
+    # Validate all models are supported
+    for model in models:
+        if model not in TOGETHER_SUPPORTED_MODELS:
+            raise ValueError(f"Model {model} is not in the list of supported TogetherAI models: {TOGETHER_SUPPORTED_MODELS}.")
+
+    # Validate input lengths match
+    if response_formats is None:
+        response_formats = [None] * len(models)
+    if not (len(models) == len(messages) == len(response_formats)):
+        raise ValueError("Number of models, messages, and response formats must be the same")
+
+    # Validate message format
+    validate_batched_chat_messages(messages)
+
     debug(f"Starting parallel Together API calls for {len(messages)} messages")
     out = [None] * len(messages)
     
@@ -153,30 +260,40 @@ def fetch_litellm_api_response(model: str, messages: List[Mapping], response_for
     """
     Fetches a single response from the Litellm API for a given model and messages.
     """
-    debug(f"Calling LiteLLM API with model: {model}")
-    debug(f"Messages: {messages}")
+    request = ChatCompletionRequest(
+        model=model,
+        messages=messages,
+        response_format=response_format
+    )
     
-    if model not in LITELLM_SUPPORTED_MODELS:
-        error(f"Model {model} not in supported LiteLLM models: {LITELLM_SUPPORTED_MODELS}")
-        raise ValueError(f"Model {model} is not in the list of supported Litellm models: {LITELLM_SUPPORTED_MODELS}.")
+    debug(f"Calling LiteLLM API with model: {request.model}")
+    debug(f"Messages: {request.messages}")
     
-    if response_format is not None:
-        debug(f"Using response format: {response_format}")
+    if request.response_format is not None:
+        debug(f"Using response format: {request.response_format}")
         response = litellm.completion(
-            model=model,
-            messages=messages,
-            response_format=response_format
+            model=request.model,
+            messages=request.messages,
+            response_format=request.response_format
         )
     else:
         response = litellm.completion(
-            model=model,
-            messages=messages,  
+            model=request.model,
+            messages=request.messages,
         )
-    debug(f"Received response: {response.choices[0].message.content[:100]}...")
     return response.choices[0].message.content
 
 
 def fetch_custom_litellm_api_response(custom_model_parameters: CustomModelParameters, messages: List[Mapping], response_format: pydantic.BaseModel = None) -> str:
+    if messages is None or messages == []:
+        raise ValueError("Messages cannot be empty")
+    
+    if custom_model_parameters is None:
+        raise ValueError("Custom model parameters cannot be empty")
+    
+    if not isinstance(custom_model_parameters, CustomModelParameters):
+        raise ValueError("Custom model parameters must be a CustomModelParameters object")
+        
     if response_format is not None:
         response = litellm.completion(
             model=custom_model_parameters.model_name,
@@ -199,23 +316,12 @@ async def afetch_litellm_api_response(model: str, messages: List[Mapping], respo
     """
     ASYNCHRONOUSLY Fetches a single response from the Litellm API for a given model and messages.
     """
-    # TODO: Uncomment code once we resolve Alma API key issues
-    # if response_format is not None:
-    #     response = await litellm.acompletion(
-    #         model=MODEL_NAME,
-    #         messages=messages,
-    #         api_key=ALMA_FT_SECRET_KEY,
-    #         base_url=ALMA_LITELLM_BASE_URL,
-    #         response_format=response_format
-    #     )
-    # else:
-    #     response = await litellm.acompletion(
-    #         model=MODEL_NAME,
-    #         messages=messages,
-    #         api_key=ALMA_FT_SECRET_KEY,
-    #         base_url=ALMA_LITELLM_BASE_URL,
-    #     )
-    # return response.choices[0].message.content
+    if messages is None or messages == []:
+        raise ValueError("Messages cannot be empty")
+    
+    # Add validation
+    validate_chat_messages(messages)
+    
     if model not in LITELLM_SUPPORTED_MODELS:
         raise ValueError(f"Model {model} is not in the list of supported Litellm models: {LITELLM_SUPPORTED_MODELS}.")
     
@@ -237,6 +343,15 @@ async def afetch_custom_litellm_api_response(custom_model_parameters: CustomMode
     """
     ASYNCHRONOUSLY Fetches a single response from the Litellm API for a given model and messages.
     """
+    if messages is None or messages == []:
+        raise ValueError("Messages cannot be empty")
+    
+    if custom_model_parameters is None:
+        raise ValueError("Custom model parameters cannot be empty")
+    
+    if not isinstance(custom_model_parameters, CustomModelParameters):
+        raise ValueError("Custom model parameters must be a CustomModelParameters object")
+        
     if response_format is not None:
         response = await litellm.acompletion(
             model=custom_model_parameters.model_name,
@@ -317,6 +432,49 @@ async def aquery_litellm_api_multiple_calls(models: List[str], messages: List[Ma
     return out
 
 
+def validate_chat_messages(messages, batched: bool = False):
+    """Validate chat message format before API call"""
+    if not isinstance(messages, list):
+        raise TypeError("Messages must be a list")
+    
+    for msg in messages:
+        if not isinstance(msg, dict):
+            if batched and not isinstance(msg, list):
+                raise TypeError("Each message must be a list")
+            elif not batched:
+                raise TypeError("Message must be a dictionary")
+        if 'role' not in msg:
+            raise ValueError("Message missing required 'role' field")
+        if 'content' not in msg:
+            raise ValueError("Message missing required 'content' field")
+        if msg['role'] not in ['system', 'user', 'assistant']:
+            raise ValueError(f"Invalid role '{msg['role']}'. Must be 'system', 'user', or 'assistant'")
+
+def validate_batched_chat_messages(messages: List[List[Mapping]]):
+    """
+    Validate format of batched chat messages before API call
+    
+    Args:
+        messages (List[List[Mapping]]): List of message lists, where each inner list contains
+            message dictionaries with 'role' and 'content' fields
+    
+    Raises:
+        TypeError: If messages format is invalid
+        ValueError: If message content is invalid
+    """
+    if not isinstance(messages, list):
+        raise TypeError("Batched messages must be a list")
+    
+    if not messages:
+        raise ValueError("Batched messages cannot be empty")
+        
+    for message_list in messages:
+        if not isinstance(message_list, list):
+            raise TypeError("Each batch item must be a list of messages")
+            
+        # Validate individual messages using existing function
+        validate_chat_messages(message_list)
+
 def get_chat_completion(model_type: str, 
                         messages : Union[List[Mapping], List[List[Mapping]]], 
                         response_format: pydantic.BaseModel = None, 
@@ -336,6 +494,17 @@ def get_chat_completion(model_type: str,
     Raises:
         - ValueError: If requested model is not supported by Litellm or TogetherAI.
     """
+    
+    # Check for empty messages list
+    if not messages or messages == []:
+        raise ValueError("Messages cannot be empty")
+    
+    # Add validation
+    if batched:
+        validate_batched_chat_messages(messages)
+    else:
+        validate_chat_messages(messages)
+    
     if batched and model_type in TOGETHER_SUPPORTED_MODELS:
         return query_together_api_multiple_calls(models=[model_type] * len(messages), 
                                                  messages=messages, 
@@ -352,6 +521,8 @@ def get_chat_completion(model_type: str,
         return fetch_litellm_api_response(model=model_type, 
                                           messages=messages, 
                                           response_format=response_format)
+        
+    
     
     raise ValueError(f"Model {model_type} is not supported by Litellm or TogetherAI for chat completions. Please check the model name and try again.")
 
@@ -376,6 +547,11 @@ async def aget_chat_completion(model_type: str,
         - ValueError: If requested model is not supported by Litellm or TogetherAI.
     """
     debug(f"Starting chat completion for model {model_type}, batched={batched}")
+    
+    if batched:
+        validate_batched_chat_messages(messages)
+    else:
+        validate_chat_messages(messages)
     
     if batched and model_type in TOGETHER_SUPPORTED_MODELS:
         debug("Using batched Together API call")
@@ -417,6 +593,12 @@ def get_completion_multiple_models(models: List[str], messages: List[List[Mappin
         ValueError: If a model is not supported by Litellm or Together
     """
     debug(f"Starting multiple model completion for {len(models)} models")
+    
+    if models is None or models == []:
+        raise ValueError("Models list cannot be empty")
+    
+    validate_batched_chat_messages(messages)
+    
     if len(models) != len(messages):
         error(f"Model/message count mismatch: {len(models)} vs {len(messages)}")
         raise ValueError(f"Number of models and messages must be the same: {len(models)} != {len(messages)}")
@@ -435,6 +617,10 @@ def get_completion_multiple_models(models: List[str], messages: List[List[Mappin
         else:
             error(f"Model {model} not supported by either API")
             raise ValueError(f"Model {model} is not supported by Litellm or TogetherAI for chat completions. Please check the model name and try again.")
+    
+    # Add validation before processing
+    for msg_list in messages:
+        validate_chat_messages(msg_list)
     
     # Get the responses from the TogetherAI models
     # List of responses from the TogetherAI models in order of the together_calls dict
@@ -476,10 +662,15 @@ async def aget_completion_multiple_models(models: List[str], messages: List[List
     Raises:
         ValueError: If a model is not supported by Litellm or Together
     """
+    if models is None or models == []:
+        raise ValueError("Models list cannot be empty")
+    
     if len(models) != len(messages):
         raise ValueError(f"Number of models and messages must be the same: {len(models)} != {len(messages)}")
     if response_formats is None:
         response_formats = [None] * len(models)
+
+    validate_batched_chat_messages(messages)
     
     # Partition the model requests into TogetherAI and Litellm models, but keep the ordering saved
     together_calls, litellm_calls = {}, {}  # index -> model, message, response_format
@@ -491,6 +682,10 @@ async def aget_completion_multiple_models(models: List[str], messages: List[List
             litellm_calls[idx] = (model, message, r_format)
         else:
             raise ValueError(f"Model {model} is not supported by Litellm or TogetherAI for chat completions. Please check the model name and try again.")
+    
+    # Add validation before processing
+    for msg_list in messages:
+        validate_chat_messages(msg_list)
     
     # Get the responses from the TogetherAI models
     # List of responses from the TogetherAI models in order of the together_calls dict

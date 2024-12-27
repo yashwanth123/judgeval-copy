@@ -82,7 +82,7 @@ if (
 @contextmanager
 def capture_evaluation_run(type: str):
     if not telemetry_opt_out():
-        with tracer.start_as_current_span(f"Ran {type}") as span:
+        with tracer.start_as_current_span(f"Evaluation run: {type}") as span:
             span.set_attribute("user.unique_id", get_unique_id())
             yield span
     else:
@@ -115,7 +115,7 @@ def capture_synthesizer_run(max_generations: int = None, method: str = None):
 def capture_red_teamer_run(task: str):
     if not telemetry_opt_out():
         with tracer.start_as_current_span(
-            f"Invokved redteamer: ({task})"
+            f"Invoked red teamer: ({task})"
         ) as span:
             span.set_attribute("user.unique_id", get_unique_id())
             yield span

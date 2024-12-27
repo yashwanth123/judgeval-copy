@@ -157,12 +157,21 @@ class MixtureOfJudges(judgevalJudge):
             aggregation_schema (pydantic.BaseModel): Response schema for the aggregator model.
             kwargs: Additional keyword arguments.
         """
-        if type(input) == str:  # completion endpoints need a list of dictionaries as input
-            input = BASE_CONVERSATION + [{"role": "user", "content": input}]
+        debug(f"Generating response for input type: {type(input)}")
+        
+        # Convert input to conversation format if needed
+        if isinstance(input, str):
+            convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
+        elif isinstance(input, list):
+            convo = input
+        else:
+            error(f"Invalid input type received: {type(input)}")
+            raise TypeError(f"Input must be a string or a list of dictionaries. Input type of: {type(input)}")
+
         try:
             responses = get_completion_multiple_models(
                 models=self.models,
-                messages=[input] * len(self.models),  # repeat the same input for all judges since we query them in parallel
+                messages=[convo] * len(self.models),
                 response_formats=[response_schema] * len(self.models)
             )
         except Exception as e:
@@ -174,7 +183,7 @@ class MixtureOfJudges(judgevalJudge):
         try:
             mixed_response = get_chat_completion(
                 model_type=self.aggregator,
-                messages=BASE_CONVERSATION + [{"role": "user", "content": compiled_mixture_prompt}],
+                messages=compiled_mixture_prompt,
                 response_format=aggregation_schema,
             )
         except Exception as e:
@@ -197,20 +206,28 @@ class MixtureOfJudges(judgevalJudge):
             aggregation_schema (pydantic.BaseModel): Response schema for the aggregator model.
             kwargs: Additional keyword arguments.
         """
-        if type(input) == str:  # completion endpoints need a list of dictionaries as input
-            input = BASE_CONVERSATION + [{"role": "user", "content": input}]
+        debug(f"Generating response for input type: {type(input)}")
         
+        # Convert input to conversation format if needed
+        if isinstance(input, str):
+            convo = BASE_CONVERSATION + [{"role": "user", "content": input}]
+        elif isinstance(input, list):
+            convo = input
+        else:
+            error(f"Invalid input type received: {type(input)}")
+            raise TypeError(f"Input must be a string or a list of dictionaries. Input type of: {type(input)}")
+
         try:
             responses = await aget_completion_multiple_models(
                 models=self.models,
-                messages=[input] * len(self.models),  # repeat the same input for all judges since we query them in parallel
-                response_formats=[response_schema] * len(self.models),
+                messages=[convo] * len(self.models),
+                response_formats=[response_schema] * len(self.models)
             )
         except Exception as e:
             error(f"Error getting async completions from multiple models: {str(e)}")
             raise
 
-        compiled_mixture_prompt : List[Dict] = build_dynamic_mixture_prompt(responses, self.kwargs.get('custom_prompt'), self.kwargs.get('custom_conversation'))
+        compiled_mixture_prompt = build_dynamic_mixture_prompt(responses, self.kwargs.get('custom_prompt'), self.kwargs.get('custom_conversation'))
         
         try:
             mixed_response = await aget_chat_completion(
