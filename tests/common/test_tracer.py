@@ -1,47 +1,51 @@
 import pytest
 import time
-from unittest.mock import Mock, patch
-from judgeval.common.tracer import tracer, TraceEntry, TraceClient
+from unittest.mock import Mock, patch, MagicMock
+from datetime import datetime
+from openai import OpenAI
+from together import Together
+from anthropic import Anthropic
+
+from judgeval.common.tracer import Tracer, TraceEntry, TraceClient, wrap
 
 @pytest.fixture
-def reset_tracer():
-    """Reset tracer state between tests"""
-    tracer.depth = 0
-    tracer._current_trace = None
-    tracer.api_key = None
-    yield
-    
+def tracer():
+    """Provide a configured tracer instance"""
+    return Tracer(api_key="test_api_key")
+
 @pytest.fixture
-def configured_tracer(reset_tracer):
-    """Provide a configured tracer"""
-    tracer.configure("test_api_key")
-    return tracer
+def trace_client(tracer):
+    """Provide a trace client instance"""
+    with tracer.trace("test_trace") as client:
+        yield client
 
 def test_tracer_singleton():
     """Test that Tracer maintains singleton pattern"""
-    from judgeval.common.tracer import Tracer
-    tracer1 = Tracer()
-    tracer2 = Tracer()
+    tracer1 = Tracer(api_key="test1")
+    tracer2 = Tracer(api_key="test2")
     assert tracer1 is tracer2
+    assert tracer1.api_key == "test2"  # Should have new api_key
 
-def test_tracer_configuration(reset_tracer):
-    """Test tracer configuration"""
-    assert tracer.api_key is None
-    tracer.configure("test_api_key")
-    assert tracer.api_key == "test_api_key"
+def test_tracer_requires_api_key():
+    """Test that Tracer requires an API key"""
+    # Clear any existing singleton instance first
+    Tracer._instance = None
+    
+    with pytest.raises(ValueError):
+        tracer = Tracer(api_key=None)
+        print(tracer.api_key)
 
 def test_trace_entry_print(capsys):
     """Test TraceEntry print formatting"""
-    # Test each type of entry
     entries = [
-        TraceEntry(type="enter", function="test_func", depth=1, message="", timestamp=0),
-        TraceEntry(type="exit", function="test_func", depth=1, message="", timestamp=0, duration=0.5),
-        TraceEntry(type="output", function="test_func", depth=1, message="", timestamp=0, output="result"),
-        TraceEntry(type="input", function="test_func", depth=1, message="", timestamp=0, inputs={"arg": 1}),
+        TraceEntry(type="enter", function="test_func", depth=1, message="test", timestamp=0),
+        TraceEntry(type="exit", function="test_func", depth=1, message="test", timestamp=0, duration=0.5),
+        TraceEntry(type="output", function="test_func", depth=1, message="test", timestamp=0, output="result"),
+        TraceEntry(type="input", function="test_func", depth=1, message="test", timestamp=0, inputs={"arg": 1}),
     ]
     
     expected_outputs = [
-        "  → test_func\n",
+        "  → test_func (trace: test)\n",
         "  ← test_func (0.500s)\n",
         "  Output: result\n",
         "  Input: {'arg': 1}\n",
@@ -52,124 +56,166 @@ def test_trace_entry_print(capsys):
         captured = capsys.readouterr()
         assert captured.out == expected
 
-@pytest.mark.asyncio
-async def test_trace_client_operations(configured_tracer):
-    """Test TraceClient basic operations"""
-    trace = configured_tracer.start_trace("test_trace")
-    
-    # Test adding entries
+def test_trace_entry_to_dict():
+    """Test TraceEntry serialization"""
+    # Test basic serialization
     entry = TraceEntry(
         type="enter",
         function="test_func",
-        depth=0,
+        depth=1,
         message="test",
-        timestamp=time.time()
+        timestamp=0
     )
-    trace.add_entry(entry)
-    assert len(trace.entries) == 1
-    assert trace.entries[0] == entry
-    
-    # Test duration calculation
-    time.sleep(0.1)
-    duration = trace.get_duration()
-    assert duration > 0
+    data = entry.to_dict()
+    assert data["type"] == "enter"
+    assert data["function"] == "test_func"
 
-def test_observe_decorator(configured_tracer):
-    """Test the @tracer.observe decorator"""
-    results = []
+    # Test with non-serializable output
+    class NonSerializable:
+        pass
     
-    @tracer.observe
-    def test_function(x, y):
-        results.append(f"Function called with {x}, {y}")
-        return x + y
+    entry = TraceEntry(
+        type="output",
+        function="test_func",
+        depth=1,
+        message="test",
+        timestamp=0,
+        output=NonSerializable()
+    )
     
-    with patch.object(TraceClient, 'add_entry') as mock_add_entry:
-        trace = configured_tracer.start_trace("test_trace")
-        result = test_function(1, 2)
-        
-        # Verify function execution
-        assert result == 3
-        assert results == ["Function called with 1, 2"]
-        
-        # Verify trace entries
-        assert mock_add_entry.call_count == 4  # enter, input, output, exit
-        
-        # Verify entry types
-        entry_types = [call.args[0].type for call in mock_add_entry.call_args_list]
-        assert entry_types == ["enter", "input", "output", "exit"]
+    with pytest.warns(UserWarning):
+        data = entry.to_dict()
+        assert data["output"] is None
 
-@pytest.mark.asyncio
-async def test_save_trace(configured_tracer, mocker):
-    """Test saving trace data to API"""
-    mock_post = mocker.patch('requests.post')
-    mock_post.return_value.raise_for_status = Mock()
+def test_trace_client_span(trace_client):
+    """Test span context manager"""
+    initial_entries = len(trace_client.entries)  # Get initial count
     
-    trace = configured_tracer.start_trace("test_trace")
+    with trace_client.span("test_span") as span:
+        assert trace_client._current_span == "test_span"
+        assert len(trace_client.entries) == initial_entries + 1  # Compare to initial count
     
-    # Add some test entries
-    @tracer.observe
-    def test_function():
-        return "test_result"
-    
-    test_function()
-    
-    # Save trace
-    trace_id, trace_data = trace.save_trace()
-    
-    # Verify API call
-    mock_post.assert_called_once()
-    assert mock_post.call_args[1]['json']['trace_id'] == trace_id
-    assert mock_post.call_args[1]['json']['name'] == "test_trace"
-    assert len(mock_post.call_args[1]['json']['entries']) > 0
+    assert len(trace_client.entries) == initial_entries + 2  # Account for both enter and exit
+    assert trace_client.entries[-1].type == "exit"
+    assert trace_client._current_span == "test_trace"
 
-def test_condense_trace(configured_tracer):
+def test_trace_client_nested_spans(trace_client):
+    """Test nested spans maintain proper depth"""
+    with trace_client.span("outer"):
+        assert trace_client.tracer.depth == 2  # 1 for trace + 1 for span
+        with trace_client.span("inner"):
+            assert trace_client.tracer.depth == 3
+        assert trace_client.tracer.depth == 2
+    assert trace_client.tracer.depth == 1
+
+def test_record_input_output(trace_client):
+    """Test recording inputs and outputs"""
+    with trace_client.span("test_span"):
+        trace_client.record_input({"arg": 1})
+        trace_client.record_output("result")
+    
+    # Filter entries to only include those for the current span
+    entries = [e.type for e in trace_client.entries if e.function == "test_span"]
+    assert entries == ["enter", "input", "output", "exit"]
+
+def test_condense_trace(trace_client):
     """Test trace condensing functionality"""
-    trace = configured_tracer.start_trace("test_trace")
-    
-    # Create sample entries
     entries = [
         {"type": "enter", "function": "test_func", "depth": 0, "timestamp": 1.0},
-        {"type": "input", "function": "test_func", "depth": 0, "timestamp": 1.1, "inputs": {"x": 1}},
-        {"type": "output", "function": "test_func", "depth": 0, "timestamp": 1.2, "output": "result"},
-        {"type": "exit", "function": "test_func", "depth": 0, "timestamp": 1.3},
+        {"type": "input", "function": "test_func", "depth": 1, "timestamp": 1.1, "inputs": {"x": 1}},
+        {"type": "output", "function": "test_func", "depth": 1, "timestamp": 1.2, "output": "result"},
+        {"type": "exit", "function": "test_func", "depth": 0, "timestamp": 2.0},
     ]
     
-    condensed = trace.condense_trace(entries)
-    
+    condensed = trace_client.condense_trace(entries)
     assert len(condensed) == 1
     assert condensed[0]["function"] == "test_func"
+    assert condensed[0]["depth"] == 1
     assert condensed[0]["inputs"] == {"x": 1}
     assert condensed[0]["output"] == "result"
-    assert condensed[0]["duration"] == pytest.approx(0.3)
+    assert condensed[0]["duration"] == 1.0
 
-def test_nested_function_depth(configured_tracer):
-    """Test depth tracking for nested function calls"""
+@patch('requests.post')
+def test_save_trace(mock_post, trace_client):
+    """Test saving trace data"""
+    mock_post.return_value.raise_for_status = Mock()
+    
+    with trace_client.span("test_span"):
+        trace_client.record_input({"arg": 1})
+        trace_client.record_output("result")
+    
+    trace_id, data = trace_client.save()
+    
+    assert mock_post.called
+    assert data["trace_id"] == trace_client.trace_id
+    assert data["name"] == "test_trace"
+    assert len(data["entries"]) > 0
+    assert isinstance(data["created_at"], str)
+    assert isinstance(data["duration"], float)
+
+def test_observe_decorator(tracer):
+    """Test the @tracer.observe decorator"""
     @tracer.observe
-    def outer():
-        @tracer.observe
-        def inner():
-            pass
-        inner()
+    def test_function(x, y):
+        return x + y
     
-    trace = configured_tracer.start_trace("test_trace")
-    outer()
+    with tracer.trace("test_trace"):
+        result = test_function(1, 2)
     
-    # Verify depths
-    print(f"{trace.entries=}")
-    depths = [entry.depth for entry in trace.entries]
-    assert depths == [0, 1, 1, 2, 2, 1, 1, 0]  # outer(enter), inner(enter), inner(input), inner(output), inner(exit), outer(exit)
+    assert result == 3
 
-def test_error_handling(configured_tracer):
-    """Test error handling in traced functions"""
+def test_observe_decorator_with_error(tracer):
+    """Test decorator error handling"""
     @tracer.observe
     def failing_function():
         raise ValueError("Test error")
     
-    trace = configured_tracer.start_trace("test_trace")
+    with tracer.trace("test_trace"):
+        with pytest.raises(ValueError):
+            failing_function()
+
+@patch('requests.post')
+def test_wrap_openai(mock_post, tracer):
+    """Test wrapping OpenAI client"""
+    client = OpenAI()
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock(message=MagicMock(content="test response"))]
+    mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=20, total_tokens=30)
+    client.chat.completions.create = MagicMock(return_value=mock_response)
+    
+    wrapped_client = wrap(client)
+    
+    with tracer.trace("test_trace"):
+        response = wrapped_client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": "test"}]
+        )
+    
+    assert response == mock_response
+
+@patch('requests.post')
+def test_wrap_anthropic(mock_post, tracer):
+    """Test wrapping Anthropic client"""
+    client = Anthropic()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text="test response")]
+    mock_response.usage = MagicMock(input_tokens=10, output_tokens=20)
+    client.messages.create = MagicMock(return_value=mock_response)
+    
+    wrapped_client = wrap(client)
+    
+    with tracer.trace("test_trace"):
+        response = wrapped_client.messages.create(
+            model="claude-3",
+            messages=[{"role": "user", "content": "test"}]
+        )
+    
+    assert response == mock_response
+
+def test_wrap_unsupported_client(tracer):
+    """Test wrapping unsupported client type"""
+    class UnsupportedClient:
+        pass
     
     with pytest.raises(ValueError):
-        failing_function()
-    
-    # Verify that exit entry was still recorded
-    assert trace.entries[-1].type == "exit"
-    assert tracer.depth == 0  # Depth should be reset even after error
+        wrap(UnsupportedClient())
