@@ -3,6 +3,7 @@ import requests
 from typing import List, Dict
 from datetime import datetime
 from fastapi import HTTPException
+from rich import print as rprint
 
 from judgeval.data import (
     Example, 
@@ -259,6 +260,7 @@ def run_eval(evaluation_run: EvaluationRun):
 
     info(f"Successfully merged {len(merged_results)} results")
 
+    actual_eval_run_name = evaluation_run.eval_name
     if evaluation_run.log_results:
         try:
             res = requests.post(
@@ -275,6 +277,11 @@ def run_eval(evaluation_run: EvaluationRun):
                 error_message = response_data.get('detail', 'An unknown error occurred.')
                 error(f"Error {res.status_code}: {error_message}")
                 raise Exception(f"Error {res.status_code}: {error_message}")
+            else:
+                actual_eval_run_name = res.json()["eval_results_name"]
+                if "ui_results_url" in res.json():
+                    rprint(f"\n🔍 You can view your evaluation results here: [rgb(106,0,255)]{res.json()['ui_results_url']}[/]\n")
+                
         except requests.exceptions.RequestException as e:
             error(f"Request failed while saving evaluation results to DB: {str(e)}")
             raise JudgmentAPIError(f"Request failed while saving evaluation results to DB: {str(e)}")
@@ -285,7 +292,7 @@ def run_eval(evaluation_run: EvaluationRun):
     for i, result in enumerate(merged_results):
         if not result.scorers_data:  # none of the scorers could be executed on this example
             print(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
-    return merged_results
+    return actual_eval_run_name, merged_results
 
 
 if __name__ == "__main__":
