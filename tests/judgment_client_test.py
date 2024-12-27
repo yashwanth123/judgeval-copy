@@ -128,17 +128,17 @@ if __name__ == "__main__":
     print("*" * 40)
 
     print("Testing dataset creation, pushing, and pulling")
-    test_dataset(client)
+    test_dataset(ui_client)
     print("Dataset creation, pushing, and pulling successful")
     print("*" * 40)
     
     print("Testing evaluation run")
-    test_run_eval(client)
+    test_run_eval(ui_client)
     print("Evaluation run successful")
     print("*" * 40)
     
     print("Testing dataset evaluation")
-    test_evaluate_dataset(client)
+    test_evaluate_dataset(ui_client)
     print("Dataset evaluation successful")
     print("*" * 40)
     
