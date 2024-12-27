@@ -21,7 +21,7 @@ class MockJudge(judgevalJudge):
     def get_model_name(self, *args, **kwargs) -> str:
         return "mock-model"
 
-class TestScorer(CustomScorer):
+class SampleScorer(CustomScorer):
     """Concrete implementation of CustomScorer for testing"""
     def score_example(self, example, *args, **kwargs) -> float:
         return 0.8
@@ -34,7 +34,7 @@ class TestScorer(CustomScorer):
 
 @pytest.fixture
 def basic_scorer():
-    return TestScorer(
+    return SampleScorer(
         score_type="test_scorer",
         threshold=0.7
     )
@@ -46,7 +46,7 @@ def mock_judge():
 class TestCustomScorer:
     def test_initialization(self):
         """Test basic initialization with minimal parameters"""
-        scorer = TestScorer(score_type="test", threshold=0.5)
+        scorer = SampleScorer(score_type="test", threshold=0.5)
         assert scorer.score_type == "test"
         assert scorer.threshold == 0.5
         assert scorer.score is None
@@ -56,7 +56,7 @@ class TestCustomScorer:
     def test_initialization_with_all_params(self):
         """Test initialization with all optional parameters"""
         additional_metadata = {"key": "value"}
-        scorer = TestScorer(
+        scorer = SampleScorer(
             score_type="test",
             threshold=0.5,
             score=0.8,

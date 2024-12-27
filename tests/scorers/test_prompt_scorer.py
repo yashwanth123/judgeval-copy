@@ -26,7 +26,7 @@ def mock_model():
     return model
 
 # Simple implementation of PromptScorer for testing
-class TestScorer(PromptScorer):
+class SampleScorer(PromptScorer):
     def build_measure_prompt(self, example: Example) -> List[dict]:
         return [
             {"role": "system", "content": "Test system prompt"},
@@ -45,18 +45,18 @@ class TestScorer(PromptScorer):
 # Tests for PromptScorer
 class TestPromptScorer:
     def test_init(self):
-        scorer = TestScorer("test_scorer")
+        scorer = SampleScorer("test_scorer")
         assert scorer.name == "test_scorer"
         assert scorer.threshold == 0.5
         assert scorer.include_reason is True
         assert scorer.async_mode is True
         
     def test_init_strict_mode(self):
-        scorer = TestScorer("test_scorer", strict_mode=True)
+        scorer = SampleScorer("test_scorer", strict_mode=True)
         assert scorer.threshold == 1
         
     def test_enforce_prompt_format(self):
-        scorer = TestScorer("test_scorer")
+        scorer = SampleScorer("test_scorer")
         prompt = [{"role": "system", "content": "Base prompt"}]
         schema = {"score": float, "reason": str}
         
@@ -66,13 +66,13 @@ class TestPromptScorer:
         assert '"reason": <reason> (str)' in formatted[0]["content"]
         
     def test_enforce_prompt_format_invalid_input(self):
-        scorer = TestScorer("test_scorer")
+        scorer = SampleScorer("test_scorer")
         with pytest.raises(TypeError):
             scorer.enforce_prompt_format("invalid", {})
             
     @pytest.mark.asyncio
     async def test_a_score_example(self, example, mock_model):
-        scorer = TestScorer("test_scorer")
+        scorer = SampleScorer("test_scorer")
         scorer.model = mock_model
         
         result = await scorer.a_score_example(example, _show_indicator=False)
@@ -80,7 +80,7 @@ class TestPromptScorer:
         assert scorer.reason == "Test reason"
         
     def test_score_example_sync(self, example, mock_model):
-        scorer = TestScorer("test_scorer", async_mode=False)
+        scorer = SampleScorer("test_scorer", async_mode=False)
         scorer.model = mock_model
         
         result = scorer.score_example(example, _show_indicator=False)
