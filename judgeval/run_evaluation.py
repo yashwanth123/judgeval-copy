@@ -290,7 +290,7 @@ def run_eval(evaluation_run: EvaluationRun):
 
 if __name__ == "__main__":
     from judgeval.common.logger import enable_logging, debug, info
-    from judgeval.common.tracer import tracer
+    from judgeval.common.tracer import Tracer
     
     # TODO comeback and delete this, move this to a demo example
     # Eval using a proprietary Judgment Scorer
