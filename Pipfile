@@ -11,12 +11,14 @@ python-dotenv = "==1.0.1"
 together = "*"
 fastapi = "*"
 uvicorn = "*"
-pytest = "*"
 deepeval = "*"
 supabase = "*"
 requests = "*"
 
 [dev-packages]
+pytest = "*"
+pytest-asyncio = "*"
+pytest-mock = "*"
 
 [requires]
 python_version = "3.11"
