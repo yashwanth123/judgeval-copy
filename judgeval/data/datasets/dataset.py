@@ -206,6 +206,9 @@ class EvalDataset:
         We want to collect the examples and ground truths separately which can
         be determined by the "example" column. If the value is True, then it is an
         example, otherwise it is a ground truth.
+
+        We also assume that if there are multiple retrieval contexts or contexts, they are separated by semicolons.
+        This can be adjusted using the `context_delimiter` and `retrieval_context_delimiter` parameters.
         """
         examples, ground_truths = [], []
 

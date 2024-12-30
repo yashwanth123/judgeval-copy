@@ -175,3 +175,68 @@ def test_str_representation(dataset, sample_example, sample_ground_truth):
     assert "EvalDataset" in str_rep
     assert "ground_truths" in str_rep
     assert "examples" in str_rep
+
+# new UTs for dataset UX testing
+
+def test_load_from_json():
+    ex1 = Example(
+        input="test input",
+        actual_output="test output",
+        expected_output="expected output",
+        context=["context1", "context2"],
+        retrieval_context=["retrieval1"],
+        additional_metadata={"key": "value"},
+        tools_called=["tool1"],
+        expected_tools=["tool1", "tool2"],
+        name="test example"
+    )
+
+    gt1 = GroundTruthExample(
+        input="test input",
+        expected_output="expected output",
+        context=["context1"],
+        retrieval_context=["retrieval1"],
+        additional_metadata={"key": "value"},
+        tools_called=["tool1"],
+        expected_tools=["tool1"],
+        comments="test comment",
+        source_file="test.py"
+    )
+
+    dataset = EvalDataset()
+
+    dataset.add_from_json("tests/data/datasets/sample_data/dataset.json")
+    assert dataset.ground_truths == [gt1]
+    assert dataset.examples == [ex1]
+
+
+def test_load_from_csv():
+    ex1 = Example(
+        input="test input",
+        actual_output="test output",
+        expected_output="expected output",
+        context=["context1", "context2"],
+        retrieval_context=["retrieval1"],
+        additional_metadata={"key": "value"},
+        tools_called=["tool1"],
+        expected_tools=["tool1", "tool2"],
+        name="test example"
+    )
+
+    gt1 = GroundTruthExample(
+        input="test input",
+        expected_output="expected output",
+        context=["context1"],
+        retrieval_context=["retrieval1"],
+        additional_metadata={"key": "value"},
+        tools_called=["tool1"],
+        expected_tools=["tool1"],
+        comments="test comment",
+        source_file="test.py"
+    )
+
+    dataset = EvalDataset()
+
+    dataset.add_from_csv("tests/data/datasets/sample_data/dataset.csv")
+    assert dataset.ground_truths == [gt1]
+    assert dataset.examples == [ex1]
