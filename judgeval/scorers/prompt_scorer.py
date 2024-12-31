@@ -46,10 +46,6 @@ class PromptScorer(CustomScorer, BaseModel):
     name: str
     score_type: str
     threshold: float = Field(default=0.5)
-    include_reason: bool = Field(default=True)
-    async_mode: bool = Field(default=True)
-    strict_mode: bool = Field(default=False)
-    verbose_mode: bool = Field(default=False)
     using_native_model: bool = Field(default=True)
     
     def __init__(
@@ -292,7 +288,7 @@ class ClassifierScorer(PromptScorer):
     conversation: List[dict]
     options: Mapping[str, float]
     
-    def __init__(self, name: str, conversation: List[dict], options: Mapping[str, float], 
+    def __init__(self, name: str, slug: str, conversation: List[dict], options: Mapping[str, float], 
                  threshold: float = 0.5, include_reason: bool = True, 
                  async_mode: bool = True, strict_mode: bool = False, verbose_mode: bool = False):
         # Initialize BaseModel first with all fields
@@ -379,7 +375,7 @@ class ClassifierScorer(PromptScorer):
         return self.score >= self.threshold
 
     def __str__(self):
-        return f"ClassifierScorer(name={self.name}, conversation={self.conversation}, threshold={self.threshold}, options={self.options})"
+        return f"ClassifierScorer(name={self.name}, slug={self.slug}, conversation={self.conversation}, threshold={self.threshold}, options={self.options})"
 
     @model_serializer
     def serialize_model(self) -> dict:
