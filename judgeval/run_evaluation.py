@@ -51,13 +51,13 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
         response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump(warnings=True))
         response_data = response.json()
     except Exception as e:
-        print(f"Error: {e}")
+        error(f"Error: {e}")
         details = response.json().get("detail", "No details provided")
         raise JudgmentAPIError("An error occurred while executing the Judgment API request: " + details)
     # Check if the response status code is not 2XX
     if not response.ok:
         error_message = response_data.get('detail', 'An unknown error occurred.')
-        print(f"Error: {error_message=}")
+        error(f"Error: {error_message=}")
         raise JudgmentAPIError(error_message)
     return response_data
 
@@ -206,8 +206,7 @@ def run_eval(evaluation_run: EvaluationRun):
             response_data: List[Dict] = execute_api_eval(api_evaluation_run)  # ScoringResults
             info(f"Received {len(response_data['results'])} results from API")
         except JudgmentAPIError as e:
-            # TODO: Replace with logger.error()
-            print(f"An error occurred while executing the Judgment API request: {str(e)}")
+            error(f"An error occurred while executing the Judgment API request: {str(e)}")
             raise JudgmentAPIError(f"An error occurred while executing the Judgment API request: {str(e)}")
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: {str(e)}")
@@ -287,7 +286,7 @@ def run_eval(evaluation_run: EvaluationRun):
 
     for i, result in enumerate(merged_results):
         if not result.scorers_data:  # none of the scorers could be executed on this example
-            print(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
+            info(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
     return merged_results
 
 
