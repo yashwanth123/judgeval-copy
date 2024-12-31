@@ -68,8 +68,10 @@ def test_run_eval(client: JudgmentClient):
         log_results=True,
     )
 
-    results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
-    print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
+    # print(f"{actual_eval_run_name=}")
+
+    # results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=actual_eval_run_name)
+    # print(f"Evaluation results for {actual_eval_run_name} from database:", results)
 
 
 def test_evaluate_dataset(client: JudgmentClient):
