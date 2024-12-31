@@ -20,7 +20,8 @@
             "expected_tools": [
                 "tool1"
             ],
-            "source_file": "test.py"
+            "source_file": "test.py",
+            "trace_id": "094121"
         }
     ],
     "examples": [
@@ -47,7 +48,8 @@
             ],
             "name": "test example",
             "example_id": null,
-            "timestamp": "20241230_145155"
+            "timestamp": "20241230_160117",
+            "trace_id": "123"
         }
     ]
 }
