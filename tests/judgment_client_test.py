@@ -104,7 +104,7 @@ def test_evaluate_dataset(client: JudgmentClient):
     print(res)
     
 def test_classifier_scorer(client: JudgmentClient):
-    classifier_scorer = client.fetch_classifier_scorer("ToneScorer")
+    classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
     faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
     
     example1 = Example(
