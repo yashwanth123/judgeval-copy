@@ -195,13 +195,14 @@ class EvalDataset:
                 "Please install pandas to use this method. 'pip install pandas'"
             )
         
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(file_path, dtype={'trace_id': str})
         """
         Expect the CSV to have headers
 
         "input", "actual_output", "expected_output", "context", \
         "retrieval_context", "additional_metadata", "tools_called", \
-        "expected_tools", "name", "comments", "source_file", "example"
+        "expected_tools", "name", "comments", "source_file", "example", \
+        "trace_id"
 
         We want to collect the examples and ground truths separately which can
         be determined by the "example" column. If the value is True, then it is an
@@ -222,8 +223,8 @@ class EvalDataset:
                 "additional_metadata": ast.literal_eval(row["additional_metadata"]) if pd.notna(row["additional_metadata"]) else dict(),
                 "tools_called": row["tools_called"].split(";") if pd.notna(row["tools_called"]) else [],
                 "expected_tools": row["expected_tools"].split(";") if pd.notna(row["expected_tools"]) else [],
+                "trace_id": row["trace_id"] if pd.notna(row["trace_id"]) else None
             }
-
             if row["example"]:
                 data["name"] = row["name"] if pd.notna(row["name"]) else None
                 # every Example has `input` and `actual_output` fields
@@ -233,6 +234,7 @@ class EvalDataset:
                 else:
                     raise ValueError("Every example must have an 'input' and 'actual_output' field.")
             else:
+                # GroundTruthExample has `comments` and `source_file` fields
                 data["comments"] = row["comments"] if pd.notna(row["comments"]) else None
                 data["source_file"] = row["source_file"] if pd.notna(row["source_file"]) else None
                 # every GroundTruthExample has `input` field
@@ -284,7 +286,8 @@ class EvalDataset:
                 writer.writerow([
                     "input", "actual_output", "expected_output", "context", \
                     "retrieval_context", "additional_metadata", "tools_called", \
-                    "expected_tools", "name", "comments", "source_file", "example"
+                    "expected_tools", "name", "comments", "source_file", "example", \
+                    "trace_id"
                 ])
                 for e in self.examples:
                     writer.writerow(
@@ -301,6 +304,7 @@ class EvalDataset:
                             None,  # Example does not have comments
                             None,  # Example does not have source file
                             True,  # Adding an Example
+                            e.trace_id
                         ]
                     )
                 
@@ -319,6 +323,7 @@ class EvalDataset:
                             g.comments,
                             g.source_file,
                             False,  # Adding a GroundTruthExample, not an Example
+                            g.trace_id
                         ]
                     )
         else:

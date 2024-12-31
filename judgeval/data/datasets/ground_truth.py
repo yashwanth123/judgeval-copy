@@ -19,6 +19,7 @@ class GroundTruthExample(BaseModel):
     tools_called: Optional[List[str]] = None
     expected_tools: Optional[List[str]] = None
     source_file: Optional[str] = None
+    trace_id: Optional[str] = None
 
     def to_dict(self):
         return {
@@ -32,6 +33,7 @@ class GroundTruthExample(BaseModel):
             "tools_called": self.tools_called,
             "expected_tools": self.expected_tools,
             "source_file": self.source_file,
+            "trace_id": self.trace_id,
         }
     
     def __str__(self):
@@ -46,6 +48,7 @@ class GroundTruthExample(BaseModel):
             f"comments={self.comments}, "
             f"tools_called={self.tools_called}, "
             f"expected_tools={self.expected_tools}, "
-            f"source_file={self.source_file}"
+            f"source_file={self.source_file}, "
+            f"trace_id={self.trace_id}"
             f")"
         )
