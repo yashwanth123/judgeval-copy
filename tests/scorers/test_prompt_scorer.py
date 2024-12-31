@@ -27,6 +27,10 @@ def mock_model():
 
 # Simple implementation of PromptScorer for testing
 class SampleScorer(PromptScorer):
+    def __init__(self, mock_model, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = mock_model
+
     def build_measure_prompt(self, example: Example) -> List[dict]:
         return [
             {"role": "system", "content": "Test system prompt"},
@@ -44,19 +48,19 @@ class SampleScorer(PromptScorer):
 
 # Tests for PromptScorer
 class TestPromptScorer:
-    def test_init(self):
-        scorer = SampleScorer("test_scorer")
+    def test_init(self, mock_model):
+        scorer = SampleScorer(name="test_scorer", mock_model=mock_model)
         assert scorer.name == "test_scorer"
         assert scorer.threshold == 0.5
         assert scorer.include_reason is True
         assert scorer.async_mode is True
         
-    def test_init_strict_mode(self):
-        scorer = SampleScorer("test_scorer", strict_mode=True)
+    def test_init_strict_mode(self, mock_model):
+        scorer = SampleScorer(name="test_scorer", mock_model=mock_model, strict_mode=True)
         assert scorer.threshold == 1
         
-    def test_enforce_prompt_format(self):
-        scorer = SampleScorer("test_scorer")
+    def test_enforce_prompt_format(self, mock_model):
+        scorer = SampleScorer(name="test_scorer", mock_model=mock_model)
         prompt = [{"role": "system", "content": "Base prompt"}]
         schema = {"score": float, "reason": str}
         
@@ -65,23 +69,21 @@ class TestPromptScorer:
         assert '"score": <score> (float)' in formatted[0]["content"]
         assert '"reason": <reason> (str)' in formatted[0]["content"]
         
-    def test_enforce_prompt_format_invalid_input(self):
-        scorer = SampleScorer("test_scorer")
+    def test_enforce_prompt_format_invalid_input(self, mock_model):
+        scorer = SampleScorer(name="test_scorer", mock_model=mock_model)
         with pytest.raises(TypeError):
             scorer.enforce_prompt_format("invalid", {})
             
     @pytest.mark.asyncio
     async def test_a_score_example(self, example, mock_model):
-        scorer = SampleScorer("test_scorer")
-        scorer.model = mock_model
+        scorer = SampleScorer(name="test_scorer", mock_model=mock_model)
         
         result = await scorer.a_score_example(example, _show_indicator=False)
         assert result == 0.8
         assert scorer.reason == "Test reason"
         
     def test_score_example_sync(self, example, mock_model):
-        scorer = SampleScorer("test_scorer", async_mode=False)
-        scorer.model = mock_model
+        scorer = SampleScorer(name="test_scorer", mock_model=mock_model, async_mode=False)
         
         result = scorer.score_example(example, _show_indicator=False)
         assert result == 0.8
@@ -102,18 +104,18 @@ class TestClassifierScorer:
     
     def test_classifier_init(self, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
-            "test_classifier",
-            classifier_conversation,
-            classifier_options
+            name="test_classifier",
+            conversation=classifier_conversation,
+            options=classifier_options
         )
         assert scorer.conversation == classifier_conversation
         assert scorer.options == classifier_options
         
     def test_build_measure_prompt(self, example, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
-            "test_classifier",
-            classifier_conversation,
-            classifier_options
+            name="test_classifier",
+            conversation=classifier_conversation,
+            options=classifier_options
         )
         
         prompt = scorer.build_measure_prompt(example)
@@ -121,9 +123,9 @@ class TestClassifierScorer:
         
     def test_process_response(self, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
-            "test_classifier",
-            classifier_conversation,
-            classifier_options
+            name="test_classifier",
+            conversation=classifier_conversation,
+            options=classifier_options
         )
         
         response = {"choice": "positive", "reason": "Test reason"}
@@ -133,9 +135,9 @@ class TestClassifierScorer:
         
     def test_process_response_invalid_choice(self, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
-            "test_classifier",
-            classifier_conversation,
-            classifier_options
+            name="test_classifier",
+            conversation=classifier_conversation,
+            options=classifier_options
         )
         
         response = {"choice": "invalid", "reason": "Test reason"}
@@ -144,9 +146,9 @@ class TestClassifierScorer:
             
     def test_success_check(self, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
-            "test_classifier",
-            classifier_conversation,
-            classifier_options
+            name="test_classifier",
+            conversation=classifier_conversation,
+            options=classifier_options
         )
         
         scorer.score = 1.0
