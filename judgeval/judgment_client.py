@@ -156,12 +156,12 @@ class JudgmentClient:
         else:
             return False, response.json().get("detail", "Error validating API key")
 
-    def fetch_classifier_scorer(self, scorer_name: str) -> ClassifierScorer:
+    def fetch_classifier_scorer(self, slug: str) -> ClassifierScorer:
         """
         Fetches a classifier scorer configuration from the Judgment API.
 
         Args:
-            scorer_name (str): Name of the custom scorer to fetch
+            slug (str): Slug identifier of the custom scorer to fetch
 
         Returns:
             ClassifierScorer: The configured classifier scorer object
@@ -170,7 +170,7 @@ class JudgmentClient:
             JudgmentAPIError: If the scorer cannot be fetched or doesn't exist
         """
         request_body = {
-            "scorer_name": scorer_name,
+            "slug": slug,
             "judgment_api_key": self.judgment_api_key
         }
         
@@ -179,9 +179,14 @@ class JudgmentClient:
             json=request_body
         )
         
-        if response.status_code != 200:
-            raise JudgmentAPIError(f"Failed to fetch classifier scorer '{scorer_name}': {response.json().get('detail', '')}")
+        if response.status_code == 500:
+            raise JudgmentAPIError(f"The server is temporarily unavailable. Please try your request again in a few moments. Error details: {response.json().get('detail', '')}")
+        elif response.status_code != 200:
+            raise JudgmentAPIError(f"Failed to fetch classifier scorer '{slug}': {response.json().get('detail', '')}")
             
         scorer_config = response.json()
         
-        return ClassifierScorer(**scorer_config)
+        try:
+            return ClassifierScorer(**scorer_config)
+        except Exception as e:
+            raise JudgmentAPIError(f"Failed to create classifier scorer '{slug}' with config {scorer_config}: {str(e)}")
