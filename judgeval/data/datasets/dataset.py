@@ -252,6 +252,7 @@ class EvalDataset:
                 "Please install pandas to use this method. 'pip install pandas'"
             )
         
+        # Pandas naturally reads numbers in data files as ints, not strings (can lead to unexpected behavior)
         df = pd.read_csv(file_path, dtype={'trace_id': str})
         """
         Expect the CSV to have headers
