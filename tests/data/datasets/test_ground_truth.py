@@ -56,6 +56,7 @@ def test_ground_truth_example_to_dict():
         "tools_called": None,
         "expected_tools": None,
         "source_file": None,
+        "trace_id": None
     }
     
     assert example.to_dict() == expected_dict
@@ -79,7 +80,8 @@ def test_ground_truth_example_str_representation():
         "comments=None, "
         "tools_called=None, "
         "expected_tools=None, "
-        "source_file=None)"
+        "source_file=None, "
+        "trace_id=None)"
     )
     
     assert str(example) == expected_str
