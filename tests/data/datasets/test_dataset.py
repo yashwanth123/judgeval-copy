@@ -207,7 +207,20 @@ def test_load_from_json():
 
     dataset.add_from_json("tests/data/datasets/sample_data/dataset.json")
     assert dataset.ground_truths == [gt1]
-    assert dataset.examples == [ex1]
+    
+    # We can't do the same comparison as above because the timestamps are different
+    assert len(dataset.examples) == 1
+    loaded_example = dataset.examples[0]
+    assert loaded_example.input == ex1.input
+    assert loaded_example.actual_output == ex1.actual_output
+    assert loaded_example.expected_output == ex1.expected_output
+    assert loaded_example.context == ex1.context
+    assert loaded_example.retrieval_context == ex1.retrieval_context
+    assert loaded_example.additional_metadata == ex1.additional_metadata
+    assert loaded_example.tools_called == ex1.tools_called
+    assert loaded_example.expected_tools == ex1.expected_tools
+    assert loaded_example.name == ex1.name
+    assert loaded_example.trace_id == ex1.trace_id
 
 
 def test_load_from_csv():
