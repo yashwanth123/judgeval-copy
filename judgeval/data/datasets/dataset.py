@@ -158,7 +158,64 @@ class EvalDataset:
         Adds examples and ground truths from a JSON file.
 
         The format of the JSON file is expected to be a dictionary with two keys: "examples" and "ground_truths". 
-        The value of each key is a list of dictionaries, where each dictionary represents an example or ground truth. 
+        The value of each key is a list of dictionaries, where each dictionary represents an example or ground truth.
+
+        The JSON file is expected to have the following format:
+        {
+            "ground_truths": [
+                {
+                    "input": "test input",
+                    "actual_output": null,
+                    "expected_output": "expected output",
+                    "context": [
+                    "context1"
+                ],
+                "retrieval_context": [
+                    "retrieval1"
+                ],
+                "additional_metadata": {
+                    "key": "value"
+                },
+                "comments": "test comment",
+                "tools_called": [
+                    "tool1"
+                ],
+                "expected_tools": [
+                    "tool1"
+                ],
+                "source_file": "test.py",
+                "trace_id": "094121"
+            }
+        ],
+        "examples": [
+            {
+                "input": "test input",
+                "actual_output": "test output",
+                "expected_output": "expected output",
+                "context": [
+                    "context1",
+                    "context2"
+                ],
+                "retrieval_context": [
+                    "retrieval1"
+                ],
+                "additional_metadata": {
+                    "key": "value"
+                },
+                "tools_called": [
+                    "tool1"
+                ],
+                "expected_tools": [
+                    "tool1",
+                    "tool2"
+                ],
+                "name": "test example",
+                "example_id": null,
+                "timestamp": "20241230_160117",
+                "trace_id": "123"
+            }
+            ]
+        }
         """
         try:
             with open(file_path, "r") as file:
