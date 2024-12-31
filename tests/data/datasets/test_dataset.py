@@ -210,6 +210,8 @@ def test_load_from_json():
 
     dataset.add_from_json("tests/data/datasets/sample_data/dataset.json")
     assert dataset.ground_truths == [gt1]
+
+    # We can't do the same comparison as above because the timestamps are different
     assert len(dataset.examples) == 1
     loaded_example = dataset.examples[0]
     assert loaded_example.input == ex1.input
@@ -256,34 +258,3 @@ def test_load_from_csv():
     dataset.add_from_csv("tests/data/datasets/sample_data/dataset.csv")
     assert dataset.ground_truths == [gt1]
     assert dataset.examples == [ex1]
-
-
-if __name__ == "__main__":
-    ex1 = Example(
-        input="test input",
-        actual_output="test output",
-        expected_output="expected output",
-        context=["context1", "context2"],
-        retrieval_context=["retrieval1"],
-        additional_metadata={"key": "value"},
-        tools_called=["tool1"],
-        expected_tools=["tool1", "tool2"],
-        name="test example",
-        trace_id="123"
-    )
-
-    gt1 = GroundTruthExample(
-        input="test input",
-        expected_output="expected output",
-        context=["context1"],
-        retrieval_context=["retrieval1"],
-        additional_metadata={"key": "value"},
-        tools_called=["tool1"],
-        expected_tools=["tool1"],
-        comments="test comment",
-        source_file="test.py",
-        trace_id="094121"
-    )
-    dataset = EvalDataset(ground_truths=[gt1], examples=[ex1])
-    dataset.save_as("json", "tests/data/datasets/sample_data/", "dataset")
-    dataset.save_as("csv", "tests/data/datasets/sample_data/", "dataset")
