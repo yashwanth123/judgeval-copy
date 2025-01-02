@@ -47,6 +47,10 @@ class PromptScorer(CustomScorer, BaseModel):
     score_type: str
     threshold: float = Field(default=0.5)
     using_native_model: bool = Field(default=True)
+
+    # DO NOT SET THESE FIELDS MANUALLY, THEY ARE SET BY THE SCORE_EXAMPLE METHOD
+    response: Optional[dict] = None
+    result: Optional[float] = None
     
     def __init__(
         self,
@@ -295,6 +299,7 @@ class ClassifierScorer(PromptScorer):
         BaseModel.__init__(
             self,
             name=name,
+            slug=slug,
             score_type=name,
             conversation=conversation,
             options=options,
