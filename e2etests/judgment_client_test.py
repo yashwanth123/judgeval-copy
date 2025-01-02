@@ -105,6 +105,23 @@ def test_evaluate_dataset(client: JudgmentClient):
     )
 
     print(res)
+    
+def test_classifier_scorer(client: JudgmentClient):
+    classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
+    faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    
+    example1 = Example(
+        input="What if these shoes don't fit?",
+        actual_output="We offer a 30-day full refund at no extra cost, you would have known that if you read the website stupid!",
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    )
+    
+    res = client.run_evaluation(
+        examples=[example1],
+        scorers=[classifier_scorer, faithfulness_scorer],
+        model="QWEN",
+    )
+    print(res)
 
 if __name__ == "__main__":
     # Test client functionality
@@ -113,20 +130,24 @@ if __name__ == "__main__":
     print("Client initialized successfully")
     print("*" * 40)
 
-
-    # print("Testing dataset creation, pushing, and pulling")
-    # test_dataset(client)
-    # print("Dataset creation, pushing, and pulling successful")
-    # print("*" * 40)
+    print("Testing dataset creation, pushing, and pulling")
+    test_dataset(ui_client)
+    print("Dataset creation, pushing, and pulling successful")
+    print("*" * 40)
     
     print("Testing evaluation run")
     test_run_eval(ui_client)
     print("Evaluation run successful")
     print("*" * 40)
     
-    # print("Testing dataset evaluation")
-    # test_evaluate_dataset(client)
-    # print("Dataset evaluation successful")
-    # print("*" * 40)
+    print("Testing dataset evaluation")
+    test_evaluate_dataset(ui_client)
+    print("Dataset evaluation successful")
+    print("*" * 40)
     
+    print("Testing classifier scorer")
+    test_classifier_scorer(ui_client)
+    print("Classifier scorer test successful")
+    print("*" * 40)
+
     print("All tests passed successfully")
