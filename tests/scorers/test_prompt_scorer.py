@@ -1,6 +1,7 @@
 import pytest
+from pydantic import BaseModel, Field
 from unittest.mock import MagicMock, AsyncMock
-from typing import List, Dict
+from typing import List, Dict, Any
 
 from judgeval.data import Example
 from judgeval.scorers.prompt_scorer import PromptScorer, ClassifierScorer
@@ -27,6 +28,9 @@ def mock_model():
 
 # Simple implementation of PromptScorer for testing
 class SampleScorer(PromptScorer):
+
+    model: Any = Field(default=None)
+
     def __init__(self, mock_model, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = mock_model
@@ -105,6 +109,7 @@ class TestClassifierScorer:
     def test_classifier_init(self, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
             name="test_classifier",
+            slug="test_classifier_slug",
             conversation=classifier_conversation,
             options=classifier_options
         )
@@ -114,6 +119,7 @@ class TestClassifierScorer:
     def test_build_measure_prompt(self, example, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
             name="test_classifier",
+            slug="test_classifier_slug",
             conversation=classifier_conversation,
             options=classifier_options
         )
@@ -124,6 +130,7 @@ class TestClassifierScorer:
     def test_process_response(self, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
             name="test_classifier",
+            slug="test_classifier_slug",
             conversation=classifier_conversation,
             options=classifier_options
         )
@@ -136,6 +143,7 @@ class TestClassifierScorer:
     def test_process_response_invalid_choice(self, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
             name="test_classifier",
+            slug="test_classifier_slug",
             conversation=classifier_conversation,
             options=classifier_options
         )
@@ -147,6 +155,7 @@ class TestClassifierScorer:
     def test_success_check(self, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
             name="test_classifier",
+            slug="test_classifier_slug",
             conversation=classifier_conversation,
             options=classifier_options
         )
