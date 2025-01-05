@@ -2,7 +2,7 @@ from openai import OpenAI
 from together import Together
 from anthropic import Anthropic
 from judgeval.common.tracer import Tracer, wrap
-
+import os
 import time
 
 # Initialize the tracer and clients
@@ -12,6 +12,11 @@ anthropic_client = wrap(Anthropic())
 
 @judgment.observe
 def make_upper(input):
+    judgment.get_current_trace().async_evaluate(
+        input="What if these shoes don't fit?",
+        actual_output="We offer a 30-day full refund at no extra cost.",
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    )
     return input.upper()
 
 @judgment.observe
