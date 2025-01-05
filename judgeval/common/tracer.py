@@ -13,8 +13,12 @@ from datetime import datetime
 from openai import OpenAI
 from together import Together
 from anthropic import Anthropic
+from typing import Dict
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
+from judgeval.judgment_client import JudgmentClient
+from judgeval.data import Example
+from judgeval.scorers import JudgmentScorer
 
 @dataclass
 class TraceEntry:
@@ -128,6 +132,48 @@ class TraceClient:
                 duration=duration
             ))
             self._current_span = prev_span
+            
+    async def async_evaluate(
+        self,
+        input: Optional[str] = None,
+        actual_output: Optional[str] = None,
+        expected_output: Optional[str] = None,
+        context: Optional[List[str]] = None,
+        tools_called: Optional[List[str]] = None,
+        expected_tools: Optional[List[str]] = None,
+        additional_metadata: Optional[Dict[str, Any]] = None,
+        score_type: Optional[str] = None,
+        threshold: Optional[float] = None,
+        model: Optional[str] = None,
+        log_results: Optional[bool] = False,
+    ):
+        example = Example(
+            input=input,
+            actual_output=actual_output,
+            expected_output=expected_output,
+            context=context,
+            tools_called=tools_called,
+            expected_tools=expected_tools,
+            additional_metadata=additional_metadata
+        )
+        scorer = JudgmentScorer(
+            score_type=score_type,
+            threshold=threshold
+        )
+        print(f"Created an example: {example=}")
+        print(f"Created a scorer: {scorer=}")
+        results = self.client.run_evaluation(
+            examples=[example],
+            scorers=[scorer],
+            model=model,
+            metadata={},
+            log_results=log_results,
+            project_name="",
+            eval_run_name="",
+            trace_id=self.trace_id
+        )
+        
+        print(f"Results: {results=}")
 
     def record_input(self, inputs: dict):
         """Record input parameters for the current span"""
