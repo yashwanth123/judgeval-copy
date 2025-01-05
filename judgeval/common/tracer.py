@@ -103,6 +103,7 @@ class TraceClient:
         self.tracer = tracer
         self.trace_id = trace_id
         self.name = name
+        self.client: JudgmentClient = tracer.client
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
         self._current_span = None
@@ -148,6 +149,7 @@ class TraceClient:
         actual_output: Optional[str] = None,
         expected_output: Optional[str] = None,
         context: Optional[List[str]] = None,
+        retrieval_context: Optional[List[str]] = None,
         tools_called: Optional[List[str]] = None,
         expected_tools: Optional[List[str]] = None,
         additional_metadata: Optional[Dict[str, Any]] = None,
@@ -161,28 +163,39 @@ class TraceClient:
             actual_output=actual_output,
             expected_output=expected_output,
             context=context,
+            retrieval_context=retrieval_context,
             tools_called=tools_called,
             expected_tools=expected_tools,
-            additional_metadata=additional_metadata
+            additional_metadata=additional_metadata,
+            trace_id=self.trace_id
         )
         scorer = JudgmentScorer(
             score_type=score_type,
             threshold=threshold
         )
-        print(f"Created an example: {example=}")
-        print(f"Created a scorer: {scorer=}")
         results = self.client.run_evaluation(
             examples=[example],
             scorers=[scorer],
             model=model,
             metadata={},
             log_results=log_results,
-            project_name="",
-            eval_run_name="",
-            trace_id=self.trace_id
+            project_name="TestSpanLevel",
+            eval_run_name="TestSpanLevel",
         )
         
-        print(f"Results: {results=}")
+        self.record_evaluation(results)
+            
+    def record_evaluation(self, results: List[ScoringResult]):
+        """Record evaluation results for the current span"""
+        if self._current_span:
+            self.add_entry(TraceEntry(
+                type="evaluation",
+                function=self._current_span,
+                depth=self.tracer.depth,
+                message=f"Evaluation results for {self._current_span}",
+                timestamp=time.time(),
+                evaluation_result=results
+            ))
 
     def record_input(self, inputs: dict):
         """Record input parameters for the current span"""
@@ -198,6 +211,8 @@ class TraceClient:
 
     def record_output(self, output: Any):
         """Record output for the current span"""
+        if inspect.iscoroutine(output):
+            print(f"Output is a coroutine: {output=}")
         if self._current_span:
             self.add_entry(TraceEntry(
                 type="output",
@@ -234,6 +249,7 @@ class TraceClient:
         - function: function name
         - inputs: non-None inputs
         - output: non-None outputs
+        - evaluation_result: evaluation results
         - timestamp: first timestamp of the function call
         """
         condensed = []
@@ -249,7 +265,8 @@ class TraceClient:
                     "function": entry["function"],
                     "timestamp": entry["timestamp"],
                     "inputs": None,
-                    "output": None
+                    "output": None,
+                    "evaluation_result": entry["evaluation_result"]
                 }
             
             elif entry["type"] == "exit" and entry["function"] == current_func:
@@ -324,6 +341,7 @@ class Tracer:
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
             
+            self.api_key = api_key
             self.client = JudgmentClient(judgment_api_key=api_key)
             self.depth = 0
             self._current_trace: Optional[TraceClient] = None
