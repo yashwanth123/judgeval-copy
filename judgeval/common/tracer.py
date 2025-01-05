@@ -14,11 +14,13 @@ from openai import OpenAI
 from together import Together
 from anthropic import Anthropic
 from typing import Dict
+import inspect
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import JudgmentScorer
+from judgeval.data.result import ScoringResult
 
 @dataclass
 class TraceEntry:
@@ -31,6 +33,7 @@ class TraceEntry:
         - `exit` is for when a function is exited, represented by `←`
         - `output` is for when a function outputs a value, represented by `Output:`
         - `input` is for function input parameters, represented by `Input:`
+        - `evaluation` is for when a function is evaluated, represented by `Evaluation:`
 
     function: Name of the function being traced
     depth: Indentation level of this trace entry
@@ -38,8 +41,10 @@ class TraceEntry:
     timestamp: Time when this trace entry was created
     duration: For 'exit' entries, how long the function took to execute
     output: For 'output' entries, the value that was output
+    inputs: For 'input' entries, the inputs to the function
+    evaluation_result: For 'evaluation' entries, the result of the evaluation
     """
-    type: Literal['enter', 'exit', 'output', 'input']
+    type: Literal['enter', 'exit', 'output', 'input', 'evaluation']
     function: str
     depth: int
     message: str
@@ -47,7 +52,8 @@ class TraceEntry:
     duration: Optional[float] = None
     output: Any = None
     inputs: dict = None
-
+    evaluation_result: Optional[List[ScoringResult]] = None
+    
     def print_entry(self):
         indent = "  " * self.depth
         if self.type == "enter":
@@ -58,6 +64,8 @@ class TraceEntry:
             print(f"{indent}Output: {self.output}")
         elif self.type == "input":
             print(f"{indent}Input: {self.inputs}")
+        elif self.type == "evaluation":
+            print(f"{indent}Evaluation: {self.evaluation_result}")
     
     def to_dict(self):
         """Convert the trace entry to a dictionary format"""
@@ -85,7 +93,8 @@ class TraceEntry:
             "timestamp": self.timestamp,
             "duration": self.duration,
             "output": output,
-            "inputs": self.inputs if self.inputs else None
+            "inputs": self.inputs if self.inputs else None,
+            "evaluation_result": self.evaluation_result if self.evaluation_result else None
         }
 
 class TraceClient:
