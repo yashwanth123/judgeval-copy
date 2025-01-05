@@ -63,6 +63,19 @@ class JudgmentClient:
             return run_eval(eval)
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
+        
+    def async_run_evaluation(self, evaluation: EvaluationRun) -> List[ScoringResult]:
+        """
+        TODO: Implement async run_eval
+        Asynchronously runs an evaluation of `Example`s using one or more `Scorer`s
+
+        Args:
+            evaluation (EvaluationRun): The evaluation to run
+
+        Returns:
+            List[ScoringResult]: The results of the evaluation
+        """
+        pass
     
     def evaluate_dataset(
         self, 
