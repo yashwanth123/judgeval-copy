@@ -94,7 +94,7 @@ class TraceEntry:
             "duration": self.duration,
             "output": output,
             "inputs": self.inputs if self.inputs else None,
-            "evaluation_result": self.evaluation_result if self.evaluation_result else None
+            "evaluation_result": [result.to_dict() for result in self.evaluation_result] if self.evaluation_result else None
         }
 
 class TraceClient:
@@ -173,7 +173,7 @@ class TraceClient:
             score_type=score_type,
             threshold=threshold
         )
-        results = self.client.run_evaluation(
+        eval_result_name, scoring_results = self.client.run_evaluation(
             examples=[example],
             scorers=[scorer],
             model=model,
@@ -183,7 +183,7 @@ class TraceClient:
             eval_run_name="TestSpanLevel",
         )
         
-        self.record_evaluation(results)
+        self.record_evaluation(scoring_results)
             
     def record_evaluation(self, results: List[ScoringResult]):
         """Record evaluation results for the current span"""
@@ -227,9 +227,26 @@ class TraceClient:
         """Add a trace entry to this trace context"""
         self.entries.append(entry)
         return self
+    
+    def _sort_entries(self):
+        """Sort entries to ensure evaluations appear before exits"""
+        i = 0
+        while i < len(self.entries) - 1:
+            curr = self.entries[i]
+            next_entry = self.entries[i + 1]
+            
+            if (curr.type == "exit" and 
+                next_entry.type == "evaluation"):
+                # Update evaluation entry before swap
+                next_entry.function = curr.function
+                next_entry.depth = curr.depth + 1
+                # Swap the entries
+                self.entries[i], self.entries[i + 1] = self.entries[i + 1], self.entries[i]
+            i += 1
         
     def print(self):
         """Print the complete trace with proper visual structure"""
+        self._sort_entries()
         for entry in self.entries:
             entry.print_entry()
             
@@ -257,6 +274,7 @@ class TraceClient:
         current_entry = None
 
         for entry in entries:
+            print(f"Processing entry: {entry=}")
             if entry["type"] == "enter":
                 # Start of new function call
                 current_func = entry["function"]
@@ -266,7 +284,7 @@ class TraceClient:
                     "timestamp": entry["timestamp"],
                     "inputs": None,
                     "output": None,
-                    "evaluation_result": entry["evaluation_result"]
+                    "evaluation_result": None
                 }
             
             elif entry["type"] == "exit" and entry["function"] == current_func:
@@ -286,6 +304,9 @@ class TraceClient:
                     
                 if entry["type"] == "output" and entry["output"]:
                     current_entry["output"] = entry["output"]
+                    
+                if entry["type"] == "evaluation" and entry["evaluation_result"]:
+                    current_entry["evaluation_result"] = entry["evaluation_result"]
 
         return condensed
 
@@ -296,6 +317,9 @@ class TraceClient:
         """
         # Calculate total elapsed time
         total_duration = self.get_duration()
+        
+        # Sort entries to ensure evaluations appear before exits
+        self._sort_entries()
         
         raw_entries = [entry.to_dict() for entry in self.entries]
         condensed_entries = self.condense_trace(raw_entries)
