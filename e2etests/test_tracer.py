@@ -2,20 +2,27 @@ from openai import OpenAI
 from together import Together
 from anthropic import Anthropic
 from judgeval.common.tracer import Tracer, wrap
+from judgeval.constants import APIScorer
 import os
 import time
-
+import asyncio
 # Initialize the tracer and clients
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
 openai_client = wrap(OpenAI())
 anthropic_client = wrap(Anthropic())
 
 @judgment.observe
-def make_upper(input):
-    judgment.get_current_trace().async_evaluate(
+async def make_upper(input):
+    await judgment.get_current_trace().async_evaluate(
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",
         retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+        expected_output="We offer a 30-day full refund at no extra cost.",
+        expected_tools=["refund"],
+        score_type=APIScorer.FAITHFULNESS,
+        threshold=0.5,
+        model="gpt-4o-mini",
+        log_results=True
     )
     return input.upper()
 
@@ -50,12 +57,20 @@ def make_poem(input):
     
     return make_lower(anthropic_result +  openai_result)
 
-def test_evaluation_mixed(input):
+async def test_evaluation_mixed(input):
     with judgment.trace("test_evaluation") as trace:
-        result = make_poem(make_upper(input))
+        print(f"{trace.save()=}")
+        upper = await make_upper(input)
+        result = make_poem(upper)
 
-    trace.print()
     trace.save()
+    
+    # After trace.save(), then the evaluations should be ran
+    
+    trace.print()
+    
     return result
 
-result3 = test_evaluation_mixed("hello the world is flat")
+if __name__ == "__main__":
+    result3 = asyncio.run(test_evaluation_mixed("hello the world is flat"))
+
