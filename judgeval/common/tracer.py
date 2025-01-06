@@ -66,7 +66,7 @@ class TraceEntry:
         elif self.type == "input":
             print(f"{indent}Input: {self.inputs}")
         elif self.type == "evaluation":
-            print(f"{indent}Evaluation: {self.evaluation_result}")
+            print(f"{indent}Evaluation: {self.evaluation_result} ({self.duration:.3f}s)")
     
     def to_dict(self):
         """Convert the trace entry to a dictionary format"""
@@ -159,6 +159,7 @@ class TraceClient:
         model: Optional[str] = None,
         log_results: Optional[bool] = False,
     ):
+        start_time = time.time()  # Record start time
         example = Example(
             input=input,
             actual_output=actual_output,
@@ -184,18 +185,20 @@ class TraceClient:
             eval_run_name="TestSpanLevel",
         )
         
-        self.record_evaluation(scoring_results)
+        self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation
             
-    def record_evaluation(self, results: List[ScoringResult]):
+    def record_evaluation(self, results: List[ScoringResult], start_time: float):
         """Record evaluation results for the current span"""
         if self._current_span:
+            duration = time.time() - start_time  # Calculate duration from start_time
             self.add_entry(TraceEntry(
                 type="evaluation",
                 function=self._current_span,
                 depth=self.tracer.depth,
                 message=f"Evaluation results for {self._current_span}",
                 timestamp=time.time(),
-                evaluation_result=results
+                evaluation_result=results,
+                duration=duration
             ))
 
     def record_input(self, inputs: dict):
