@@ -173,7 +173,7 @@ class TraceClient:
             score_type=score_type,
             threshold=threshold
         )
-        eval_result_name, scoring_results = self.client.run_evaluation(
+        _, scoring_results = self.client.run_evaluation(
             examples=[example],
             scorers=[scorer],
             model=model,
@@ -229,6 +229,7 @@ class TraceClient:
         return self
     
     def _sort_entries(self):
+        return
         """Sort entries to ensure evaluations appear before exits"""
         i = 0
         while i < len(self.entries) - 1:
@@ -246,7 +247,6 @@ class TraceClient:
         
     def print(self):
         """Print the complete trace with proper visual structure"""
-        self._sort_entries()
         for entry in self.entries:
             entry.print_entry()
             
@@ -274,7 +274,6 @@ class TraceClient:
         current_entry = None
 
         for entry in entries:
-            print(f"Processing entry: {entry=}")
             if entry["type"] == "enter":
                 # Start of new function call
                 current_func = entry["function"]
@@ -319,7 +318,7 @@ class TraceClient:
         total_duration = self.get_duration()
         
         # Sort entries to ensure evaluations appear before exits
-        self._sort_entries()
+        # self._sort_entries()
         
         raw_entries = [entry.to_dict() for entry in self.entries]
         condensed_entries = self.condense_trace(raw_entries)
