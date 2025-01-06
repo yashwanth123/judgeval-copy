@@ -13,6 +13,7 @@ anthropic_client = wrap(Anthropic())
 
 @judgment.observe
 async def make_upper(input):
+    output = input.upper()
     await judgment.get_current_trace().async_evaluate(
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",
@@ -24,10 +25,12 @@ async def make_upper(input):
         model="gpt-4o-mini",
         log_results=True
     )
-    return input.upper()
+    return output
 
 @judgment.observe
 async def make_lower(input):
+    output = input.lower()
+    
     await judgment.get_current_trace().async_evaluate(
         input="How do I reset my password?",
         actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
@@ -42,7 +45,26 @@ async def make_lower(input):
         model="gpt-4o-mini",
         log_results=True
     )
-    return input.lower()
+    return output
+
+@judgment.observe
+def llm_call(input):
+    return "We have a 30 day full refund policy on shoes."
+
+@judgment.observe
+async def answer_user_question(input):
+    output = llm_call(input)
+    await judgment.get_current_trace().async_evaluate(
+        input=input,
+        actual_output=output,
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+        expected_output="We offer a 30-day full refund at no extra cost.",
+        score_type=APIScorer.ANSWER_RELEVANCY,
+        threshold=0.5,
+        model="gpt-4o-mini",
+        log_results=True
+    )
+    return output
 
 @judgment.observe
 async def make_poem(input):
@@ -75,6 +97,7 @@ async def test_evaluation_mixed(input):
     with judgment.trace("test_evaluation") as trace:
         upper = await make_upper(input)
         result = await make_poem(upper)
+        await answer_user_question("What if these shoes don't fit?")
 
     trace.save()
         
@@ -83,5 +106,5 @@ async def test_evaluation_mixed(input):
     return result
 
 if __name__ == "__main__":
-    result3 = asyncio.run(test_evaluation_mixed("hello the world is flat"))
+    asyncio.run(test_evaluation_mixed("hello the world is flat"))
 
