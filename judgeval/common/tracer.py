@@ -458,61 +458,26 @@ def wrap(client: Any) -> Any:
     """
     tracer = Tracer._instance  # Get the global tracer instance
     
-    if isinstance(client, OpenAI) or isinstance(client, Together):
-        original_create = client.chat.completions.create
-    elif isinstance(client, Anthropic):
-        original_create = client.messages.create
-    else:
-        raise ValueError(f"Unsupported client type: {type(client)}")
+    # Get the appropriate configuration for this client type
+    span_name, original_create = _get_client_config(client)
     
     def traced_create(*args, **kwargs):
+        # Skip tracing if no active trace
         if not (tracer and tracer._current_trace):
             return original_create(*args, **kwargs)
 
-        # TODO: this is dangerous and prone to errors in future updates to how the class works.
-        # If we add more model providers here, we need to add support for it here in the span names
-        span_name = "OPENAI_API_CALL" if isinstance(client, OpenAI) else "TOGETHER_API_CALL" if isinstance(client, Together) else "ANTHROPIC_API_CALL"
         with tracer._current_trace.span(span_name) as span:
-            # Record the input based on client type
-            if isinstance(client, (OpenAI, Together)):
-                input_data = {
-                    "model": kwargs.get("model"),
-                    "messages": kwargs.get("messages"),
-                }
-            elif isinstance(client, Anthropic):
-                input_data = {
-                    "model": kwargs.get("model"),
-                    "messages": kwargs.get("messages"),
-                    "max_tokens": kwargs.get("max_tokens")
-                }
-            
+            # Format and record the input parameters
+            input_data = _format_input_data(client, **kwargs)
             span.record_input(input_data)
             
-            # Make the API call
+            # Make the actual API call
             response = original_create(*args, **kwargs)
             
-            # Record the output based on client type
-            if isinstance(client, (OpenAI, Together)):
-                output_data = {
-                    "content": response.choices[0].message.content,
-                    "usage": {
-                        "prompt_tokens": response.usage.prompt_tokens,
-                        "completion_tokens": response.usage.completion_tokens,
-                        "total_tokens": response.usage.total_tokens
-                    }
-                }
-            
-            elif isinstance(client, Anthropic):
-                output_data = {
-                    "content": response.content[0].text,
-                    "usage": {
-                        "input_tokens": response.usage.input_tokens,
-                        "output_tokens": response.usage.output_tokens,
-                        "total_tokens": response.usage.input_tokens + response.usage.output_tokens
-                    }
-                }
-            
+            # Format and record the output
+            output_data = _format_output_data(client, response)
             span.record_output(output_data)
+            
             return response
             
     # Replace the original method with our traced version
@@ -522,3 +487,75 @@ def wrap(client: Any) -> Any:
         client.messages.create = traced_create
         
     return client
+
+# Helper functions for client-specific operations
+
+def _get_client_config(client: ApiClient) -> tuple[str, callable]:
+    """Returns configuration tuple for the given API client.
+    
+    Args:
+        client: An instance of OpenAI, Together, or Anthropic client
+        
+    Returns:
+        tuple: (span_name, create_method)
+            - span_name: String identifier for tracing
+            - create_method: Reference to the client's creation method
+            
+    Raises:
+        ValueError: If client type is not supported
+    """
+    if isinstance(client, OpenAI):
+        return "OPENAI_API_CALL", client.chat.completions.create
+    elif isinstance(client, Together):
+        return "TOGETHER_API_CALL", client.chat.completions.create
+    elif isinstance(client, Anthropic):
+        return "ANTHROPIC_API_CALL", client.messages.create
+    raise ValueError(f"Unsupported client type: {type(client)}")
+
+def _format_input_data(client: ApiClient, **kwargs) -> dict:
+    """Format input parameters based on client type.
+    
+    Extracts relevant parameters from kwargs based on the client type
+    to ensure consistent tracing across different APIs.
+    """
+    if isinstance(client, (OpenAI, Together)):
+        return {
+            "model": kwargs.get("model"),
+            "messages": kwargs.get("messages"),
+        }
+    # Anthropic requires additional max_tokens parameter
+    return {
+        "model": kwargs.get("model"),
+        "messages": kwargs.get("messages"),
+        "max_tokens": kwargs.get("max_tokens")
+    }
+
+def _format_output_data(client: ApiClient, response: Any) -> dict:
+    """Format API response data based on client type.
+    
+    Normalizes different response formats into a consistent structure
+    for tracing purposes.
+    
+    Returns:
+        dict containing:
+            - content: The generated text
+            - usage: Token usage statistics
+    """
+    if isinstance(client, (OpenAI, Together)):
+        return {
+            "content": response.choices[0].message.content,
+            "usage": {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+        }
+    # Anthropic has a different response structure
+    return {
+        "content": response.content[0].text,
+        "usage": {
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+            "total_tokens": response.usage.input_tokens + response.usage.output_tokens
+        }
+    }
