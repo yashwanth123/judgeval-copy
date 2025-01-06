@@ -7,8 +7,8 @@ import functools
 import requests
 import uuid
 from contextlib import contextmanager
-from typing import Optional, Any, List, Literal, Tuple, Generator
-from dataclasses import dataclass
+from typing import Optional, Any, List, Literal, Tuple, Generator, TypeAlias, Union
+from dataclasses import dataclass, field
 from datetime import datetime 
 from openai import OpenAI
 from together import Together
@@ -16,6 +16,9 @@ from anthropic import Anthropic
 from typing import Dict
 import inspect
 import asyncio
+import json
+import warnings
+from pydantic import BaseModel
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
@@ -23,37 +26,31 @@ from judgeval.data import Example
 from judgeval.scorers import JudgmentScorer
 from judgeval.data.result import ScoringResult
 
+# Define type aliases for better code readability and maintainability
+ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic]  # Supported API clients
+TraceEntryType = Literal['enter', 'exit', 'output', 'input', 'evaluation']  # Valid trace entry types
+
 @dataclass
 class TraceEntry:
-    """
-    Represents a single trace entry with its visual representation
+    """Represents a single trace entry with its visual representation.
     
-    Each TraceEntry is a single line in the trace.
-    The `type` field determines the visual representation of the entry.
-        - `enter` is for when a function is entered, represented by `→`
-        - `exit` is for when a function is exited, represented by `←`
-        - `output` is for when a function outputs a value, represented by `Output:`
-        - `input` is for function input parameters, represented by `Input:`
-        - `evaluation` is for when a function is evaluated, represented by `Evaluation:`
-
-    function: Name of the function being traced
-    depth: Indentation level of this trace entry
-    message: Additional message to include in the trace
-    timestamp: Time when this trace entry was created
-    duration: For 'exit' entries, how long the function took to execute
-    output: For 'output' entries, the value that was output
-    inputs: For 'input' entries, the inputs to the function
-    evaluation_result: For 'evaluation' entries, the result of the evaluation
+    Visual representations:
+    - enter: → (function entry)
+    - exit: ← (function exit)
+    - output: Output: (function return value)
+    - input: Input: (function parameters)
+    - evaluation: Evaluation: (evaluation results)
     """
-    type: Literal['enter', 'exit', 'output', 'input', 'evaluation']
-    function: str
-    depth: int
-    message: str
-    timestamp: float
-    duration: Optional[float] = None
-    output: Any = None
-    inputs: dict = None
-    evaluation_result: Optional[List[ScoringResult]] = None
+    type: TraceEntryType
+    function: str  # Name of the function being traced
+    depth: int    # Indentation level for nested calls
+    message: str  # Human-readable description
+    timestamp: float  # Unix timestamp when entry was created
+    duration: Optional[float] = None  # Time taken (for exit/evaluation entries)
+    output: Any = None  # Function output value
+    # Use field() for mutable defaults to avoid shared state issues
+    inputs: dict = field(default_factory=dict)  
+    evaluation_result: Optional[List[ScoringResult]] = field(default=None)
     
     def print_entry(self):
         indent = "  " * self.depth
