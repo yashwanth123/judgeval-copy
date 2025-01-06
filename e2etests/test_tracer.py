@@ -53,7 +53,7 @@ async def make_lower(input):
         tools_called=["authentication"],
         expected_tools=["authentication"],
         additional_metadata={"difficulty": "medium"},
-        score_type=APIScorer.HALLUCINATION,
+        score_type=APIScorer.ANSWER_RELEVANCY,
         threshold=0.5,
         model="gpt-4o-mini",
         log_results=True
@@ -127,6 +127,6 @@ async def test_evaluation_mixed(input):
 
 if __name__ == "__main__":
     # Use a more meaningful test input
-    test_input = "Write a poem about artificial intelligence"
+    test_input = "Write a poem about Nissan R32 GTR"
     asyncio.run(test_evaluation_mixed(test_input))
 
