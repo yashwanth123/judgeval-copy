@@ -27,11 +27,25 @@ async def make_upper(input):
     return input.upper()
 
 @judgment.observe
-def make_lower(input):
+async def make_lower(input):
+    await judgment.get_current_trace().async_evaluate(
+        input="How do I reset my password?",
+        actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        context=["User Account"],
+        retrieval_context=["Password reset instructions"],
+        tools_called=["authentication"],
+        expected_tools=["authentication"],
+        additional_metadata={"difficulty": "medium"},
+        score_type=APIScorer.HALLUCINATION,
+        threshold=0.5,
+        model="gpt-4o-mini",
+        log_results=True
+    )
     return input.lower()
 
 @judgment.observe
-def make_poem(input):
+async def make_poem(input):
     
     # Using Anthropic API
     anthropic_response = anthropic_client.messages.create(
@@ -55,18 +69,15 @@ def make_poem(input):
     openai_result = openai_response.choices[0].message.content
     print(openai_result)
     
-    return make_lower(anthropic_result +  openai_result)
+    return await make_lower(anthropic_result +  openai_result)
 
 async def test_evaluation_mixed(input):
     with judgment.trace("test_evaluation") as trace:
-        print(f"{trace.save()=}")
         upper = await make_upper(input)
-        result = make_poem(upper)
+        result = await make_poem(upper)
 
     trace.save()
-    
-    # After trace.save(), then the evaluations should be ran
-    
+        
     trace.print()
     
     return result
