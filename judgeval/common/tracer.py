@@ -65,24 +65,16 @@ class TraceEntry:
         elif self.type == "evaluation":
             print(f"{indent}Evaluation: {self.evaluation_result} ({self.duration:.3f}s)")
     
-    def to_dict(self):
-        """Convert the trace entry to a dictionary format"""
-        # Try to serialize output to check if it's JSON serializable
+    def to_dict(self) -> dict:
+        """Convert the trace entry to a dictionary format for storage/transmission."""
         try:
-            # If output is a Pydantic model, serialize it
-            from pydantic import BaseModel
-            if isinstance(self.output, BaseModel):
-                output = self.output.model_dump()
-            else:
-                # Test regular JSON serialization
-                import json
-                json.dumps(self.output)
-                output = self.output
+            output = self._serialize_output()
         except (TypeError, OverflowError, ValueError):
-            import warnings
+            # Handle cases where output cannot be serialized
             warnings.warn(f"Output for function {self.function} is not JSON serializable. Setting to None.")
             output = None
 
+        # Build a complete dictionary representation of the trace entry
         return {
             "type": self.type,
             "function": self.function,
@@ -91,9 +83,23 @@ class TraceEntry:
             "timestamp": self.timestamp,
             "duration": self.duration,
             "output": output,
-            "inputs": self.inputs if self.inputs else None,
+            "inputs": self.inputs or None,  # Convert empty dict to None
             "evaluation_result": [result.to_dict() for result in self.evaluation_result] if self.evaluation_result else None
         }
+
+    def _serialize_output(self) -> Any:
+        """Helper method to serialize output data safely.
+        
+        Handles special cases:
+        - Pydantic models are converted using model_dump()
+        - Other objects must be JSON serializable
+        """
+        if isinstance(self.output, BaseModel):
+            return self.output.model_dump()
+        
+        # Verify JSON serialization is possible
+        json.dumps(self.output)
+        return self.output
 
 class TraceClient:
     """Client for managing a single trace context"""
