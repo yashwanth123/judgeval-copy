@@ -97,7 +97,38 @@ TODO
 If you find that none of the ready-made scorers or prompt scorers fit your needs, you can create your own custom scorer. These can be as simple or complex as you need them to be and do not have to use an LLM judge model. Here's an example of computing BLEU scores:
 
 ```
-TODO
+import sacrebleu
+from judgeval.scorers import CustomScorer 
+
+class BLEUScorer(CustomScorer):
+    def __init__(self, threshold: float = 0.5):
+        super().__init__(score_type="BLEU", threshold=threshold)
+
+    def score_example(self, example: Example) -> float:
+        reference = example.expected_output
+        candidate = example.actual_output
+
+        score = sacrebleu.sentence_bleu(candidate, [reference]).score
+        self.score = score
+        return score
+
+    # Async implementation of score_example(). If you have no async logic, you can
+    # just use the synchronous implementation.
+    async def a_score_example(self, example: Example) -> float:
+        return self.score_example(example)
+
+    def success_check(self) -> bool:
+        return self.score >= self.threshold
+
+    @property
+    def __name__(self):
+        return "BLEU"
+
+# example usage 
+example = Example("input"="...", "actual_output"="...", "expected_output"="...")
+scorer = BLEUScorer()
+results = scorer.score_example(example)
+print(results)
 ```
 
 ## Running Multiple Scorers Simultaneously
