@@ -2,16 +2,38 @@ import pytest
 import time
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+from uuid import uuid4
 from openai import OpenAI
 from together import Together
 from anthropic import Anthropic
+import requests
 
 from judgeval.common.tracer import Tracer, TraceEntry, TraceClient, wrap
+from judgeval.judgment_client import JudgmentClient
+from judgeval.common.exceptions import JudgmentAPIError
 
 @pytest.fixture
-def tracer():
+def tracer(mocker):
     """Provide a configured tracer instance"""
-    return Tracer(api_key="test_api_key")
+    
+    # Create the mock response for trace saving (POST)
+    mock_post_response = mocker.Mock(spec=requests.Response)
+    mock_post_response.status_code = 200
+    mock_post_response.json.return_value = {
+        "message": "Trace saved successfully",
+        "trace_id": "test-trace-id"
+    }
+    
+    # Create mocks for POST requests
+    
+    mock_post = mocker.patch('requests.post', autospec=True)
+    mock_post.return_value = mock_post_response
+    
+    # Mock the JudgmentClient
+    mock_judgment_client = mocker.Mock(spec=JudgmentClient)
+    mocker.patch('judgeval.common.tracer.JudgmentClient', return_value=mock_judgment_client)
+    
+    yield Tracer(api_key=str(uuid4()))
 
 @pytest.fixture
 def trace_client(tracer):
@@ -19,12 +41,19 @@ def trace_client(tracer):
     with tracer.trace("test_trace") as client:
         yield client
 
-def test_tracer_singleton():
+def test_tracer_singleton(mocker):
     """Test that Tracer maintains singleton pattern"""
-    tracer1 = Tracer(api_key="test1")
-    tracer2 = Tracer(api_key="test2")
+    # Clear any existing singleton instance first
+    Tracer._instance = None
+    
+    # Mock the JudgmentClient
+    mock_judgment_client = mocker.Mock(spec=JudgmentClient)
+    mocker.patch('judgeval.common.tracer.JudgmentClient', return_value=mock_judgment_client)
+    
+    tracer1 = Tracer(api_key=str(uuid4()))
+    tracer2 = Tracer(api_key=str(uuid4()))
     assert tracer1 is tracer2
-    assert tracer1.api_key == "test2"  # Should have new api_key
+    assert tracer1.api_key == tracer2.api_key
 
 def test_tracer_requires_api_key():
     """Test that Tracer requires an API key"""
@@ -219,3 +248,21 @@ def test_wrap_unsupported_client(tracer):
     
     with pytest.raises(ValueError):
         wrap(UnsupportedClient())
+
+def test_tracer_invalid_api_key(mocker):
+    """Test that Tracer handles invalid API keys"""
+    # Clear the singleton instance first
+    Tracer._instance = None
+    
+    # Create the mock response for invalid API key
+    mock_post_response = mocker.Mock(spec=requests.Response)
+    mock_post_response.status_code = 401
+    mock_post_response.json.return_value = {"detail": "API key is invalid"}
+    mock_post_response.raise_for_status.side_effect = requests.exceptions.HTTPError()
+    
+    # Create mock for POST request
+    mock_post = mocker.patch('requests.post', autospec=True)
+    mock_post.return_value = mock_post_response
+    
+    with pytest.raises(JudgmentAPIError, match="Issue with passed in Judgment API key: API key is invalid"):
+        Tracer(api_key="invalid_key")

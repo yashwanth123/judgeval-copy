@@ -29,7 +29,6 @@ def test_dataset(client: JudgmentClient):
     # PULL
     dataset = client.pull_dataset(alias="test_dataset_5")
     print(dataset)
-    
 
 def test_run_eval(client: JudgmentClient):
 

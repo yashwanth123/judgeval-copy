@@ -7,43 +7,51 @@ import functools
 import requests
 import uuid
 from contextlib import contextmanager
-from typing import Optional, Any, List, Literal, Tuple, Generator
-from dataclasses import dataclass
+from typing import Optional, Any, List, Literal, Tuple, Generator, TypeAlias, Union
+from dataclasses import dataclass, field
 from datetime import datetime 
 from openai import OpenAI
 from together import Together
 from anthropic import Anthropic
+from typing import Dict
+import inspect
+import asyncio
+import json
+import warnings
+from pydantic import BaseModel
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
+from judgeval.judgment_client import JudgmentClient
+from judgeval.data import Example
+from judgeval.scorers import JudgmentScorer
+from judgeval.data.result import ScoringResult
+
+# Define type aliases for better code readability and maintainability
+ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic]  # Supported API clients
+TraceEntryType = Literal['enter', 'exit', 'output', 'input', 'evaluation']  # Valid trace entry types
 
 @dataclass
 class TraceEntry:
-    """
-    Represents a single trace entry with its visual representation
+    """Represents a single trace entry with its visual representation.
     
-    Each TraceEntry is a single line in the trace.
-    The `type` field determines the visual representation of the entry.
-        - `enter` is for when a function is entered, represented by `→`
-        - `exit` is for when a function is exited, represented by `←`
-        - `output` is for when a function outputs a value, represented by `Output:`
-        - `input` is for function input parameters, represented by `Input:`
-
-    function: Name of the function being traced
-    depth: Indentation level of this trace entry
-    message: Additional message to include in the trace
-    timestamp: Time when this trace entry was created
-    duration: For 'exit' entries, how long the function took to execute
-    output: For 'output' entries, the value that was output
+    Visual representations:
+    - enter: → (function entry)
+    - exit: ← (function exit)
+    - output: Output: (function return value)
+    - input: Input: (function parameters)
+    - evaluation: Evaluation: (evaluation results)
     """
-    type: Literal['enter', 'exit', 'output', 'input']
-    function: str
-    depth: int
-    message: str
-    timestamp: float
-    duration: Optional[float] = None
-    output: Any = None
-    inputs: dict = None
-
+    type: TraceEntryType
+    function: str  # Name of the function being traced
+    depth: int    # Indentation level for nested calls
+    message: str  # Human-readable description
+    timestamp: float  # Unix timestamp when entry was created
+    duration: Optional[float] = None  # Time taken (for exit/evaluation entries)
+    output: Any = None  # Function output value
+    # Use field() for mutable defaults to avoid shared state issues
+    inputs: dict = field(default_factory=dict)  
+    evaluation_result: Optional[List[ScoringResult]] = field(default=None)
+    
     def print_entry(self):
         indent = "  " * self.depth
         if self.type == "enter":
@@ -54,25 +62,19 @@ class TraceEntry:
             print(f"{indent}Output: {self.output}")
         elif self.type == "input":
             print(f"{indent}Input: {self.inputs}")
+        elif self.type == "evaluation":
+            print(f"{indent}Evaluation: {self.evaluation_result} ({self.duration:.3f}s)")
     
-    def to_dict(self):
-        """Convert the trace entry to a dictionary format"""
-        # Try to serialize output to check if it's JSON serializable
+    def to_dict(self) -> dict:
+        """Convert the trace entry to a dictionary format for storage/transmission."""
         try:
-            # If output is a Pydantic model, serialize it
-            from pydantic import BaseModel
-            if isinstance(self.output, BaseModel):
-                output = self.output.model_dump()
-            else:
-                # Test regular JSON serialization
-                import json
-                json.dumps(self.output)
-                output = self.output
+            output = self._serialize_output()
         except (TypeError, OverflowError, ValueError):
-            import warnings
+            # Handle cases where output cannot be serialized
             warnings.warn(f"Output for function {self.function} is not JSON serializable. Setting to None.")
             output = None
 
+        # Build a complete dictionary representation of the trace entry
         return {
             "type": self.type,
             "function": self.function,
@@ -81,8 +83,23 @@ class TraceEntry:
             "timestamp": self.timestamp,
             "duration": self.duration,
             "output": output,
-            "inputs": self.inputs if self.inputs else None
+            "inputs": self.inputs or None,  # Convert empty dict to None
+            "evaluation_result": [result.to_dict() for result in self.evaluation_result] if self.evaluation_result else None
         }
+
+    def _serialize_output(self) -> Any:
+        """Helper method to serialize output data safely.
+        
+        Handles special cases:
+        - Pydantic models are converted using model_dump()
+        - Other objects must be JSON serializable
+        """
+        if isinstance(self.output, BaseModel):
+            return self.output.model_dump()
+        
+        # Verify JSON serialization is possible
+        json.dumps(self.output)
+        return self.output
 
 class TraceClient:
     """Client for managing a single trace context"""
@@ -90,6 +107,7 @@ class TraceClient:
         self.tracer = tracer
         self.trace_id = trace_id
         self.name = name
+        self.client: JudgmentClient = tracer.client
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
         self._current_span = None
@@ -128,6 +146,63 @@ class TraceClient:
                 duration=duration
             ))
             self._current_span = prev_span
+            
+    async def async_evaluate(
+        self,
+        input: Optional[str] = None,
+        actual_output: Optional[str] = None,
+        expected_output: Optional[str] = None,
+        context: Optional[List[str]] = None,
+        retrieval_context: Optional[List[str]] = None,
+        tools_called: Optional[List[str]] = None,
+        expected_tools: Optional[List[str]] = None,
+        additional_metadata: Optional[Dict[str, Any]] = None,
+        score_type: Optional[str] = None,
+        threshold: Optional[float] = None,
+        model: Optional[str] = None,
+        log_results: Optional[bool] = False,
+    ):
+        start_time = time.time()  # Record start time
+        example = Example(
+            input=input,
+            actual_output=actual_output,
+            expected_output=expected_output,
+            context=context,
+            retrieval_context=retrieval_context,
+            tools_called=tools_called,
+            expected_tools=expected_tools,
+            additional_metadata=additional_metadata,
+            trace_id=self.trace_id
+        )
+        scorer = JudgmentScorer(
+            score_type=score_type,
+            threshold=threshold
+        )
+        _, scoring_results = self.client.run_evaluation(
+            examples=[example],
+            scorers=[scorer],
+            model=model,
+            metadata={},
+            log_results=log_results,
+            project_name="TestSpanLevel",
+            eval_run_name="TestSpanLevel",
+        )
+        
+        self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation
+            
+    def record_evaluation(self, results: List[ScoringResult], start_time: float):
+        """Record evaluation results for the current span"""
+        if self._current_span:
+            duration = time.time() - start_time  # Calculate duration from start_time
+            self.add_entry(TraceEntry(
+                type="evaluation",
+                function=self._current_span,
+                depth=self.tracer.depth,
+                message=f"Evaluation results for {self._current_span}",
+                timestamp=time.time(),
+                evaluation_result=results,
+                duration=duration
+            ))
 
     def record_input(self, inputs: dict):
         """Record input parameters for the current span"""
@@ -141,17 +216,32 @@ class TraceClient:
                 inputs=inputs
             ))
 
+    async def _update_coroutine_output(self, entry: TraceEntry, coroutine: Any):
+        """Helper method to update the output of a trace entry once the coroutine completes"""
+        try:
+            result = await coroutine
+            entry.output = result
+            return result
+        except Exception as e:
+            entry.output = f"Error: {str(e)}"
+            raise
+
     def record_output(self, output: Any):
         """Record output for the current span"""
         if self._current_span:
-            self.add_entry(TraceEntry(
+            entry = TraceEntry(
                 type="output",
                 function=self._current_span,
                 depth=self.tracer.depth,
                 message=f"Output from {self._current_span}",
                 timestamp=time.time(),
-                output=output
-            ))
+                output="<pending>" if inspect.iscoroutine(output) else output
+            )
+            self.add_entry(entry)
+            
+            if inspect.iscoroutine(output):
+                # Create a task to update the output once the coroutine completes
+                asyncio.create_task(self._update_coroutine_output(entry, output))
 
     def add_entry(self, entry: TraceEntry):
         """Add a trace entry to this trace context"""
@@ -179,6 +269,7 @@ class TraceClient:
         - function: function name
         - inputs: non-None inputs
         - output: non-None outputs
+        - evaluation_result: evaluation results
         - timestamp: first timestamp of the function call
         """
         condensed = []
@@ -194,7 +285,8 @@ class TraceClient:
                     "function": entry["function"],
                     "timestamp": entry["timestamp"],
                     "inputs": None,
-                    "output": None
+                    "output": None,
+                    "evaluation_result": None
                 }
             
             elif entry["type"] == "exit" and entry["function"] == current_func:
@@ -214,6 +306,9 @@ class TraceClient:
                     
                 if entry["type"] == "output" and entry["output"]:
                     current_entry["output"] = entry["output"]
+                    
+                if entry["type"] == "evaluation" and entry["evaluation_result"]:
+                    current_entry["evaluation_result"] = entry["evaluation_result"]
 
         return condensed
 
@@ -263,18 +358,17 @@ class Tracer:
             cls._instance = super(Tracer, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str):
         if not hasattr(self, 'initialized'):
 
             if not api_key:
-                raise ValueError("Tracer must be configured with an API key first")
+                raise ValueError("Tracer must be configured with a Judgment API key")
             
+            self.api_key = api_key
+            self.client = JudgmentClient(judgment_api_key=api_key)
             self.depth = 0
             self._current_trace: Optional[TraceClient] = None
             self.initialized = True
-        
-        if api_key:
-            self.api_key = api_key
         
     @contextmanager
     def trace(self, name: str = None) -> Generator[TraceClient, None, None]:
@@ -287,9 +381,17 @@ class Tracer:
         # Automatically create top-level span
         with trace.span(name or "unnamed_trace") as span:
             try:
+                # Save the trace to the database to handle Evaluations' trace_id referential integrity
+                trace.save()
                 yield trace
             finally:
                 self._current_trace = prev_trace
+                
+    def get_current_trace(self) -> Optional[TraceClient]:
+        """
+        Get the current trace context
+        """
+        return self._current_trace    
 
     def observe(self, func=None, *, name=None):
         """
@@ -302,29 +404,52 @@ class Tracer:
         if func is None:
             return lambda f: self.observe(f, name=name)
         
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            if self._current_trace:
-                span_name = name or func.__name__
+        if asyncio.iscoroutinefunction(func):
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                if self._current_trace:
+                    span_name = name or func.__name__
+                    
+                    with self._current_trace.span(span_name) as span:
+                        # Record inputs
+                        span.record_input({
+                            'args': list(args),
+                            'kwargs': kwargs
+                        })
+                        
+                        # Execute function
+                        result = await func(*args, **kwargs)
+                        
+                        # Record output
+                        span.record_output(result)
+                        
+                        return result
                 
-                with self._current_trace.span(span_name) as span:
-                    # Record inputs
-                    span.record_input({
-                        'args': list(args),
-                        'kwargs': kwargs
-                    })
+                return await func(*args, **kwargs)
+            return async_wrapper
+        else:
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                if self._current_trace:
+                    span_name = name or func.__name__
                     
-                    # Execute function
-                    result = func(*args, **kwargs)
-                    
-                    # Record output
-                    span.record_output(result)
-                    
-                    return result
-            
-            return func(*args, **kwargs)
-            
-        return wrapper
+                    with self._current_trace.span(span_name) as span:
+                        # Record inputs
+                        span.record_input({
+                            'args': list(args),
+                            'kwargs': kwargs
+                        })
+                        
+                        # Execute function
+                        result = func(*args, **kwargs)
+                        
+                        # Record output
+                        span.record_output(result)
+                        
+                        return result
+                
+                return func(*args, **kwargs)
+            return wrapper
 
 def wrap(client: Any) -> Any:
     """
@@ -333,61 +458,26 @@ def wrap(client: Any) -> Any:
     """
     tracer = Tracer._instance  # Get the global tracer instance
     
-    if isinstance(client, OpenAI) or isinstance(client, Together):
-        original_create = client.chat.completions.create
-    elif isinstance(client, Anthropic):
-        original_create = client.messages.create
-    else:
-        raise ValueError(f"Unsupported client type: {type(client)}")
+    # Get the appropriate configuration for this client type
+    span_name, original_create = _get_client_config(client)
     
     def traced_create(*args, **kwargs):
+        # Skip tracing if no active trace
         if not (tracer and tracer._current_trace):
             return original_create(*args, **kwargs)
 
-        # TODO: this is dangerous and prone to errors in future updates to how the class works.
-        # If we add more model providers here, we need to add support for it here in the span names
-        span_name = "OPENAI_API_CALL" if isinstance(client, OpenAI) else "TOGETHER_API_CALL" if isinstance(client, Together) else "ANTHROPIC_API_CALL"
         with tracer._current_trace.span(span_name) as span:
-            # Record the input based on client type
-            if isinstance(client, (OpenAI, Together)):
-                input_data = {
-                    "model": kwargs.get("model"),
-                    "messages": kwargs.get("messages"),
-                }
-            elif isinstance(client, Anthropic):
-                input_data = {
-                    "model": kwargs.get("model"),
-                    "messages": kwargs.get("messages"),
-                    "max_tokens": kwargs.get("max_tokens")
-                }
-            
+            # Format and record the input parameters
+            input_data = _format_input_data(client, **kwargs)
             span.record_input(input_data)
             
-            # Make the API call
+            # Make the actual API call
             response = original_create(*args, **kwargs)
             
-            # Record the output based on client type
-            if isinstance(client, (OpenAI, Together)):
-                output_data = {
-                    "content": response.choices[0].message.content,
-                    "usage": {
-                        "prompt_tokens": response.usage.prompt_tokens,
-                        "completion_tokens": response.usage.completion_tokens,
-                        "total_tokens": response.usage.total_tokens
-                    }
-                }
-            
-            elif isinstance(client, Anthropic):
-                output_data = {
-                    "content": response.content[0].text,
-                    "usage": {
-                        "input_tokens": response.usage.input_tokens,
-                        "output_tokens": response.usage.output_tokens,
-                        "total_tokens": response.usage.input_tokens + response.usage.output_tokens
-                    }
-                }
-            
+            # Format and record the output
+            output_data = _format_output_data(client, response)
             span.record_output(output_data)
+            
             return response
             
     # Replace the original method with our traced version
@@ -397,3 +487,75 @@ def wrap(client: Any) -> Any:
         client.messages.create = traced_create
         
     return client
+
+# Helper functions for client-specific operations
+
+def _get_client_config(client: ApiClient) -> tuple[str, callable]:
+    """Returns configuration tuple for the given API client.
+    
+    Args:
+        client: An instance of OpenAI, Together, or Anthropic client
+        
+    Returns:
+        tuple: (span_name, create_method)
+            - span_name: String identifier for tracing
+            - create_method: Reference to the client's creation method
+            
+    Raises:
+        ValueError: If client type is not supported
+    """
+    if isinstance(client, OpenAI):
+        return "OPENAI_API_CALL", client.chat.completions.create
+    elif isinstance(client, Together):
+        return "TOGETHER_API_CALL", client.chat.completions.create
+    elif isinstance(client, Anthropic):
+        return "ANTHROPIC_API_CALL", client.messages.create
+    raise ValueError(f"Unsupported client type: {type(client)}")
+
+def _format_input_data(client: ApiClient, **kwargs) -> dict:
+    """Format input parameters based on client type.
+    
+    Extracts relevant parameters from kwargs based on the client type
+    to ensure consistent tracing across different APIs.
+    """
+    if isinstance(client, (OpenAI, Together)):
+        return {
+            "model": kwargs.get("model"),
+            "messages": kwargs.get("messages"),
+        }
+    # Anthropic requires additional max_tokens parameter
+    return {
+        "model": kwargs.get("model"),
+        "messages": kwargs.get("messages"),
+        "max_tokens": kwargs.get("max_tokens")
+    }
+
+def _format_output_data(client: ApiClient, response: Any) -> dict:
+    """Format API response data based on client type.
+    
+    Normalizes different response formats into a consistent structure
+    for tracing purposes.
+    
+    Returns:
+        dict containing:
+            - content: The generated text
+            - usage: Token usage statistics
+    """
+    if isinstance(client, (OpenAI, Together)):
+        return {
+            "content": response.choices[0].message.content,
+            "usage": {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+        }
+    # Anthropic has a different response structure
+    return {
+        "content": response.content[0].text,
+        "usage": {
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+            "total_tokens": response.usage.input_tokens + response.usage.output_tokens
+        }
+    }
