@@ -1,0 +1,64 @@
+# Quick Introduction
+
+Judgeval is an evaluation framework for LLM systems. Judgeval is designed for AI teams to build on and iterate on their LLM systems (applications) and was built to
+- Easily unit test LLM systems.
+- Supply a quality control layer for multi-step LLM applications, especially for **agentic systems**.
+- Plug-and-evaluate LLM systems with 10+ research-backed metrics including hallucination detection, RAG retrieval quality, and more.
+- Construct custom evaluation pipelines for your LLM systems.
+- Monitor LLM systems in production using state-of-the-art real-time evaluation foundation models.
+
+
+Additionally, Judgeval integrates natively with Judgment Labs, allowing you to evaluate, regression test, and monitor LLM applications in the cloud.
+
+Judgeval was built from a team of LLM researchers from Stanford, Datadog, and Together AI.
+
+# Installation 
+
+`pip install judgeval`
+
+Judgeval runs evaluations on your local machine. However, you may find it easier to directly run evaluations using Judgment Labs' infrastructure, an all-in-one platform for LLM system evaluation.
+
+# Making a Judgment Key
+
+TODO
+
+
+Tip: Running evaluations on Judgment Labs' infrastructure is recommended for large-scale evaluations. Contact us if you're dealing with sensitive data that has to reside in your private VPCs.
+
+# Create your first evaluation
+
+
+```
+from judgeval.data import Example
+from judgeval.scorers import JudgmentScorer
+from judgeval.judgment_client import JudgmentClient
+from judgeval.constants import APIScorer
+
+client = JudgmentClient()
+
+example = Example(
+    input="What if these shoes don't fit?",
+    actual_output="We offer a 30-day full refund at no extra cost.",
+    retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+)
+
+scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+results = client.run_evaluation(
+    examples=[example],
+    scorers=[scorer],
+    model="gpt-4o",
+)
+print(results)
+```
+
+Congratulations! Your evaluation should have passed. Let's break down what happened.
+
+- The variable `input` mimics a user input and `actual_output` is a placeholder for what your LLM system returns based on the input.
+- The variable `retrieval_context` represents the retrieved context from your knowledge base and `JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)` is a scorer that checks if the output is hallucinated relative to the retrieved context.
+- Scorers give values betweeen 0 - 1 and we set the threshold for this scorer to 0.5 in the context of a unit test. If you are interested measuring rather than testing, you can ignore this threshold and reference the `score` field alone.
+- We chose `gpt-4o` as our judge model for faithfulness. Judgment Labs offers a variety of state-of-the-art judge models for your evaluation needs.
+
+# Create Your First Scorer
+
+
+
