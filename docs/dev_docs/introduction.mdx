@@ -56,9 +56,68 @@ Congratulations! Your evaluation should have passed. Let's break down what happe
 - The variable `input` mimics a user input and `actual_output` is a placeholder for what your LLM system returns based on the input.
 - The variable `retrieval_context` represents the retrieved context from your knowledge base and `JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)` is a scorer that checks if the output is hallucinated relative to the retrieved context.
 - Scorers give values betweeen 0 - 1 and we set the threshold for this scorer to 0.5 in the context of a unit test. If you are interested measuring rather than testing, you can ignore this threshold and reference the `score` field alone.
-- We chose `gpt-4o` as our judge model for faithfulness. Judgment Labs offers a variety of state-of-the-art judge models for your evaluation needs.
+- We chose `gpt-4o` as our judge model for faithfulness. Judgment Labs offers ANY judge model for your evaluation needs.
 
 # Create Your First Scorer
+`judgeval` offers three kinds of LLM scorers for your evaluation needs: ready-made, prompt scorers, and custom scorers.
 
+## Ready-made Scorers
+Judgment Labs provides default implementations of 10+ research-backed metrics covering evaluation needs ranging from hallucination detection to RAG retrieval quality. To create a ready-made scorer, just import it directly from `judgeval.scorers`:
 
+```
+from judgeval.judgment_client import JudgmentClient
+from judgeval.data import Example
+from judgeval.scorers import JudgmentScorer
+from judgeval.constants import APIScorer
+
+client = JudgmentClient()
+example = Example(
+    input="...",
+    actual_output="...",
+    retrieval_context=["..."],
+)
+scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+
+results = client.run_evaluation(
+    examples=[example],
+    scorers=[scorer],
+    model="gpt-4o",
+)
+print(results)
+```
+
+## Prompt Scorers
+`judgeval` allows you to create custom scorers using natural language. These can range from simple judges to powerful evaluators for your LLM systems.
+
+```
+TODO
+```
+
+## Custom Scorers
+If you find that none of the ready-made scorers or prompt scorers fit your needs, you can create your own custom scorer. These can be as simple or complex as you need them to be and do not have to use an LLM judge model. Here's an example of computing BLEU scores:
+
+```
+TODO
+```
+
+## Running Multiple Scorers Simultaneously
+
+If you're interested in measuring multiple metrics at once, you can group scorers together when running evaluations, regardless of the type of scorer.
+
+```
+from judgeval.judgment_client import JudgmentClient
+from judgeval.scorers import JudgmentScorer
+from judgeval.constants import APIScorer
+
+client = JudgmentClient()
+
+faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+summarization_scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.SUMMARIZATION)
+
+results = client.run_evaluation(
+    examples=[example],
+    scorers=[faithfulness_scorer, summarization_scorer],
+    model="gpt-4o",
+)
+```
 
