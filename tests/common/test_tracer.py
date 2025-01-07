@@ -10,17 +10,11 @@ import requests
 
 from judgeval.common.tracer import Tracer, TraceEntry, TraceClient, wrap
 from judgeval.judgment_client import JudgmentClient
+from judgeval.common.exceptions import JudgmentAPIError
 
 @pytest.fixture
 def tracer(mocker):
     """Provide a configured tracer instance"""
-    # Create the mock response for API key validation (GET)
-    mock_get_response = mocker.Mock(spec=requests.Response)
-    mock_get_response.status_code = 200
-    mock_get_response.json.return_value = {
-        "message": "API key is valid",
-        "user_name": "test_user"
-    }
     
     # Create the mock response for trace saving (POST)
     mock_post_response = mocker.Mock(spec=requests.Response)
@@ -30,9 +24,7 @@ def tracer(mocker):
         "trace_id": "test-trace-id"
     }
     
-    # Create mocks for both GET and POST requests
-    mock_get = mocker.patch('requests.get', autospec=True)
-    mock_get.return_value = mock_get_response
+    # Create mocks for POST requests
     
     mock_post = mocker.patch('requests.post', autospec=True)
     mock_post.return_value = mock_post_response
@@ -49,8 +41,15 @@ def trace_client(tracer):
     with tracer.trace("test_trace") as client:
         yield client
 
-def test_tracer_singleton():
+def test_tracer_singleton(mocker):
     """Test that Tracer maintains singleton pattern"""
+    # Clear any existing singleton instance first
+    Tracer._instance = None
+    
+    # Mock the JudgmentClient
+    mock_judgment_client = mocker.Mock(spec=JudgmentClient)
+    mocker.patch('judgeval.common.tracer.JudgmentClient', return_value=mock_judgment_client)
+    
     tracer1 = Tracer(api_key=str(uuid4()))
     tracer2 = Tracer(api_key=str(uuid4()))
     assert tracer1 is tracer2
@@ -252,12 +251,18 @@ def test_wrap_unsupported_client(tracer):
 
 def test_tracer_invalid_api_key(mocker):
     """Test that Tracer handles invalid API keys"""
-    mock_response = mocker.Mock()
-    mock_response.status_code = 401
-    mock_response.json.return_value = {"detail": "API key is invalid"}
-    mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError()
+    # Clear the singleton instance first
+    Tracer._instance = None
     
-    with mocker.patch('requests.get') as mock_get:
-        mock_get.return_value = mock_response
-        with pytest.raises(ValueError, match="Invalid API key"):
-            Tracer(api_key="invalid_key")
+    # Create the mock response for invalid API key
+    mock_post_response = mocker.Mock(spec=requests.Response)
+    mock_post_response.status_code = 401
+    mock_post_response.json.return_value = {"detail": "API key is invalid"}
+    mock_post_response.raise_for_status.side_effect = requests.exceptions.HTTPError()
+    
+    # Create mock for POST request
+    mock_post = mocker.patch('requests.post', autospec=True)
+    mock_post.return_value = mock_post_response
+    
+    with pytest.raises(JudgmentAPIError, match="Issue with passed in Judgment API key: API key is invalid"):
+        Tracer(api_key="invalid_key")
