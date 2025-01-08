@@ -66,6 +66,7 @@ def test_run_eval(client: JudgmentClient):
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
         log_results=True,
+        override=False,
     )
 
     print(f"{actual_eval_run_name=}")

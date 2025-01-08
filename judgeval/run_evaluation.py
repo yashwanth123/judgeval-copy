@@ -18,6 +18,7 @@ from judgeval.scorers import (
 from judgeval.scorers.score import a_execute_scoring
 
 from judgeval.constants import (
+    ROOT_API,
     JUDGMENT_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
     APIScorer,
@@ -56,6 +57,7 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
         details = response.json().get("detail", "No details provided")
         raise JudgmentAPIError("An error occurred while executing the Judgment API request: " + details)
     # Check if the response status code is not 2XX
+    # Add check for the duplicate eval run name
     if not response.ok:
         error_message = response_data.get('detail', 'An unknown error occurred.')
         error(f"Error: {error_message=}")
@@ -128,7 +130,7 @@ def check_missing_scorer_data(results: List[ScoringResult]) -> List[ScoringResul
             )
     return results
 
-def run_eval(evaluation_run: EvaluationRun):
+def run_eval(evaluation_run: EvaluationRun, override: bool = False):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
