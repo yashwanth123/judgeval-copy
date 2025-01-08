@@ -11,6 +11,8 @@ from judgeval.judges import TogetherJudge
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
 from dotenv import load_dotenv
+import random
+import string
 
 load_dotenv()
 
@@ -85,8 +87,9 @@ def test_override_eval(client: JudgmentClient):
     scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
 
     PROJECT_NAME = "test_eval_run_naming_collisions"
-    EVAL_RUN_NAME = "hehexd"
+    EVAL_RUN_NAME = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
 
+    # First run should succeed
     client.run_evaluation(
         examples=[example1],
         scorers=[scorer],
@@ -98,6 +101,7 @@ def test_override_eval(client: JudgmentClient):
         override=False,
     )
     
+    # Second run with log_results=False should succeed
     client.run_evaluation(
         examples=[example1],
         scorers=[scorer],
@@ -109,16 +113,21 @@ def test_override_eval(client: JudgmentClient):
         override=False,
     )
     
-    client.run_evaluation(
-        examples=[example1],
-        scorers=[scorer],
-        model="QWEN",
-        metadata={"batch": "test"},
-        project_name=PROJECT_NAME,
-        eval_run_name=EVAL_RUN_NAME,
-        log_results=True,
-        override=True,
-    )
+    # Third run with override=True should succeed
+    try:
+        client.run_evaluation(
+            examples=[example1],
+            scorers=[scorer],
+            model="QWEN",
+            metadata={"batch": "test"},
+            project_name=PROJECT_NAME,
+            eval_run_name=EVAL_RUN_NAME,
+            log_results=True,
+            override=True,
+        )
+    except ValueError as e:
+        print(f"Unexpected error in override run: {e}")
+        raise
     
     # Final non-override run should fail
     try:
@@ -132,8 +141,10 @@ def test_override_eval(client: JudgmentClient):
             log_results=True,
             override=False,
         )
-        assert False, "Expected ValueError was not raised"
+        raise AssertionError("Expected ValueError was not raised")
     except ValueError as e:
+        if "already exists" not in str(e):
+            raise
         print(f"Successfully caught expected error: {e}")
     
     
