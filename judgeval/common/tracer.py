@@ -29,7 +29,7 @@ from judgeval.data.result import ScoringResult
 # Define type aliases for better code readability and maintainability
 ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic]  # Supported API clients
 TraceEntryType = Literal['enter', 'exit', 'output', 'input', 'evaluation']  # Valid trace entry types
-
+SpanType = Literal['span', 'tool', 'llm', 'evaluation']
 @dataclass
 class TraceEntry:
     """Represents a single trace entry with its visual representation.
@@ -49,7 +49,8 @@ class TraceEntry:
     duration: Optional[float] = None  # Time taken (for exit/evaluation entries)
     output: Any = None  # Function output value
     # Use field() for mutable defaults to avoid shared state issues
-    inputs: dict = field(default_factory=dict)  
+    inputs: dict = field(default_factory=dict)
+    span_type: SpanType = "span"
     evaluation_result: Optional[List[ScoringResult]] = field(default=None)
     
     def print_entry(self):
@@ -110,10 +111,11 @@ class TraceClient:
         self.client: JudgmentClient = tracer.client
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
+        self.span_type = None
         self._current_span = None
         
     @contextmanager
-    def span(self, name: str):
+    def span(self, name: str, span_type: SpanType = "span"):
         """Context manager for creating a trace span"""
         start_time = time.time()
         
@@ -123,7 +125,8 @@ class TraceClient:
             function=name,
             depth=self.tracer.depth,
             message=name,
-            timestamp=start_time
+            timestamp=start_time,
+            span_type=span_type
         ))
         
         self.tracer.depth += 1
@@ -143,7 +146,8 @@ class TraceClient:
                 depth=self.tracer.depth,
                 message=f"← {name}",
                 timestamp=time.time(),
-                duration=duration
+                duration=duration,
+                span_type=span_type
             ))
             self._current_span = prev_span
             
@@ -201,7 +205,8 @@ class TraceClient:
                 message=f"Evaluation results for {self._current_span}",
                 timestamp=time.time(),
                 evaluation_result=results,
-                duration=duration
+                duration=duration,
+                span_type="evaluation"
             ))
 
     def record_input(self, inputs: dict):
@@ -213,7 +218,8 @@ class TraceClient:
                 depth=self.tracer.depth,
                 message=f"Inputs to {self._current_span}",
                 timestamp=time.time(),
-                inputs=inputs
+                inputs=inputs,
+                span_type=self.span_type
             ))
 
     async def _update_coroutine_output(self, entry: TraceEntry, coroutine: Any):
@@ -235,7 +241,8 @@ class TraceClient:
                 depth=self.tracer.depth,
                 message=f"Output from {self._current_span}",
                 timestamp=time.time(),
-                output="<pending>" if inspect.iscoroutine(output) else output
+                output="<pending>" if inspect.iscoroutine(output) else output,
+                span_type=self.span_type
             )
             self.add_entry(entry)
             
@@ -261,43 +268,40 @@ class TraceClient:
     
     def condense_trace(self, entries: List[dict]) -> List[dict]:
         """
-        Condenses trace entries into a single entry for each function.
-        
-        Groups entries by function call and combines them into a single entry with:
-        - depth: deepest depth for this function call
-        - duration: time from first to last timestamp 
-        - function: function name
-        - inputs: non-None inputs
-        - output: non-None outputs
-        - evaluation_result: evaluation results
-        - timestamp: first timestamp of the function call
+        Condenses trace entries into a single entry for each function call.
         """
         condensed = []
-        current_func = None
-        current_entry = None
+        active_functions = []  # Stack to track nested function calls
+        function_entries = {}  # Store entries for each function
 
         for entry in entries:
+            function = entry["function"]
+            
             if entry["type"] == "enter":
-                # Start of new function call
-                current_func = entry["function"]
-                current_entry = {
+                # Initialize new function entry
+                function_entries[function] = {
                     "depth": entry["depth"],
-                    "function": entry["function"],
+                    "function": function,
                     "timestamp": entry["timestamp"],
                     "inputs": None,
                     "output": None,
-                    "evaluation_result": None
+                    "evaluation_result": None,
+                    "span_type": entry.get("span_type", "span")
                 }
-            
-            elif entry["type"] == "exit" and entry["function"] == current_func:
-                # End of current function
+                active_functions.append(function)
+                
+            elif entry["type"] == "exit" and function in active_functions:
+                # Complete function entry
+                current_entry = function_entries[function]
                 current_entry["duration"] = entry["timestamp"] - current_entry["timestamp"]
                 condensed.append(current_entry)
-                current_func = None
-                current_entry = None
-            
-            elif current_func and entry["function"] == current_func:
-                # Additional entries for current function
+                active_functions.remove(function)
+                del function_entries[function]
+                
+            elif function in active_functions:
+                # Update existing function entry with additional data
+                current_entry = function_entries[function]
+                
                 if entry["depth"] > current_entry["depth"]:
                     current_entry["depth"] = entry["depth"]
                 
@@ -310,6 +314,9 @@ class TraceClient:
                 if entry["type"] == "evaluation" and entry["evaluation_result"]:
                     current_entry["evaluation_result"] = entry["evaluation_result"]
 
+        # Sort by timestamp
+        condensed.sort(key=lambda x: x["timestamp"])
+        # print(f"condensed: {condensed=}")
         return condensed
 
     def save(self) -> Tuple[str, dict]:
@@ -393,7 +400,7 @@ class Tracer:
         """
         return self._current_trace    
 
-    def observe(self, func=None, *, name=None):
+    def observe(self, func=None, *, name=None, span_type="span"):
         """
         Decorator to trace function execution with detailed entry/exit information.
         
@@ -410,7 +417,10 @@ class Tracer:
                 if self._current_trace:
                     span_name = name or func.__name__
                     
-                    with self._current_trace.span(span_name) as span:
+                    with self._current_trace.span(span_name, span_type=span_type) as span:
+                        # Set the span type
+                        span.span_type = span_type
+                        
                         # Record inputs
                         span.record_input({
                             'args': list(args),
@@ -433,7 +443,10 @@ class Tracer:
                 if self._current_trace:
                     span_name = name or func.__name__
                     
-                    with self._current_trace.span(span_name) as span:
+                    with self._current_trace.span(span_name, span_type=span_type) as span:
+                        # Set the span type
+                        span.span_type = span_type
+                        
                         # Record inputs
                         span.record_input({
                             'args': list(args),
@@ -466,7 +479,7 @@ def wrap(client: Any) -> Any:
         if not (tracer and tracer._current_trace):
             return original_create(*args, **kwargs)
 
-        with tracer._current_trace.span(span_name) as span:
+        with tracer._current_trace.span(span_name, span_type="llm") as span:
             # Format and record the input parameters
             input_data = _format_input_data(client, **kwargs)
             span.record_input(input_data)
