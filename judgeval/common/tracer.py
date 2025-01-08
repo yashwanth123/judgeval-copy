@@ -252,6 +252,8 @@ class TraceClient:
 
     def add_entry(self, entry: TraceEntry):
         """Add a trace entry to this trace context"""
+        if entry.type == "enter":
+            print(f"Adding entry with span_type: {entry.span_type=}, {entry=}")
         self.entries.append(entry)
         return self
         
@@ -400,16 +402,17 @@ class Tracer:
         """
         return self._current_trace    
 
-    def observe(self, func=None, *, name=None, span_type="span"):
+    def observe(self, func=None, *, name=None, span_type: SpanType = "span"):
         """
         Decorator to trace function execution with detailed entry/exit information.
         
         Args:
             func: The function to trace
             name: Optional custom name for the function
+            span_type: The type of span to use for this observation (default: "span")
         """
         if func is None:
-            return lambda f: self.observe(f, name=name)
+            return lambda f: self.observe(f, name=name, span_type=span_type)
         
         if asyncio.iscoroutinefunction(func):
             @functools.wraps(func)
@@ -417,6 +420,7 @@ class Tracer:
                 if self._current_trace:
                     span_name = name or func.__name__
                     
+                    print(f"span_name: {span_name=}, {span_type=}")
                     with self._current_trace.span(span_name, span_type=span_type) as span:
                         # Set the span type
                         span.span_type = span_type
@@ -443,6 +447,7 @@ class Tracer:
                 if self._current_trace:
                     span_name = name or func.__name__
                     
+                    print(f"span_name: {span_name=}, {span_type=}")
                     with self._current_trace.span(span_name, span_type=span_type) as span:
                         # Set the span type
                         span.span_type = span_type
