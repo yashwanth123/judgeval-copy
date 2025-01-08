@@ -304,9 +304,6 @@ class TraceClient:
                 # Update existing function entry with additional data
                 current_entry = function_entries[function]
                 
-                if entry["depth"] > current_entry["depth"]:
-                    current_entry["depth"] = entry["depth"]
-                
                 if entry["type"] == "input" and entry["inputs"]:
                     current_entry["inputs"] = entry["inputs"]
                     
