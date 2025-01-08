@@ -167,7 +167,7 @@ def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_k
         error(f"Failed to check if eval run name exists: {str(e)}")
         raise JudgmentAPIError(f"Failed to check if eval run name exists: {str(e)}")
 
-def run_eval(evaluation_run: EvaluationRun, override: bool = False):
+def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[ScoringResult]:
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
@@ -310,7 +310,6 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False):
 
     info(f"Successfully merged {len(merged_results)} results")
 
-    actual_eval_run_name = evaluation_run.eval_name
     if evaluation_run.log_results:
         try:
             res = requests.post(
@@ -328,7 +327,6 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False):
                 error(f"Error {res.status_code}: {error_message}")
                 raise Exception(f"Error {res.status_code}: {error_message}")
             else:
-                actual_eval_run_name = res.json()["eval_results_name"]
                 if "ui_results_url" in res.json():
                     rprint(f"\n🔍 You can view your evaluation results here: [rgb(106,0,255)]{res.json()['ui_results_url']}[/]\n")
                 
@@ -342,7 +340,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False):
     for i, result in enumerate(merged_results):
         if not result.scorers_data:  # none of the scorers could be executed on this example
             info(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
-    return actual_eval_run_name, merged_results
+    return merged_results
 
 
 if __name__ == "__main__":
