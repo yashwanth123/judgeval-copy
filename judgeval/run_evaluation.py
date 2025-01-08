@@ -130,6 +130,43 @@ def check_missing_scorer_data(results: List[ScoringResult]) -> List[ScoringResul
             )
     return results
 
+def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_key: str) -> None:
+    """
+    Checks if an evaluation run name already exists for a given project.
+
+    Args:
+        eval_name (str): Name of the evaluation run
+        project_name (str): Name of the project
+        judgment_api_key (str): API key for authentication
+
+    Raises:
+        ValueError: If the evaluation run name already exists
+        JudgmentAPIError: If there's an API error during the check
+    """
+    try:
+        response = requests.post(
+            f"{ROOT_API}/eval-run-name-exists/",
+            json={
+                "eval_name": eval_name,
+                "project_name": project_name,
+                "judgment_api_key": judgment_api_key,
+            }
+        )
+        
+        if response.status_code == 409:
+            error(f"Evaluation run name '{eval_name}' already exists for this project")
+            raise ValueError(f"Evaluation run name '{eval_name}' already exists for this project")
+        
+        if not response.ok:
+            response_data = response.json()
+            error_message = response_data.get('detail', 'An unknown error occurred.')
+            error(f"Error checking eval run name: {error_message}")
+            raise JudgmentAPIError(error_message)
+            
+    except requests.exceptions.RequestException as e:
+        error(f"Failed to check if eval run name exists: {str(e)}")
+        raise JudgmentAPIError(f"Failed to check if eval run name exists: {str(e)}")
+
 def run_eval(evaluation_run: EvaluationRun, override: bool = False):
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
@@ -153,31 +190,13 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False):
         List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
     """
     
-    # Call endpoint to check to see if eval run name exists
-    if not override:
-        try:
-            response = requests.post(
-                f"{ROOT_API}/eval-run-name-exists",
-                json={
-                    "eval_name": evaluation_run.eval_name,
-                    "project_name": evaluation_run.project_name,
-                    "judgment_api_key": evaluation_run.judgment_api_key,
-                }
-            )
-            
-            if response.status_code == 409:
-                error(f"Evaluation run name '{evaluation_run.eval_name}' already exists for this project")
-                raise ValueError(f"Evaluation run name '{evaluation_run.eval_name}' already exists for this project")
-            
-            if not response.ok:
-                response_data = response.json()
-                error_message = response_data.get('detail', 'An unknown error occurred.')
-                error(f"Error checking eval run name: {error_message}")
-                raise JudgmentAPIError(error_message)
-                
-        except requests.exceptions.RequestException as e:
-            error(f"Failed to check if eval run name exists: {str(e)}")
-            raise JudgmentAPIError(f"Failed to check if eval run name exists: {str(e)}")
+    # Call endpoint to check to see if eval run name exists (if we DON'T want to override and DO want to log results)
+    if not override and evaluation_run.log_results:
+        check_eval_run_name_exists(
+            evaluation_run.eval_name,
+            evaluation_run.project_name,
+            evaluation_run.judgment_api_key
+        )
     
     # Set example IDs if not already set
     debug("Initializing examples with IDs and timestamps")
