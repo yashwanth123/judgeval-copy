@@ -17,7 +17,7 @@ judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
 openai_client = wrap(OpenAI())
 anthropic_client = wrap(Anthropic())
 
-@judgment.observe
+@judgment.observe(span_type="tool")
 async def make_upper(input: str) -> str:
     """Convert input to uppercase and evaluate using judgment API.
     
@@ -40,7 +40,7 @@ async def make_upper(input: str) -> str:
     )
     return output
 
-@judgment.observe
+@judgment.observe(span_type="tool")
 async def make_lower(input):
     output = input.lower()
     
@@ -60,11 +60,13 @@ async def make_lower(input):
     )
     return output
 
-@judgment.observe
+@judgment.observe(span_type="llm")
 def llm_call(input):
     return "We have a 30 day full refund policy on shoes."
 
-@judgment.observe
+# add to observe, specify the type
+# @judgment.observe(type="llm"), (type="tool"), type default is span
+@judgment.observe(span_type="tool")
 async def answer_user_question(input):
     output = llm_call(input)
     await judgment.get_current_trace().async_evaluate(
@@ -79,7 +81,7 @@ async def answer_user_question(input):
     )
     return output
 
-@judgment.observe
+@judgment.observe(span_type="tool")
 async def make_poem(input: str) -> str:
     """Generate a poem using both Anthropic and OpenAI APIs.
     
