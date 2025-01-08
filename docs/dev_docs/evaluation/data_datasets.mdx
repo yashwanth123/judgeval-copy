@@ -1,0 +1,21 @@
+# Datasets 
+
+## Quick Summary
+In most scenarios, you will have multiple `Example`s that you want to evaluate together.  
+In `judgeval`, an evaluation dataset (`EvalDataset`) is a collection of `Example`s and/or `GroundTruthExample`s that you can scale evaluations across.
+
+`Tip`:
+
+A `GroundTruthExample` is a specific type of `Example` that do not require the `actual_output` field. This is useful for creating datasets that can be dynamically updated at evaluation time by running your workflow on the `GroundTruthExample`s to create `Example`s.
+
+## Creating a Dataset
+
+## Saving/Loading Datasets
+
+### From JSON
+
+### From CSV
+
+### From Judgment
+
+## Evaluate On Your Dataset
