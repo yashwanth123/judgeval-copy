@@ -55,8 +55,8 @@ def test_run_eval(client: JudgmentClient):
     scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
     c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
-    PROJECT_NAME = "test_project_JOSEPH"
-    EVAL_RUN_NAME = "yomadude"
+    PROJECT_NAME = "JuniperChatbot"
+    EVAL_RUN_NAME = "UseNewBasePrompt"
     
     actual_eval_run_name, _ = client.run_evaluation(
         examples=[example1, example2],
@@ -67,8 +67,6 @@ def test_run_eval(client: JudgmentClient):
         eval_run_name=EVAL_RUN_NAME,
         log_results=True,
     )
-
-    print(f"{actual_eval_run_name=}")
 
     results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=actual_eval_run_name)
     print(f"Evaluation results for {actual_eval_run_name} from database:", results)
@@ -106,7 +104,7 @@ def test_evaluate_dataset(client: JudgmentClient):
     print(res)
     
 def test_classifier_scorer(client: JudgmentClient):
-    classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
+    classifier_scorer = client.fetch_classifier_scorer("tonescorer-b6e4")
     faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
     
     example1 = Example(
