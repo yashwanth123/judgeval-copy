@@ -5,7 +5,7 @@ In practice, this scorer helps determine whether your RAG pipeline's generator p
 
 `Tip`: 
 
-There are many ways to measure the quality of your RAG pipeline. `judgeval` offers a suite of default scorers to construct a comprehensive 
+There are many factors to consider when evaluating the quality of your RAG pipeline. `judgeval` offers a suite of default scorers to construct a comprehensive 
 evaluation of each RAG component. Check out our guide on RAG system evaluation for a deeper dive! TODO add link here.
 
 
@@ -14,12 +14,6 @@ evaluation of each RAG component. Check out our guide on RAG system evaluation f
 To run the answer relevancy scorer, you must include the following fields in your `Example`:
 - `input`
 - `actual_output`
-
-## Scorer Breakdown
-
-`AnswerRelevancy` scores are calculated by extracting statements made in the `actual_output` and classifying how many are relevant to the `input`.
-
-// ... existing content ...
 
 ## Scorer Breakdown
 
