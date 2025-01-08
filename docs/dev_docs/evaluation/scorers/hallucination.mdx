@@ -1,0 +1,48 @@
+# Hallucination
+
+The `Hallucination` scorer is a default LLM judge scorer that measures how much the `actual_output` contains information that contradicts the `context`.
+
+`Note:` 
+
+If you're building an app with a RAG pipeline, you should try the `Faithfulness` scorer instead. 
+The `Hallucination` scorer is concerned with `context`, the ideal retrieved context, while `Faithfulness` is concerned with `retrieval_context`, the actual retrieved context. 
+
+## Required Fields
+
+To run the `Hallucination` scorer, you must include the following fields in your `Example`:
+- `input`
+- `actual_output`
+- `context`
+
+## Scorer Breakdown
+
+`Hallucination` scores are calculated by determining for each document in `context`, whether there are any contradictions to `actual_output`. 
+The score is then calculated as:
+
+$$
+\text{Hallucination} = \frac{\text{Number of Contradicted Documents}}{\text{Total Number of Documents}}
+$$
+
+## Sample Implementation
+
+```
+from judgeval.judgment_client import JudgmentClient
+from judgeval.data import Example
+from judgeval.scorers import JudgmentScorer
+from judgeval.constants import APIScorer
+
+client = JudgmentClient()
+example = Example(
+    input="...",
+    actual_output="...",
+)
+# supply your own threshold
+scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.HALLUCINATION)
+
+results = client.run_evaluation(
+    examples=[example],
+    scorers=[scorer],
+    model="gpt-4o",
+)
+print(results)
+```
