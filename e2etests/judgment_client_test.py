@@ -74,6 +74,69 @@ def test_run_eval(client: JudgmentClient):
     results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=actual_eval_run_name)
     print(f"Evaluation results for {actual_eval_run_name} from database:", results)
 
+def test_override_eval(client: JudgmentClient):
+    example1 = Example(
+        input="What if these shoes don't fit?",
+        actual_output="We offer a 30-day full refund at no extra cost.",
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+        trace_id="2231abe3-e7e0-4909-8ab7-b4ab60b645c6"
+    )
+    
+    scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+
+    PROJECT_NAME = "test_eval_run_naming_collisions"
+    EVAL_RUN_NAME = "hehexd"
+
+    client.run_evaluation(
+        examples=[example1],
+        scorers=[scorer],
+        model="QWEN",
+        metadata={"batch": "test"},
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        log_results=True,
+        override=False,
+    )
+    
+    client.run_evaluation(
+        examples=[example1],
+        scorers=[scorer],
+        model="QWEN",
+        metadata={"batch": "test"},
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        log_results=False,
+        override=False,
+    )
+    
+    client.run_evaluation(
+        examples=[example1],
+        scorers=[scorer],
+        model="QWEN",
+        metadata={"batch": "test"},
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        log_results=True,
+        override=True,
+    )
+    
+    # Final non-override run should fail
+    try:
+        client.run_evaluation(
+            examples=[example1],
+            scorers=[scorer],
+            model="QWEN",
+            metadata={"batch": "test"},
+            project_name=PROJECT_NAME,
+            eval_run_name=EVAL_RUN_NAME,
+            log_results=True,
+            override=False,
+        )
+        assert False, "Expected ValueError was not raised"
+    except ValueError as e:
+        print(f"Successfully caught expected error: {e}")
+    
+    
 
 def test_evaluate_dataset(client: JudgmentClient):
 
@@ -130,24 +193,29 @@ if __name__ == "__main__":
     print("Client initialized successfully")
     print("*" * 40)
 
-    print("Testing dataset creation, pushing, and pulling")
-    test_dataset(ui_client)
-    print("Dataset creation, pushing, and pulling successful")
+    # print("Testing dataset creation, pushing, and pulling")
+    # test_dataset(ui_client)
+    # print("Dataset creation, pushing, and pulling successful")
+    # print("*" * 40)
+    
+    # print("Testing evaluation run")
+    # test_run_eval(ui_client)
+    # print("Evaluation run successful")
+    # print("*" * 40)
+    
+    print("Testing evaluation run override")
+    test_override_eval(client)
+    print("Evaluation run override successful")
     print("*" * 40)
     
-    print("Testing evaluation run")
-    test_run_eval(ui_client)
-    print("Evaluation run successful")
-    print("*" * 40)
+    # print("Testing dataset evaluation")
+    # test_evaluate_dataset(ui_client)
+    # print("Dataset evaluation successful")
+    # print("*" * 40)
     
-    print("Testing dataset evaluation")
-    test_evaluate_dataset(ui_client)
-    print("Dataset evaluation successful")
-    print("*" * 40)
-    
-    print("Testing classifier scorer")
-    test_classifier_scorer(ui_client)
-    print("Classifier scorer test successful")
-    print("*" * 40)
+    # print("Testing classifier scorer")
+    # test_classifier_scorer(ui_client)
+    # print("Classifier scorer test successful")
+    # print("*" * 40)
 
     print("All tests passed successfully")
