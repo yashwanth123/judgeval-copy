@@ -47,7 +47,7 @@ example = Example(
     actual_output="...",
 )
 # supply your own threshold
-scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.ANSWER_RELEVANCY)
+scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.SUMMARIZATION)
 
 results = client.run_evaluation(
     examples=[example],
