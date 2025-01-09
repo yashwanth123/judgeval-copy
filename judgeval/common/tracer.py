@@ -253,8 +253,6 @@ class TraceClient:
 
     def add_entry(self, entry: TraceEntry):
         """Add a trace entry to this trace context"""
-        if entry.type == "enter":
-            print(f"Adding entry with span_type: {entry.span_type=}, {entry=}")
         self.entries.append(entry)
         return self
         
@@ -316,7 +314,6 @@ class TraceClient:
 
         # Sort by timestamp
         condensed.sort(key=lambda x: x["timestamp"])
-        # print(f"condensed: {condensed=}")
         return condensed
 
     def save(self) -> Tuple[str, dict]:
@@ -418,7 +415,6 @@ class Tracer:
                 if self._current_trace:
                     span_name = name or func.__name__
                     
-                    print(f"span_name: {span_name=}, {span_type=}")
                     with self._current_trace.span(span_name, span_type=span_type) as span:
                         # Set the span type
                         span.span_type = span_type
@@ -445,7 +441,6 @@ class Tracer:
                 if self._current_trace:
                     span_name = name or func.__name__
                     
-                    print(f"span_name: {span_name=}, {span_type=}")
                     with self._current_trace.span(span_name, span_type=span_type) as span:
                         # Set the span type
                         span.span_type = span_type
