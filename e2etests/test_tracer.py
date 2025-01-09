@@ -13,7 +13,7 @@ from judgeval.common.tracer import Tracer, wrap
 from judgeval.constants import APIScorer
 
 # Initialize the tracer and clients
-judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
+judgment = Tracer(api_key=os.getenv("UI_JUDGMENT_API_KEY"))
 openai_client = wrap(OpenAI())
 anthropic_client = wrap(Anthropic())
 

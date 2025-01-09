@@ -85,7 +85,8 @@ class TraceEntry:
             "duration": self.duration,
             "output": output,
             "inputs": self.inputs or None,  # Convert empty dict to None
-            "evaluation_result": [result.to_dict() for result in self.evaluation_result] if self.evaluation_result else None
+            "evaluation_result": [result.to_dict() for result in self.evaluation_result] if self.evaluation_result else None,
+            "span_type": self.span_type
         }
 
     def _serialize_output(self) -> Any:
