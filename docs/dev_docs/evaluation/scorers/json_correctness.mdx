@@ -1,1 +1,41 @@
-todo
+# JSON Correctness
+
+The `JSONCorrectness` scorer is a default scorer that checks whether your LLM's `actual_output` matches your JSON schema.
+
+## Required Fields
+
+To run the `JSONCorrectness` scorer, you must include the following fields in your `Example`:
+- `input`
+- `actual_output`
+
+## Scorer Breakdown
+
+`JSONCorrectness` scores are calculated with a binary score representing whether the `actual_output` matches the JSON schema.
+
+$$
+\text{JSONCorrectness} = \begin{cases}
+1 & \text{if } \text{actual\_output} \text{ matches } \text{schema} \\
+0 & \text{otherwise}
+\end{cases}
+$$
+
+## Sample Implementation
+
+```
+from judgeval.judgment_client import JudgmentClient
+from judgeval.data import Example
+from judgeval.scorers import JudgmentScorer
+from judgeval.constants import APIScorer
+client = JudgmentClient()
+example = Example(
+    input="...",
+    actual_output="...",
+)
+scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.JSON_CORRECTNESS)
+results = client.run_evaluation(
+    examples=[example],
+    scorers=[scorer],
+    model="gpt-4o",
+)
+print(results)
+```
