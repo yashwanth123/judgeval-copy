@@ -33,7 +33,7 @@ class MockCustomScorer(CustomScorer):
     async def a_score_example(self, example: Example, *args, **kwargs) -> float:
         return 1.0
 
-    def success_check(self) -> bool:
+    def _success_check(self) -> bool:
         return True
 
 
