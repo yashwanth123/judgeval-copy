@@ -37,8 +37,9 @@ from judgeval.constants import APIScorer
 
 client = JudgmentClient()
 example = Example(
-    input="...",
-    actual_output="...",
+    input="What's your return policy for a pair of socks?",
+    # Replace this with your LLM system's output
+    actual_output="We offer a 30-day return policy for all items, including socks!",
 )
 # supply your own threshold
 scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.ANSWER_RELEVANCY)

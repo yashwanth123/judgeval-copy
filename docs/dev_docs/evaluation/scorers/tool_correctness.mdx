@@ -33,6 +33,8 @@ client = JudgmentClient()
 example = Example(
     input="...",
     actual_output="...",
+    tools_called=["GoogleSearch", "Perplexity"],
+    expected_output=["DBQuery", "GoogleSearch"],
 )
 # supply your own threshold
 scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.TOOL_CORRECTNESS)

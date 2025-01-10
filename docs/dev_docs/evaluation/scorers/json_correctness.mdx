@@ -12,6 +12,16 @@ To run the `JSONCorrectness` scorer, you must include the following fields in yo
 
 `JSONCorrectness` scores are calculated with a binary score representing whether the `actual_output` matches the JSON schema.
 
+To define a JSON schema, you can define a `pydantic` `BaseModel` and pass it to the `JSONCorrectness` scorer.
+
+```
+from pydantic import BaseModel
+
+class SampleSchema(BaseModel):
+    field1: str
+    field2: int
+```
+
 $$
 \text{JSONCorrectness} = \begin{cases}
 1 & \text{if } \text{actual\_output} \text{ matches } \text{schema} \\
@@ -28,10 +38,11 @@ from judgeval.scorers import JudgmentScorer
 from judgeval.constants import APIScorer
 client = JudgmentClient()
 example = Example(
-    input="...",
-    actual_output="...",
+    input="Create a JSON object with the keys 'field1' (str) and 'field2' (int). Fill them with random values.",
+    # Replace this with your LLM system's output
+    actual_output="{'field1': 'value1', 'field2': 1}",
 )
-scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.JSON_CORRECTNESS)
+scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.JSON_CORRECTNESS)  # TODO update this
 results = client.run_evaluation(
     examples=[example],
     scorers=[scorer],
