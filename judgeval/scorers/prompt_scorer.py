@@ -378,15 +378,45 @@ class ClassifierScorer(PromptScorer):
         judge_prompt[0]["content"] = system_role
         return judge_prompt
 
-    def process_response(self, response: dict) -> Tuple[float, str]:
+    def _process_response(self, response: dict) -> Tuple[float, str]:
         choice = response.get("choice")
         if choice not in self.options:
             raise ValueError(f"Invalid choice: {choice}. Expected one of: {self.options.keys()}")
         reason = response.get("reason", "No reason could be found in model response.")
         return self.options[choice], reason
 
-    def success_check(self, **kwargs) -> bool:
+    def _success_check(self, **kwargs) -> bool:
         return self.score >= self.threshold
+    
+    def update_name(self, name: str):
+        """
+        Updates the name of the scorer.
+        """
+        self.name = name
+        
+    def update_threshold(self, threshold: float):
+        """
+        Updates the threshold of the scorer.
+        """
+        self.threshold = threshold
+    
+    def update_conversation(self, conversation: List[dict]):
+        """
+        Updates the conversation with the new conversation.
+        
+        Sample conversation:
+        [{'role': 'system', 'content': "Did the chatbot answer the user's question in a kind way?: {{actual_output}}."}]
+        """
+        self.conversation = conversation
+        
+    def update_options(self, options: Mapping[str, float]):
+        """
+        Updates the options with the new options.
+        
+        Sample options:
+        {"yes": 1, "no": 0}
+        """
+        self.options = options
 
     def __str__(self):
         return f"ClassifierScorer(name={self.name}, slug={self.slug}, conversation={self.conversation}, threshold={self.threshold}, options={self.options})"
