@@ -44,7 +44,7 @@ class MockCustomScorer(CustomScorer):
     async def a_score_example(self, example, *args, **kwargs):
         pass
 
-    def success_check(self) -> bool:
+    def _success_check(self) -> bool:
         return self.score >= self.threshold if self.score is not None else False
 
 
