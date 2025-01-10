@@ -27,7 +27,7 @@ NOTE: When implementing build_measure_prompt and build_schema:
 
 from abc import abstractmethod
 from typing import List, Optional, Union, Tuple, Any, Mapping
-from pydantic import BaseModel
+from pydantic import BaseModel, model_serializer, Field
 
 from judgeval.data import Example
 from judgeval.scorers import CustomScorer
@@ -42,7 +42,16 @@ class ReasonScore(BaseModel):
     score: float
 
 
-class PromptScorer(CustomScorer):
+class PromptScorer(CustomScorer, BaseModel):
+    name: str
+    score_type: str
+    threshold: float = Field(default=0.5)
+    using_native_model: bool = Field(default=True)
+
+    # DO NOT SET THESE FIELDS MANUALLY, THEY ARE SET BY THE SCORE_EXAMPLE METHOD
+    response: Optional[dict] = None
+    result: Optional[float] = None
+    
     def __init__(
         self,
         name: str, 
@@ -52,14 +61,28 @@ class PromptScorer(CustomScorer):
         strict_mode: bool = False,
         verbose_mode: bool = False,
     ):
-        self.name = name
-        self.threshold = 1 if strict_mode else threshold
-        self.using_native_model = True  # NOTE: SETTING THIS FOR LITELLM and TOGETHER usage
-        self.include_reason = include_reason
-        self.async_mode = async_mode
-        self.strict_mode = strict_mode
-        self.verbose_mode = verbose_mode
-        
+        # Initialize BaseModel first
+        BaseModel.__init__(
+            self,
+            name=name,
+            score_type=name,
+            threshold=1 if strict_mode else threshold,
+            include_reason=include_reason,
+            async_mode=async_mode,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode,
+        )
+        # Then initialize CustomScorer
+        CustomScorer.__init__(
+            self,
+            score_type=name,
+            threshold=1 if strict_mode else threshold,
+            include_reason=include_reason,
+            async_mode=async_mode,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode,
+        )
+
     def score_example(
             self, 
             example: Example, 
@@ -266,11 +289,36 @@ class ClassifierScorer(PromptScorer):
     options = {"positive": 1, "negative": 0}
     """
 
-    def __init__(self, name: str, conversation: List[dict], options: Mapping[str, float], threshold: float = 0.5, include_reason: bool = True, 
+    conversation: List[dict]
+    options: Mapping[str, float]
+    
+    def __init__(self, name: str, slug: str, conversation: List[dict], options: Mapping[str, float], 
+                 threshold: float = 0.5, include_reason: bool = True, 
                  async_mode: bool = True, strict_mode: bool = False, verbose_mode: bool = False):
-        super().__init__(name, threshold, include_reason, async_mode, strict_mode, verbose_mode)
-        self.conversation = conversation
-        self.options = options
+        # Initialize BaseModel first with all fields
+        BaseModel.__init__(
+            self,
+            name=name,
+            slug=slug,
+            score_type=name,
+            conversation=conversation,
+            options=options,
+            threshold=threshold,
+            include_reason=include_reason,
+            async_mode=async_mode,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode,
+        )
+        # Then initialize CustomScorer
+        CustomScorer.__init__(
+            self,
+            score_type=name,
+            threshold=threshold,
+            include_reason=include_reason,
+            async_mode=async_mode,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode,
+        )
 
     def build_measure_prompt(self, example: Example) -> List[dict]:
         replacement_words = {
@@ -331,3 +379,22 @@ class ClassifierScorer(PromptScorer):
     def success_check(self, **kwargs) -> bool:
         return self.score >= self.threshold
 
+    def __str__(self):
+        return f"ClassifierScorer(name={self.name}, slug={self.slug}, conversation={self.conversation}, threshold={self.threshold}, options={self.options})"
+
+    @model_serializer
+    def serialize_model(self) -> dict:
+        """
+        Defines how the ClassifierScorer should be serialized when model_dump() is called.
+        """
+        return {
+            "name": self.name,
+            "score_type": self.score_type,
+            "conversation": self.conversation,
+            "options": self.options,
+            "threshold": self.threshold,
+            "include_reason": self.include_reason,
+            "async_mode": self.async_mode,
+            "strict_mode": self.strict_mode,
+            "verbose_mode": self.verbose_mode,
+        }

@@ -56,6 +56,7 @@ class Example(BaseModel):
             "name": self.name,
             "example_id": self.example_id,
             "timestamp": self.timestamp,
+            "trace_id": self.trace_id
         }
 
     def __str__(self):

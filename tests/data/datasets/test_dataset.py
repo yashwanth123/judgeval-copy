@@ -128,7 +128,8 @@ def test_add_from_csv(mock_read_csv, dataset):
         'name': ['name1', None],
         'comments': [None, 'comment2'],
         'source_file': [None, 'file2'],
-        'example': [True, False]
+        'example': [True, False],
+        'trace_id': [None, '123']
     })
     mock_read_csv.return_value = mock_df
 
@@ -188,7 +189,8 @@ def test_load_from_json():
         additional_metadata={"key": "value"},
         tools_called=["tool1"],
         expected_tools=["tool1", "tool2"],
-        name="test example"
+        name="test example",
+        trace_id="123"
     )
 
     gt1 = GroundTruthExample(
@@ -200,14 +202,15 @@ def test_load_from_json():
         tools_called=["tool1"],
         expected_tools=["tool1"],
         comments="test comment",
-        source_file="test.py"
+        source_file="test.py",
+        trace_id="094121"
     )
 
     dataset = EvalDataset()
 
     dataset.add_from_json("tests/data/datasets/sample_data/dataset.json")
     assert dataset.ground_truths == [gt1]
-    
+
     # We can't do the same comparison as above because the timestamps are different
     assert len(dataset.examples) == 1
     loaded_example = dataset.examples[0]
@@ -233,7 +236,8 @@ def test_load_from_csv():
         additional_metadata={"key": "value"},
         tools_called=["tool1"],
         expected_tools=["tool1", "tool2"],
-        name="test example"
+        name="test example",
+        trace_id="123"
     )
 
     gt1 = GroundTruthExample(
@@ -245,7 +249,8 @@ def test_load_from_csv():
         tools_called=["tool1"],
         expected_tools=["tool1"],
         comments="test comment",
-        source_file="test.py"
+        source_file="test.py",
+        trace_id="094121"
     )
 
     dataset = EvalDataset()
