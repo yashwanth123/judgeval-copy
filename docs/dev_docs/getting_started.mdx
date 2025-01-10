@@ -186,12 +186,66 @@ results = client.evaluate_dataset(
 
 
 # Using Judgment Labs Platform
-TODO
-## Managing Datasets 
+ 
+When scaling your evaluations, Judgment's platform allows you to manage your evaluations, datasets, and scorers in a single place. 
+To get started, create a Judgment account by emailing us at `contact@judgmentlabs.ai`. We'll get you set up with a login and you'll be able to:
+- Run evaluations directly on Judgment's platform
+- Track and inspect evaluations with an intuitive UI
+- Compare your evaluations across iterations of your LLM system, optimizing your models, prompts, etc.
+- Manage your datasets and scorers
+- Monitor your LLM systems in production
 
-## Creating PromptScorers
+`Note:` Click here to learn more about Judgment Labs' platform: TODO add link to `judgment/` docs.
+
+## Running Evaluations on Judgment
+
+## Managing Datasets
+
+## Creating ClassifierScorers
+
+ClassifierScorers are powerful evaluators that can be created in minutes via Judgment's platform or SDK using natural language criteria.
+
+`Tip`: 
+
+For more information on what a ClassifierScorer is, click here: TODO add link to `classifier_scorers/` docs.
+
+1. Navigate to the `Scorers` tab in the Judgment platform. You'll find this on via the sidebar on the left.
+2. Click the "Create Scorer" button in the top right corner.
+
+![Alt text](judgeval/docs/dev_docs/imgs/create_scorer.png "Optional title")
+
+3. Here, you can create a custom scorer by using a criteria in natural language, supplying custom arguments from the `Example` class. 
+Then, you supply a set of choices the scorer can select from when evaluating an example. Finally, you can test your scorer on samples in our playground.
+
+4. Once you're finished, you can save the scorer and use it in your evaluation runs just like any other scorer in `judgeval`.
+
+### Example 
+
+Here's an example of building a `ClassifierScorer` that checks if the LLM's tone is too aggressive. 
+This might be useful when building a customer support chatbot.
+
+![Alt text](judgeval/docs/dev_docs/imgs/create_aggressive_scorer.png "Optional title")
 
 ## Optimizing System Performance
+
+Evaluations are prerequisite for optimizing your LLM systems. Measuring the quality of your LLM workflows 
+allows you to compare build iterations and ultimately find the optimal set of prompts, models, RAG architectures, etc. that 
+make your LLM perform best. 
+
+A typical experimental setup might look like this:
+
+1. Create a new `Project` in the Judgment platform by either running an evaluation from the SDK or via the platform UI. 
+This will help you keep track of all evaluations for different iterations of your LLM system.
+
+`Tip`: 
+A `Project` keeps track of `Evaluation Run`s in your project. Each `Evaluation Run` contains a set of `Scorer`s that have been run on a set of `Example`s.
+
+2. You can create separate `Evaluation Run`s for different iterations of your LLM system, allowing you to independently test each component of your LLM system.
+
+`Tip`:
+You can try different models (e.g. `gpt-4o`, `claude-3-5-sonnet`, etc.) and prompt templates in each `Evaluation Run` to find the 
+optimal setup for your LLM system. 
+
 
 ## Monitoring LLM Systems in Production
 
