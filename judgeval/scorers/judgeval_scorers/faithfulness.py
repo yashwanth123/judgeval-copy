@@ -11,9 +11,6 @@ from judgeval.constants import APIScorer
 
 
 class FaithfulnessScorer(JudgmentScorer):
-    """
-    Scorer that checks if the output of a model is faithful to the retrieval context
-    """
     def __init__(self, threshold: float):
         super().__init__(threshold=threshold, score_type=APIScorer.FAITHFULNESS)
 
