@@ -105,10 +105,11 @@ class TraceEntry:
 
 class TraceClient:
     """Client for managing a single trace context"""
-    def __init__(self, tracer, trace_id: str, name: str):
+    def __init__(self, tracer, trace_id: str, name: str, project_name: str = "default_project"):
         self.tracer = tracer
         self.trace_id = trace_id
         self.name = name
+        self.project_name = project_name
         self.client: JudgmentClient = tracer.client
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
@@ -332,6 +333,7 @@ class TraceClient:
             "trace_id": self.trace_id,
             "api_key": self.tracer.api_key,
             "name": self.name,
+            "project_name": self.project_name,
             "created_at": datetime.fromtimestamp(self.start_time).isoformat(),
             "duration": total_duration,
             "token_counts": {
@@ -375,10 +377,10 @@ class Tracer:
             self.initialized = True
         
     @contextmanager
-    def trace(self, name: str = None) -> Generator[TraceClient, None, None]:
+    def trace(self, name: str = None, project_name: str = "default_project") -> Generator[TraceClient, None, None]:
         """Start a new trace context using a context manager"""
         trace_id = str(uuid.uuid4())
-        trace = TraceClient(self, trace_id, name or "unnamed_trace")
+        trace = TraceClient(self, trace_id, name or "unnamed_trace", project_name=project_name)
         prev_trace = self._current_trace
         self._current_trace = trace
         
