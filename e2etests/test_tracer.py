@@ -62,6 +62,7 @@ async def make_lower(input):
 
 @judgment.observe(span_type="llm")
 def llm_call(input):
+    time.sleep(1.3)
     return "We have a 30 day full refund policy on shoes."
 
 # add to observe, specify the type
@@ -116,7 +117,8 @@ async def make_poem(input: str) -> str:
         return ""
 
 async def test_evaluation_mixed(input):
-    with judgment.trace("test_evaluation") as trace:
+    PROJECT_NAME = "testing_project"
+    with judgment.trace("testing_trace_evaluation", project_name=PROJECT_NAME) as trace:
         upper = await make_upper(input)
         result = await make_poem(upper)
         await answer_user_question("What if these shoes don't fit?")
