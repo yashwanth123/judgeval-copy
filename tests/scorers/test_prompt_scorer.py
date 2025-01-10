@@ -35,20 +35,20 @@ class SampleScorer(PromptScorer):
         super().__init__(*args, **kwargs)
         self.model = mock_model
 
-    def build_measure_prompt(self, example: Example) -> List[dict]:
+    def _build_measure_prompt(self, example: Example) -> List[dict]:
         return [
             {"role": "system", "content": "Test system prompt"},
             {"role": "user", "content": f"Response: {example.actual_output}"}
         ]
     
-    def build_schema(self) -> dict:
+    def _build_schema(self) -> dict:
         return {"score": float, "reason": str}
     
-    def process_response(self, response: dict):
+    def _process_response(self, response: dict):
         return response["score"], response["reason"]
     
-    def success_check(self, **kwargs) -> bool:
-        return self.result >= self.threshold
+    def _success_check(self, **kwargs) -> bool:
+        return self._result >= self.threshold
 
 # Tests for PromptScorer
 class TestPromptScorer:
@@ -68,7 +68,7 @@ class TestPromptScorer:
         prompt = [{"role": "system", "content": "Base prompt"}]
         schema = {"score": float, "reason": str}
         
-        formatted = scorer.enforce_prompt_format(prompt, schema)
+        formatted = scorer._enforce_prompt_format(prompt, schema)
         assert "JSON format" in formatted[0]["content"]
         assert '"score": <score> (float)' in formatted[0]["content"]
         assert '"reason": <reason> (str)' in formatted[0]["content"]
@@ -76,7 +76,7 @@ class TestPromptScorer:
     def test_enforce_prompt_format_invalid_input(self, mock_model):
         scorer = SampleScorer(name="test_scorer", mock_model=mock_model)
         with pytest.raises(TypeError):
-            scorer.enforce_prompt_format("invalid", {})
+            scorer._enforce_prompt_format("invalid", {})
             
     @pytest.mark.asyncio
     async def test_a_score_example(self, example, mock_model):
@@ -124,7 +124,7 @@ class TestClassifierScorer:
             options=classifier_options
         )
         
-        prompt = scorer.build_measure_prompt(example)
+        prompt = scorer._build_measure_prompt(example)
         assert "This is a test response" in prompt[0]["content"]
         
     def test_process_response(self, classifier_conversation, classifier_options):
@@ -136,7 +136,7 @@ class TestClassifierScorer:
         )
         
         response = {"choice": "positive", "reason": "Test reason"}
-        score, reason = scorer.process_response(response)
+        score, reason = scorer._process_response(response)
         assert score == 1.0
         assert reason == "Test reason"
         
@@ -150,7 +150,7 @@ class TestClassifierScorer:
         
         response = {"choice": "invalid", "reason": "Test reason"}
         with pytest.raises(ValueError):
-            scorer.process_response(response)
+            scorer._process_response(response)
             
     def test_success_check(self, classifier_conversation, classifier_options):
         scorer = ClassifierScorer(
@@ -161,7 +161,7 @@ class TestClassifierScorer:
         )
         
         scorer.score = 1.0
-        assert scorer.success_check() is True
+        assert scorer._success_check() is True
         
         scorer.score = 0.0
-        assert scorer.success_check() is False
+        assert scorer._success_check() is False
