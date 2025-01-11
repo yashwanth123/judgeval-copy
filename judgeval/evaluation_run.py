@@ -35,6 +35,16 @@ class EvaluationRun(BaseModel):
     # API Key will be "" until user calls client.run_eval(), then API Key will be set
     judgment_api_key: Optional[str] = ""
     
+    def model_dump(self, **kwargs):
+        data = super().model_dump(**kwargs)
+
+        data["scorers"] = [
+            scorer.to_dict() \
+            if hasattr(scorer, "to_dict") else {"score_type": scorer.score_type, "threshold": scorer.threshold}
+            for scorer in self.scorers
+        ]
+        return data
+
     @field_validator('log_results', mode='before')
     def validate_log_results(cls, v):
         if not isinstance(v, bool):
