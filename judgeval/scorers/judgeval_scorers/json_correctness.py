@@ -7,16 +7,18 @@ TODO add link to docs page for this scorer
 
 
 # External imports
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 # Internal imports
 from judgeval.scorers.base_scorer import JudgmentScorer
 from judgeval.constants import APIScorer
 
 
 class JSONCorrectnessScorer(JudgmentScorer):
-    def __init__(self, threshold: float, schema: BaseModel):
+    json_schema: BaseModel = Field(None, exclude=True)
+    
+    def __init__(self, threshold: float, json_schema: BaseModel):
         super().__init__(threshold=threshold, score_type=APIScorer.JSON_CORRECTNESS)
-        self.json_schema = schema
+        object.__setattr__(self, 'json_schema', json_schema)
 
     @property
     def __name__(self):
