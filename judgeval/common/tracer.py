@@ -188,8 +188,9 @@ class TraceClient:
             model=model,
             metadata={},
             log_results=log_results,
-            project_name="TestSpanLevel",  # TODO this should be dynamic
-            eval_run_name="TestSpanLevel",
+            project_name="TestSpanLevel1",  # TODO this should be dynamic
+            eval_run_name="TestSpanLevel1",
+            override=True,
         )
         
         self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation
