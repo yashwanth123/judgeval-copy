@@ -21,11 +21,8 @@ from judgeval.constants import (
     ROOT_API,
     JUDGMENT_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
-    APIScorer,
 )
 from judgeval.common.exceptions import JudgmentAPIError
-from judgeval.playground import CustomFaithfulnessMetric
-from judgeval.judges import TogetherJudge, MixtureOfJudges
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.common.logger import (
     enable_logging, 
