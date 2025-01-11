@@ -6,6 +6,8 @@ from judgeval.data.datasets import EvalDataset
 from judgeval.scorers import CustomScorer, JudgmentScorer
 from judgeval.constants import ACCEPTABLE_MODELS
 from judgeval.common.logger import debug, error
+
+
 class EvaluationRun(BaseModel):
     """
     Stores example and evaluation scorers together for running an eval task
