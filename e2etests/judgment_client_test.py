@@ -3,11 +3,14 @@ Sanity checks for judgment client functionality
 """
 
 import os
+from pydantic import BaseModel
+
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import (
     FaithfulnessScorer,
     HallucinationScorer,
+    JSONCorrectnessScorer
 )
 from judgeval.judges import TogetherJudge
 from judgeval.playground import CustomFaithfulnessMetric
@@ -64,7 +67,7 @@ def test_run_eval(client: JudgmentClient):
     
     _ = client.run_evaluation(
         examples=[example1, example2],
-        scorers=[scorer2],
+        scorers=[scorer],
         model="QWEN",
         metadata={"batch": "test"},
         project_name=PROJECT_NAME,
@@ -75,6 +78,47 @@ def test_run_eval(client: JudgmentClient):
 
     results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
     print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
+
+
+def test_json_scorer(client: JudgmentClient):
+
+    example1 = Example(
+        input="What if these shoes don't fit?",
+        actual_output='{"tool": "authentication"}',
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+        trace_id="2231abe3-e7e0-4909-8ab7-b4ab60b645c6"
+    )
+
+    example2 = Example(
+        input="How do I reset my password?",
+        actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
+        name="Password Reset",
+        context=["User Account"],
+        retrieval_context=["Password reset instructions"],
+        tools_called=["authentication"],
+        expected_tools=["authentication"],
+        additional_metadata={"difficulty": "medium"}
+    )
+
+    class SampleSchema(BaseModel):
+        tool: str
+
+    scorer = JSONCorrectnessScorer(threshold=0.5, json_schema=SampleSchema)
+    PROJECT_NAME = "test_project_JOSEPH"
+    EVAL_RUN_NAME = "yomadude"
+    
+    _ = client.run_evaluation(
+        examples=[example1, example2],
+        scorers=[scorer],
+        model="QWEN",
+        metadata={"batch": "test"},
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        log_results=True,
+        override=True,
+    )
+
 
 def test_override_eval(client: JudgmentClient):
     example1 = Example(
@@ -209,9 +253,14 @@ if __name__ == "__main__":
     # print("Dataset creation, pushing, and pulling successful")
     # print("*" * 40)
     
-    print("Testing evaluation run")
-    test_run_eval(ui_client)
-    print("Evaluation run successful")
+    # print("Testing evaluation run")
+    # test_run_eval(ui_client)
+    # print("Evaluation run successful")
+    # print("*" * 40)
+
+    print("Testing JSON scorer")
+    test_json_scorer(ui_client)
+    print("JSON scorer test successful")
     print("*" * 40)
     
     # print("Testing evaluation run override")
