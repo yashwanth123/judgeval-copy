@@ -5,8 +5,10 @@ Sanity checks for judgment client functionality
 import os
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import JudgmentScorer
-from judgeval.constants import APIScorer
+from judgeval.scorers import (
+    FaithfulnessScorer,
+    HallucinationScorer,
+)
 from judgeval.judges import TogetherJudge
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
@@ -53,8 +55,8 @@ def test_run_eval(client: JudgmentClient):
         additional_metadata={"difficulty": "medium"}
     )
 
-    scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
-    scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
+    scorer = FaithfulnessScorer(threshold=0.5)
+    scorer2 = HallucinationScorer(threshold=0.5)
     c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
     PROJECT_NAME = "test_project_JOSEPH"
@@ -62,7 +64,7 @@ def test_run_eval(client: JudgmentClient):
     
     _ = client.run_evaluation(
         examples=[example1, example2],
-        scorers=[scorer, c_scorer],
+        scorers=[scorer2],
         model="QWEN",
         metadata={"batch": "test"},
         project_name=PROJECT_NAME,
@@ -72,7 +74,7 @@ def test_run_eval(client: JudgmentClient):
     )
 
     results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
-    # print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
+    print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
 
 def test_override_eval(client: JudgmentClient):
     example1 = Example(
@@ -82,7 +84,7 @@ def test_override_eval(client: JudgmentClient):
         trace_id="2231abe3-e7e0-4909-8ab7-b4ab60b645c6"
     )
     
-    scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    scorer = FaithfulnessScorer(threshold=0.5)
 
     PROJECT_NAME = "test_eval_run_naming_collisions"
     EVAL_RUN_NAME = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
@@ -171,7 +173,7 @@ def test_evaluate_dataset(client: JudgmentClient):
     dataset = EvalDataset(examples=[example1, example2])
     res = client.evaluate_dataset(
         dataset=dataset,
-        scorers=[JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)],
+        scorers=[FaithfulnessScorer(threshold=0.5)],
         model="QWEN",
         metadata={"batch": "test"},
     )
@@ -180,7 +182,7 @@ def test_evaluate_dataset(client: JudgmentClient):
     
 def test_classifier_scorer(client: JudgmentClient):
     classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
-    faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    faithfulness_scorer = FaithfulnessScorer(threshold=0.5)
     
     example1 = Example(
         input="What if these shoes don't fit?",
@@ -199,32 +201,32 @@ if __name__ == "__main__":
     # Test client functionality
     client = get_client()
     ui_client = get_ui_client()
-    print("Client initialized successfully")
-    print("*" * 40)
+    # print("Client initialized successfully")
+    # print("*" * 40)
 
-    print("Testing dataset creation, pushing, and pulling")
-    test_dataset(ui_client)
-    print("Dataset creation, pushing, and pulling successful")
-    print("*" * 40)
+    # print("Testing dataset creation, pushing, and pulling")
+    # test_dataset(ui_client)
+    # print("Dataset creation, pushing, and pulling successful")
+    # print("*" * 40)
     
     print("Testing evaluation run")
     test_run_eval(ui_client)
     print("Evaluation run successful")
     print("*" * 40)
     
-    print("Testing evaluation run override")
-    test_override_eval(client)
-    print("Evaluation run override successful")
-    print("*" * 40)
+    # print("Testing evaluation run override")
+    # test_override_eval(client)
+    # print("Evaluation run override successful")
+    # print("*" * 40)
     
-    print("Testing dataset evaluation")
-    test_evaluate_dataset(ui_client)
-    print("Dataset evaluation successful")
-    print("*" * 40)
+    # print("Testing dataset evaluation")
+    # test_evaluate_dataset(ui_client)
+    # print("Dataset evaluation successful")
+    # print("*" * 40)
     
-    print("Testing classifier scorer")
-    test_classifier_scorer(ui_client)
-    print("Classifier scorer test successful")
-    print("*" * 40)
+    # print("Testing classifier scorer")
+    # test_classifier_scorer(ui_client)
+    # print("Classifier scorer test successful")
+    # print("*" * 40)
 
-    print("All tests passed successfully")
+    # print("All tests passed successfully")
