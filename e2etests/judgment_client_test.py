@@ -64,7 +64,7 @@ def test_run_eval(client: JudgmentClient):
     
     _ = client.run_evaluation(
         examples=[example1, example2],
-        scorers=[scorer2],
+        scorers=[scorer, c_scorer],
         model="QWEN",
         metadata={"batch": "test"},
         project_name=PROJECT_NAME,
@@ -201,32 +201,32 @@ if __name__ == "__main__":
     # Test client functionality
     client = get_client()
     ui_client = get_ui_client()
-    # print("Client initialized successfully")
-    # print("*" * 40)
+    print("Client initialized successfully")
+    print("*" * 40)
 
-    # print("Testing dataset creation, pushing, and pulling")
-    # test_dataset(ui_client)
-    # print("Dataset creation, pushing, and pulling successful")
-    # print("*" * 40)
+    print("Testing dataset creation, pushing, and pulling")
+    test_dataset(ui_client)
+    print("Dataset creation, pushing, and pulling successful")
+    print("*" * 40)
     
     print("Testing evaluation run")
     test_run_eval(ui_client)
     print("Evaluation run successful")
     print("*" * 40)
     
-    # print("Testing evaluation run override")
-    # test_override_eval(client)
-    # print("Evaluation run override successful")
-    # print("*" * 40)
+    print("Testing evaluation run override")
+    test_override_eval(client)
+    print("Evaluation run override successful")
+    print("*" * 40)
     
-    # print("Testing dataset evaluation")
-    # test_evaluate_dataset(ui_client)
-    # print("Dataset evaluation successful")
-    # print("*" * 40)
+    print("Testing dataset evaluation")
+    test_evaluate_dataset(ui_client)
+    print("Dataset evaluation successful")
+    print("*" * 40)
     
-    # print("Testing classifier scorer")
-    # test_classifier_scorer(ui_client)
-    # print("Classifier scorer test successful")
-    # print("*" * 40)
+    print("Testing classifier scorer")
+    test_classifier_scorer(ui_client)
+    print("Classifier scorer test successful")
+    print("*" * 40)
 
-    # print("All tests passed successfully")
+    print("All tests passed successfully")
