@@ -16,8 +16,6 @@ pandas = "*"
 openai = "*"
 together = "*"
 anthropic = "*"
-pytest = "*"
-pytest-asyncio = "*"
 
 [dev-packages]
 pytest = "*"
