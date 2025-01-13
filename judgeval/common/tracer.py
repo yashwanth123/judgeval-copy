@@ -114,7 +114,7 @@ class TraceClient:
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
         self.span_type = None
-        self._current_span = None
+        self._current_span: Optional[TraceEntry] = None
         
     @contextmanager
     def span(self, name: str, span_type: SpanType = "span"):
@@ -184,14 +184,15 @@ class TraceClient:
             score_type=score_type,
             threshold=threshold
         )
+        
         _, scoring_results = self.client.run_evaluation(
             examples=[example],
             scorers=[scorer],
             model=model,
             metadata={},
             log_results=log_results,
-            project_name="TestSpanLevel",
-            eval_run_name="TestSpanLevel",
+            project_name=self.project_name,
+            eval_run_name=f"{self.name.capitalize()}-{self._current_span}-{scorer.score_type.capitalize()}",
         )
         
         self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation
@@ -370,17 +371,17 @@ class Tracer:
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
             
-            self.api_key = api_key
-            self.client = JudgmentClient(judgment_api_key=api_key)
-            self.depth = 0
-            self._current_trace: Optional[TraceClient] = None
-            self.initialized = True
+            self.api_key: str = api_key
+            self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
+            self.depth: int = 0
+            self._current_trace: Optional[str] = None
+            self.initialized: bool = True
         
     @contextmanager
-    def trace(self, name: str = None, project_name: str = "default_project") -> Generator[TraceClient, None, None]:
+    def trace(self, name: str, project_name: str = "default_project") -> Generator[TraceClient, None, None]:
         """Start a new trace context using a context manager"""
         trace_id = str(uuid.uuid4())
-        trace = TraceClient(self, trace_id, name or "unnamed_trace", project_name=project_name)
+        trace = TraceClient(self, trace_id, name, project_name=project_name)
         prev_trace = self._current_trace
         self._current_trace = trace
         
