@@ -199,7 +199,7 @@ def test_classifier_scorer(client: JudgmentClient):
     print(res)
 
 
-def test_custom_judge(client: JudgmentClient):
+def test_custom_judge_vertexai(client: JudgmentClient):
     
     import vertexai
     from vertexai.generative_models import GenerativeModel
@@ -279,6 +279,11 @@ if __name__ == "__main__":
     print("Testing classifier scorer")
     test_classifier_scorer(ui_client)
     print("Classifier scorer test successful")
+    print("*" * 40)
+
+    print("Testing custom judge")
+    test_custom_judge_vertexai(ui_client)
+    print("Custom judge test successful")
     print("*" * 40)
 
     print("All tests passed successfully")
