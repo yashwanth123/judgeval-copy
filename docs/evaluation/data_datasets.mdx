@@ -1,0 +1,153 @@
+---
+title: Datasets
+---
+## Overview
+In most scenarios, you will have multiple `Example`s that you want to evaluate together.  
+In `judgeval`, an evaluation dataset (`EvalDataset`) is a collection of `Example`s and/or `GroundTruthExample`s that you can scale evaluations across.
+
+<Note>
+A `GroundTruthExample` is a specific type of `Example` that do not require the `actual_output` field. 
+
+This is useful for creating datasets that can be **dynamically updated at evaluation time** by running your workflow on the GroundTruthExamples to create Examples.
+</Note>
+## Creating a Dataset
+
+Creating an `EvalDataset` is as simple as supplying a list of `Example`s and/or `GroundTruthExample`s.
+
+```python create_dataset.py
+from judgeval import (
+    EvalDataset, 
+    Example, 
+    GroundTruthExample
+)
+
+examples = [
+    Example(input="...", actual_output="..."), 
+    Example(input="...", actual_output="..."), 
+    ...
+]
+ground_truth_examples = [
+    GroundTruthExample(input="..."), 
+    GroundTruthExample(input="..."), 
+    ...
+]
+
+dataset = EvalDataset(
+    examples=examples, 
+    ground_truth_examples=ground_truth_examples
+)
+```
+
+You can also add `Example`s and `GroundTruthExample`s to an existing `EvalDataset` using the `add_example` and `add_ground_truth_example` methods.
+
+```python add_to_dataset.py
+...
+
+dataset.add_example(Example(...))
+dataset.add_ground_truth(GroundTruthExample(...))
+```
+
+## Saving/Loading Datasets
+
+`judgeval` supports saving and loading datasets in the following formats:
+- JSON
+- CSV
+
+### From Judgment
+You easily can save/load an `EvalDataset` from Judgment's cloud. 
+
+```python push_dataset.py
+# Saving
+...
+from judgeval import JudgmentClient
+
+client = JudgmentClient()
+client.push_dataset(alias="my_dataset", dataset=dataset)
+```
+
+```python pull_dataset.py
+# Loading
+from judgeval import JudgmentClient
+
+client = JudgmentClient()
+dataset = client.pull_dataset(alias="my_dataset")
+```
+
+### From JSON
+
+You can save/load an `EvalDataset` with a JSON file. Your JSON file should have the following structure:
+```json structure.json
+{
+    "examples": [
+        {
+            "input": "...", 
+            "actual_output": "..."
+        }, 
+        ...
+    ],
+    "ground_truths": [
+        {
+            "input": "..."
+        }, 
+        ...
+    ]
+}
+```
+
+Here's an example of how use `judgeval` to save/load from JSON.
+
+```python json_dataset.py
+from judgeval import EvalDataset
+
+# saving
+dataset = EvalDataset(...)  # filled with examples
+dataset.save_as("json", "/path/to/save/dir", "save_name")
+
+# loading
+new_dataset = EvalDataset()
+new_dataset.add_from_json("/path/to/your/json/file.json")
+
+```
+
+### From CSV
+
+You can save/load an `EvalDataset` with a `.csv` file. Your CSV should contain rows that can be mapped to `Example`s via column names.
+TODO: this section needs to be updated because the CSV format is not yet finalized.
+
+
+Here's an example of how use `judgeval` to save/load from CSV.
+
+```python csv_dataset.py
+from judgeval import EvalDataset
+
+# saving
+dataset = EvalDataset(...)  # filled with examples
+dataset.save_as("csv", "/path/to/save/dir", "save_name")
+
+# loading
+new_dataset = EvalDataset()
+new_dataset.add_from_csv("/path/to/your/csv/file.csv")
+```
+
+## Evaluate On Your Dataset
+
+You can use the `JudgmentClient` to evaluate the `Example`s and `GroundTruthExample`s in your dataset using scorers.
+
+```python evaluate_dataset.py
+...
+
+dataset = client.pull_dataset(alias="my_dataset")
+res = client.evaluate_dataset(
+    dataset=dataset,
+    scorers=[FaithfulnessScorer(threshold=0.9)],
+    model="gpt-4o",
+)
+```
+
+## Conclusion 
+
+Congratulations! 🎉
+
+You've now learned how to create, save, and evaluate an `EvalDataset` in `judgeval`.
+
+You can also view and manage your datasets via the [Judgment platform](/judgment/introduction).

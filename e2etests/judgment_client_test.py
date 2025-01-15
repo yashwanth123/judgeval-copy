@@ -67,7 +67,7 @@ def test_run_eval(client: JudgmentClient):
     
     _ = client.run_evaluation(
         examples=[example1, example2],
-        scorers=[scorer],
+        scorers=[scorer, c_scorer],
         model="QWEN",
         metadata={"batch": "test"},
         project_name=PROJECT_NAME,
