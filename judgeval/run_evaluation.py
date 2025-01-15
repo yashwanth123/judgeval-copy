@@ -265,7 +265,6 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
         else:
             custom_scorers.append(scorer)
             debug(f"Added custom scorer: {type(scorer).__name__}")
-    
     debug(f"Found {len(judgment_scorers)} judgment scorers and {len(custom_scorers)} custom scorers")
     
     api_results: List[ScoringResult] = []

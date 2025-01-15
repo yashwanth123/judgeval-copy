@@ -18,7 +18,6 @@ from judgeval.data import (
 )
 from judgeval.scorers import CustomScorer
 from judgeval.scorers.utils import clone_scorers, scorer_console_msg
-from judgeval.common.telemetry import capture_evaluation_run
 from judgeval.common.exceptions import MissingTestCaseParamsError
 from judgeval.common.logger import example_logging_context, debug, error, warning, info
 from judgeval.judges import judgevalJudge
@@ -312,36 +311,10 @@ async def a_execute_scoring(
                             debug(f"Scorer threshold: {scorer.threshold}")
                         if hasattr(scorer, 'model'):
                             debug(f"Scorer model: {type(scorer.model).__name__}")
-                with capture_evaluation_run("Example"):
-                    if isinstance(ex, Example):
-                        if len(scorers) == 0:
-                            pbar.update(1)
-                            continue
 
-                        cloned_scorers: List[CustomScorer] = clone_scorers(
-                            scorers
-                        )
-                        task = execute_with_semaphore(
-                            func=a_eval_examples_helper,
-                            scorers=cloned_scorers,
-                            example=ex,
-                            scoring_results=scoring_results,
-                            score_index=i,
-                            ignore_errors=ignore_errors,
-                            skip_on_missing_params=skip_on_missing_params,
-                            show_indicator=show_indicator,
-                            _use_bar_indicator=_use_bar_indicator,
-                            pbar=pbar,
-                        )
-                        tasks.append(asyncio.create_task(task))
-
-                    await asyncio.sleep(throttle_value)
-            await asyncio.gather(*tasks)
-    else:
-        for i, ex in enumerate(examples):
-            with capture_evaluation_run("Example"):
                 if isinstance(ex, Example):
                     if len(scorers) == 0:
+                        pbar.update(1)
                         continue
 
                     cloned_scorers: List[CustomScorer] = clone_scorers(
@@ -355,12 +328,38 @@ async def a_execute_scoring(
                         score_index=i,
                         ignore_errors=ignore_errors,
                         skip_on_missing_params=skip_on_missing_params,
-                        _use_bar_indicator=_use_bar_indicator,
                         show_indicator=show_indicator,
+                        _use_bar_indicator=_use_bar_indicator,
+                        pbar=pbar,
                     )
-                    tasks.append(asyncio.create_task((task)))
+                    tasks.append(asyncio.create_task(task))
 
                 await asyncio.sleep(throttle_value)
+            await asyncio.gather(*tasks)
+    else:
+        for i, ex in enumerate(examples):
+
+            if isinstance(ex, Example):
+                if len(scorers) == 0:
+                    continue
+
+                cloned_scorers: List[CustomScorer] = clone_scorers(
+                    scorers
+                )
+                task = execute_with_semaphore(
+                    func=a_eval_examples_helper,
+                    scorers=cloned_scorers,
+                    example=ex,
+                    scoring_results=scoring_results,
+                    score_index=i,
+                    ignore_errors=ignore_errors,
+                    skip_on_missing_params=skip_on_missing_params,
+                    _use_bar_indicator=_use_bar_indicator,
+                    show_indicator=show_indicator,
+                )
+                tasks.append(asyncio.create_task((task)))
+
+            await asyncio.sleep(throttle_value)
         await asyncio.gather(*tasks)
     return scoring_results
 
