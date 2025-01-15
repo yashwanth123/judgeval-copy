@@ -1,0 +1,154 @@
+---
+title: Custom Scorers
+description: ""
+---
+
+If none of `judgeval`'s built-in scorers fit your evaluation criteria, you can easily build your own custom metric to be run through a `CustomScorer`. 
+`CustomScorer`s are **automatically integrated** within `judgeval`'s infrastructure, so you can:
+- Run your own scorer with the same syntax as any other `judgeval` scorer.
+- Use `judgeval`'s batched evaluation infrastructure to execute **scalable evaluation runs**.
+- Have your scorer's results be viewed and analyzed in the Judgment platform.
+
+<Tip>
+Be creative with your custom scorers! You can measure **anything** you want using a `CustomScorer`, 
+including using evaluations that aren't LLM judge-based such as ROUGE or embedding similarity.
+</Tip>
+
+## Guidelines for Implementing Custom Scorers
+
+To implement your own custom scorer, you must:
+
+### 1. Inherit from the `CustomScorer` class
+
+This will help `judgeval` integrate your scorer into evaluation runs.
+
+```python custom_scorer.py
+from judgeval.scorers import CustomScorer
+
+class SampleScorer(CustomScorer):
+    ...
+```
+
+### 2. Implement the `__init__()` method
+
+`CustomScorer`s have some required attributes that must be determined in the `__init__()` method. 
+For instance, you must set a `threshold` to determine what constitutes success/failure for a scorer. 
+
+There are additional optional attributes that can be set here for even more flexibility:
+- `score_type (str)`: The name of your scorer. This will be displayed in the Judgment platform.
+- `include_reason (bool)`: Whether your scorer includes a reason for the score in the results. Only for LLM judge-based scorers.
+- `async_mode (bool)`: Whether your scorer should be run asynchronously during evaluations.
+- `strict_mode (bool)`: Whether your scorer fails if the score is not perfect (1.0).
+- `verbose_mode (bool)`: Whether your scorer produces verbose logs.
+
+```python custom_scorer.py
+class SampleScorer(CustomScorer):
+    def __init__(
+        self,
+        threshold=0.5,
+        score_type="Sample Scorer",
+        include_reason=True,
+        async_mode=True,
+        strict_mode=False,
+        verbose_mode=True
+    ):
+        super().__init__(score_type=score_type, threshold=threshold)
+        self.threshold = 1 if strict_mode else threshold
+        # Optional attributes
+        self.include_reason = include_reason
+        self.async_mode = async_mode
+        self.strict_mode = strict_mode
+        self.verbose_mode = verbose_mode
+```
+
+### 3. Implement the `score_example()` and `a_score_example()` methods
+
+The `score_example()` and `a_score_example()` methods take an `Example` object and execute your scorer to produce a score (float) between 0 and 1. 
+Optionally, you can include a reason to accompany the score if applicable (e.g. for LLM judge-based scorers). 
+
+The only requirement for `score_example()` and `a_score_example()` is that they:
+- Take an `Example` as an argument (you can add other arguments too)
+- Set the `self.score` attribute
+- Set the `self.success` attribute
+
+You can optionally set the self.reason attribute, depending on your preference.
+
+<Note>
+`a_score_example()` is simply the async version of `score_example()`, so the implementation should largely be identical.
+</Note>
+
+These methods are the core of your scorer, and you can implement them in any way you want. **Be creative!** 
+Check out this list of examples our users have implemented if you need inspiration: TODO add link here
+
+#### Handling Errors
+If you want to handle errors gracefully, you can use a `try` block and in the `except` block, set the `self.error` attribute to the error message. 
+This will allow `judgeval` to catch the error but **still execute the rest of an evaluation run**, assuming you have multiple examples to evaluate.
+
+Here's a sample implementation that integrates everything we've covered:
+
+```python custom_scorer.py
+class SampleScorer(CustomScorer):
+    ...
+
+    def score_example(self, example, ...):
+        try:
+            self.score = run_scorer_logic(example)
+            if self.include_reason:
+                self.reason = justify_score(example, self.score)
+            if self.verbose_mode:
+                self.verbose_logs = make_logs(example, self.reason, self.score)
+            self.success = self.score >= self.threshold
+        except Exception as e:
+            self.error = str(e)
+            self.success = False
+    
+    async def a_score_example(self, example, ...):
+        try:
+            self.score = await a_run_scorer_logic(example)  # async version
+            if self.include_reason:
+                self.reason = justify_score(example, self.score)
+            if self.verbose_mode:
+                self.verbose_logs = make_logs(example, self.reason, self.score)
+            self.success = self.score >= self.threshold
+        except Exception as e:
+            self.error = str(e)
+            self.success = False
+```
+
+
+### 4. Implement the `success_check()` method
+
+When executing an evaluation run, `judgeval` will check if your scorer has passed the `success_check()` method. 
+
+You can implement this method in any way you want, but **it should return a `bool`.** Here's a perfectly valid implementation:
+
+```python custom_scorer.py
+class SampleScorer(CustomScorer):
+    ...
+
+    def success_check(self, example):
+        if self.error is not None:
+            return False
+        return self.score >= self.threshold  # or you can do self.success if set
+```
+
+### 5. Give your scorer a name
+
+This is so that when displaying your scorer's results in the Judgment platform, you can easily sort by and find your scorer.
+
+```python custom_scorer.py
+class SampleScorer(CustomScorer):
+    ...
+
+    @property
+    def __name__(self):
+        return "Sample Scorer"
+```
+
+**Congratulations!** 🎉 
+
+You've made your first custom scorer! Now that your scorer is implemented, you can run it on your own datasets 
+just like any other `judgeval` scorer. Your scorer is fully integrated with `judgeval`'s infrastructure so you can view it on 
+the [Judgment platform](/judgment/introduction) too.
+
+For more examples, check out some of the custom scorers our users have implemented: TODO add link here.

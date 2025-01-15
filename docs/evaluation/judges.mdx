@@ -1,0 +1,88 @@
+---
+title: Judges
+---
+
+Judges are LLMs that are used to evaluate a component of your LLM system. `judgeval`'s LLM judge scorers, such as 
+`AnswerRelevancyScorer`, use judge models to execute evaluations.
+
+A good judge model should be able to evaluate your LLM system performance with high consistency and alignment with human preferences. 
+`judgeval` allows you to pick from a variety of leading judge models, or you can use your own custom judge!
+
+
+## LiteLLM Judge Models
+`judgeval` supports all models found in the [LiteLLM API](https://docs.litellm.ai/docs/providers). 
+This includes all popular closed-source models such as the OpenAI (GPT), Anthropic (Claude), and Gemini families. 
+
+To use a LiteLLM judge model, you simply pass the model name to the `model` parameter in `client.run_evaluation()`:
+
+```python judge.py
+
+...
+
+results = client.run_evaluation(
+    examples=[example1, ...],
+    scorers=[AnswerRelevancyScorer(threshold=0.5), ...]
+    model="gpt-4o"  # or any other LiteLLM model name
+)
+```
+
+## Open Source Judge Models
+
+In addition to LiteLLM judge models, `judgeval` supports a variety of popular open-source judge models via [TogetherAI](https://together.ai/) inference. 
+This includes all popular open-source models such as the Llama, DeepSeek, QWEN, Mistral, (and more!) families.
+
+To use an open-source judge model, you simply pass the model name to the `model` parameter in `client.run_evaluation()`:
+
+```python judge.py
+
+...
+
+results = client.run_evaluation(
+    examples=[example1, ...],
+    scorers=[AnswerRelevancyScorer(threshold=0.5), ...]
+    model="QWEN"  # or any other open-source model name
+)
+```
+
+## Use Your Own Judge Model
+
+If you have a custom model you'd like to use as a judge, such as a finetuned `gpt4o-mini`, you can use them in your `CustomScorer` evaluations.
+
+Simply inherit from the `judgevalJudge` class and implement the following methods:
+- `__init__()`: sets the `model_name (str)` and `model` attributes.
+- `load_model()`: loads the model.
+- `generate()`: generates a response from the model given a conversation history (List[dict]).
+- `a_generate()`: generates a response from the model asynchronously given a conversation history (List[dict]).
+- `get_model_name()`: returns the model name.
+
+Here's an example of implementing a custom judge model for Gemini Flash 1.5:
+
+```python gemini_judge.py 
+import vertexai
+from vertexai.generative_models import GenerativeModel
+
+PROJECT_ID = "<YOUR PROJECT ID>"
+vertexai.init(project=PROJECT_ID, location="<REGION NAME>")
+
+class VertexAIJudge(judgevalJudge):
+
+    def __init__(self, model_name: str = "gemini-1.5-flash-002"):
+        self.model_name = model_name
+        self.model = GenerativeModel(self.model_name)
+
+    def load_model(self):
+        return self.model
+
+    def generate(self, prompt: List[dict]) -> str:
+        # For models that don't support chat history, we need to convert to string
+        # If your model supports chat history, you can just pass the prompt directly
+        response = self.model.generate_content(str(prompt))
+        return response.text
+    
+    async def a_generate(self, prompt: List[dict]) -> str:
+        response = await self.model.generate_content_async(str(prompt))
+        return response.text
+    
+    def get_model_name(self) -> str:
+        return self.model_name
+```

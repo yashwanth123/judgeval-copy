@@ -1,0 +1,91 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Judgment",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#0D9373",
+    "light": "#07C983",
+    "dark": "#0D9373",
+    "anchors": {
+      "from": "#0D9373",
+      "to": "#07C983"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:contact@judgmentlabs.ai"
+    },
+    {
+      "name": "GitHub",
+      "url": "https://github.com/judgmentlabs"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Dashboard",
+    "url": "https://dashboard.mintlify.com"
+  },
+  "tabs": [
+    {
+      "name": "Tutorials",
+      "url": "api-reference"
+    },
+    {
+      "name": "Blog",
+      "url": "https://judgmentlabs.ai/"
+    }
+  ],
+  "anchors": [
+    
+  ],
+  "navigation": [
+    {
+      "group": "Welcome!",
+      "pages": [
+        "introduction",
+        "getting_started"
+      ]
+    },
+    {
+      "group": "Evaluation",
+      "pages": [
+        "evaluation/introduction",
+        "evaluation/data_examples",
+        "evaluation/data_datasets",
+        {
+          "group": "Scorers",
+          "pages": [
+            "evaluation/scorers/introduction",
+            "evaluation/scorers/answer_relevancy",
+            "evaluation/scorers/contextual_precision",
+            "evaluation/scorers/contextual_recall",
+            "evaluation/scorers/contextual_relevancy",
+            "evaluation/scorers/faithfulness",
+            "evaluation/scorers/hallucination",
+            "evaluation/scorers/json_correctness",
+            "evaluation/scorers/summarization",
+            "evaluation/scorers/tool_correctness",
+            "evaluation/scorers/custom_scorers",
+            "evaluation/scorers/classifier_scorer"
+          ]
+        },
+        "evaluation/judges"
+      ]
+    },
+    {
+      "group": "Judgment Platform",
+      "pages": [
+        "judgment/introduction"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "x": "https://x.com/judgmentlabs",
+    "github": "https://github.com/judgmentlabs",
+    "linkedin": "https://linkedin.com/company/judgmentlabs"
+  }
+}
