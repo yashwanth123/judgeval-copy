@@ -1,0 +1,267 @@
+# Quick Introduction
+
+Judgeval is an evaluation framework for LLM systems. Judgeval is designed for AI teams to build on and iterate on their LLM systems (applications) and was built to
+- Easily unit test LLM systems.
+- Supply a quality control layer for multi-step LLM applications, especially for **agentic systems**.
+- Plug-and-evaluate LLM systems with 10+ research-backed metrics including hallucination detection, RAG retrieval quality, and more.
+- Construct custom evaluation pipelines for your LLM systems.
+- Monitor LLM systems in production using state-of-the-art real-time evaluation foundation models.
+
+
+Additionally, Judgeval integrates natively with Judgment Labs, allowing you to evaluate, regression test, and monitor LLM applications in the cloud.
+
+Judgeval was built from a team of LLM researchers from Stanford, Datadog, and Together AI.
+
+# Installation 
+
+`pip install judgeval`
+
+Judgeval runs evaluations on your local machine. However, you may find it easier to directly run evaluations using Judgment Labs' infrastructure, an all-in-one platform for LLM system evaluation.
+
+# Making a Judgment Key
+
+Getting a Judgment key allows you to run evaluations on Judgment Labs' infrastructure, accessing our state-of-the-art judge models and platform to manage your evaluations/datasets. 
+
+To receive a key, please email us at `contact@judgmentlabs.ai`.
+
+
+`Tip:` 
+
+Running evaluations on Judgment Labs' infrastructure is recommended for large-scale evaluations. Contact us if you're dealing with sensitive data that has to reside in your private VPCs.
+
+# Create your first evaluation
+
+
+```
+from judgeval.data import Example
+from judgeval.scorers import JudgmentScorer
+from judgeval.judgment_client import JudgmentClient
+from judgeval.constants import APIScorer
+
+client = JudgmentClient()
+
+example = Example(
+    input="What if these shoes don't fit?",
+    actual_output="We offer a 30-day full refund at no extra cost.",
+    retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+)
+
+scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+results = client.run_evaluation(
+    examples=[example],
+    scorers=[scorer],
+    model="gpt-4o",
+)
+print(results)
+```
+
+Congratulations! Your evaluation should have passed. Let's break down what happened.
+
+- The variable `input` mimics a user input and `actual_output` is a placeholder for what your LLM system returns based on the input.
+- The variable `retrieval_context` represents the retrieved context from your knowledge base and `JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)` is a scorer that checks if the output is hallucinated relative to the retrieved context.
+- Scorers give values betweeen 0 - 1 and we set the threshold for this scorer to 0.5 in the context of a unit test. If you are interested measuring rather than testing, you can ignore this threshold and reference the `score` field alone.
+- We chose `gpt-4o` as our judge model for faithfulness. Judgment Labs offers ANY judge model for your evaluation needs.
+
+# Create Your First Scorer
+`judgeval` offers three kinds of LLM scorers for your evaluation needs: ready-made, prompt scorers, and custom scorers.
+
+## Ready-made Scorers
+Judgment Labs provides default implementations of 10+ research-backed metrics covering evaluation needs ranging from hallucination detection to RAG retrieval quality. To create a ready-made scorer, just import it directly from `judgeval.scorers`:
+
+```
+from judgeval.judgment_client import JudgmentClient
+from judgeval.data import Example
+from judgeval.scorers import JudgmentScorer
+from judgeval.constants import APIScorer
+
+client = JudgmentClient()
+example = Example(
+    input="...",
+    actual_output="...",
+    retrieval_context=["..."],
+)
+scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+
+results = client.run_evaluation(
+    examples=[example],
+    scorers=[scorer],
+    model="gpt-4o",
+)
+print(results)
+```
+
+## Prompt Scorers
+`judgeval` allows you to create custom scorers using natural language. These can range from simple judges to powerful evaluators for your LLM systems.
+
+```
+TODO
+```
+
+## Custom Scorers
+If you find that none of the ready-made scorers or prompt scorers fit your needs, you can create your own custom scorer. These can be as simple or complex as you need them to be and do not have to use an LLM judge model. Here's an example of computing BLEU scores:
+
+```
+import sacrebleu
+from judgeval.scorers import CustomScorer 
+
+class BLEUScorer(CustomScorer):
+    def __init__(self, threshold: float = 0.5):
+        super().__init__(score_type="BLEU", threshold=threshold)
+
+    def score_example(self, example: Example) -> float:
+        reference = example.expected_output
+        candidate = example.actual_output
+
+        score = sacrebleu.sentence_bleu(candidate, [reference]).score
+        self.score = score
+        return score
+
+    # Async implementation of score_example(). If you have no async logic, you can
+    # just use the synchronous implementation.
+    async def a_score_example(self, example: Example) -> float:
+        return self.score_example(example)
+
+    def success_check(self) -> bool:
+        return self.score >= self.threshold
+
+    @property
+    def __name__(self):
+        return "BLEU"
+
+# example usage 
+example = Example("input"="...", "actual_output"="...", "expected_output"="...")
+scorer = BLEUScorer()
+results = scorer.score_example(example)
+print(results)
+```
+
+## Running Multiple Scorers Simultaneously
+
+If you're interested in measuring multiple metrics at once, you can group scorers together when running evaluations, regardless of the type of scorer.
+
+```
+from judgeval.judgment_client import JudgmentClient
+from judgeval.scorers import JudgmentScorer
+from judgeval.constants import APIScorer
+
+client = JudgmentClient()
+
+faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+summarization_scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.SUMMARIZATION)
+
+results = client.run_evaluation(
+    examples=[example],
+    scorers=[faithfulness_scorer, summarization_scorer],
+    model="gpt-4o",
+)
+```
+
+# Create Your First Dataset 
+In most cases, you will not be running evaluations on a single example; instead, you will be scoring your LLM system on a dataset. `judgeval` allows you to create datasets, save them, and run evaluations on them. An `EvalDataset` is a collection of `Example`s and/or `GroundTruthExample`s.
+
+`Note: A GroundTruthExample is an Example that has no actual_output field since it will be generated at test time.`
+
+```
+from judgeval.data import Example, GroundTruthExample, EvalDataset
+
+example1 = Example("input"="...", "actual_output"="...")
+example2 = Example("input"="...", "actual_output"="...")
+
+dataset = EvalDataset(examples=[example1, example2])
+```
+
+Then, you can run evaluations on the dataset:
+
+```
+...
+
+client = JudgmentClient()
+scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+results = client.evaluate_dataset(
+    dataset=dataset,
+    scorers=[scorer],
+    model="QWEN",
+)
+```
+
+
+# Using Judgment Labs Platform
+ 
+When scaling your evaluations, Judgment's platform allows you to manage your evaluations, datasets, and scorers in a single place. 
+To get started, create a Judgment account by emailing us at `contact@judgmentlabs.ai`. We'll get you set up with a login and you'll be able to:
+- Run evaluations directly on Judgment's platform
+- Track and inspect evaluations with an intuitive UI
+- Compare your evaluations across iterations of your LLM system, optimizing your models, prompts, etc.
+- Manage your datasets and scorers
+- Monitor your LLM systems in production
+
+`Note:` Click here to learn more about Judgment Labs' platform: TODO add link to `judgment/` docs.
+
+## Running Evaluations on Judgment
+
+Work in progress!
+
+## Managing Datasets
+
+Work in progress!
+
+## Creating ClassifierScorers
+
+ClassifierScorers are powerful evaluators that can be created in minutes via Judgment's platform or SDK using natural language criteria.
+
+`Tip`: 
+
+For more information on what a ClassifierScorer is, click here: TODO add link to `classifier_scorers/` docs.
+
+1. Navigate to the `Scorers` tab in the Judgment platform. You'll find this on via the sidebar on the left.
+2. Click the "Create Scorer" button in the top right corner.
+
+![Alt text](judgeval/docs/dev_docs/imgs/create_scorer.png "Optional title")
+
+3. Here, you can create a custom scorer by using a criteria in natural language, supplying custom arguments from the `Example` class. 
+Then, you supply a set of choices the scorer can select from when evaluating an example. Finally, you can test your scorer on samples in our playground.
+
+4. Once you're finished, you can save the scorer and use it in your evaluation runs just like any other scorer in `judgeval`.
+
+### Example 
+
+Here's an example of building a `ClassifierScorer` that checks if the LLM's tone is too aggressive. 
+This might be useful when building a customer support chatbot.
+
+![Alt text](judgeval/docs/dev_docs/imgs/create_aggressive_scorer.png "Optional title")
+
+## Optimizing System Performance
+
+Evaluations are prerequisite for optimizing your LLM systems. Measuring the quality of your LLM workflows 
+allows you to compare build iterations and ultimately find the optimal set of prompts, models, RAG architectures, etc. that 
+make your LLM perform best. 
+
+A typical experimental setup might look like this:
+
+1. Create a new `Project` in the Judgment platform by either running an evaluation from the SDK or via the platform UI. 
+This will help you keep track of all evaluations for different iterations of your LLM system.
+
+`Tip`: 
+A `Project` keeps track of `Evaluation Run`s in your project. Each `Evaluation Run` contains a set of `Scorer`s that have been run on a set of `Example`s.
+
+2. You can create separate `Evaluation Run`s for different iterations of your LLM system, allowing you to independently test each component of your LLM system.
+
+`Tip`:
+You can try different models (e.g. `gpt-4o`, `claude-3-5-sonnet`, etc.) and prompt templates in each `Evaluation Run` to find the 
+optimal setup for your LLM system. 
+
+
+## Monitoring LLM Systems in Production
+
+Beyond experimenting and measuring historical performance, `judgeval` supports monitoring your LLM systems in production. 
+Using our `tracing` module, you can track your LLM system outputs from end to end, allowing you to visualize the flow of your LLM system. 
+Additionally, you can enable evaluations to run in real-time using Judgment's state-of-the-art judge models. 
+
+TODO add picture of tracing, or an embedded gif
+
+Some of the benefits of monitoring your LLM systems in production with `judgeval` include:
+- Detecting hallucinations and other quality issues before they reach your customers
+- Automatically creating datasets from your real-world production cases for future improvement/optimization
+- Tracking and alerting on quality metrics (e.g. latency, cost, etc.)
+
+For more information on monitoring, click here. TODO: add link to tracing docs
