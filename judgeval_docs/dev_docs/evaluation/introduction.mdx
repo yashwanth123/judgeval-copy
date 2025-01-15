@@ -1,0 +1,91 @@
+# Introduction 
+
+## Quick Summary
+
+Evaluation is the process of scoring an LLM system's outputs with metrics; an evaluation is composed of:
+- An evaluation dataset
+- Metrics we are interested in tracking
+
+The ideal fit of evaluation into an application workflow looks like this:
+
+![Alt text](judgeval/docs/dev_docs/imgs/evaluation_diagram.png "Optional title")
+
+## Metrics 
+
+`judgeval` comes with a set of 10+ built-in evaluation metrics. These metrics are accessible through `judgeval`'s `Scorer` interface. 
+
+```
+from judgeval.scorers import JudgmentScorer
+from judgeval.constants import APIScorer
+
+scorer = JudgmentScorer(score_type=APIScorer.FAITHFULNESS)
+```
+You can use scorers to evaluate your LLM system's outputs by using `Example`s.
+
+!! We're always working on adding new `Scorer`s, so if you have a metric you'd like to add, please let us know!
+
+## Examples 
+
+In `judgeval`, an Example is a unit of data that allows you to use evaluation scorers on your LLM system.
+
+```
+from judgeval.data import Example
+
+example = Example(
+    input="Who founded Microsoft?",
+    actual_output="Bill Gates and Paul Allen.",
+    retrieval_context=["Bill Gates co-founded Microsoft with Paul Allen in 1975."],
+)
+```
+
+In this example, `input` represents a user talking with a RAG-based LLM application, where `actual_output` is the output of your chatbot and `retrieval_context` is the retrieved context. Creating an Example allows you to evaluate using `judgeval`'s default scorers:
+
+```
+from judgeval.judgment_client import JudgmentClient
+from judgeval.scorers import JudgmentScorer
+from judgeval.constants import APIScorer
+
+client = JudgmentClient()
+
+faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+
+results = client.run_evaluation(
+    examples=[example],
+    scorers=[faithfulness_scorer, summarization_scorer],
+    model="gpt-4o",
+)
+print(results)
+```
+
+## Datasets
+
+An Evaluation Dataset is a collection of Examples. It provides an interface for running scaled evaluations of your LLM system using one or more scorers.
+
+```
+from judgeval.data import Example, EvalDataset
+
+example1 = Example("input"="...", "actual_output"="...", "retrieval_context"="...")
+example2 = Example("input"="...", "actual_output"="...", "retrieval_context"="...")
+
+dataset = EvalDataset(examples=[example1, example2])
+```
+
+`EvalDataset`s can be saved to disk and loaded back in, or uploaded to the Judgment platform.
+For more information on how to use `EvalDataset`s, please see the [EvalDataset docs](./data_datasets.mdx).
+
+Then, you can run evaluations on the dataset:
+
+```
+...
+
+client = JudgmentClient()
+scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+results = client.evaluate_dataset(
+    dataset=dataset,
+    scorers=[scorer],
+    model="QWEN",
+)
+```
+
+Congratulations! You've learned the basics of building and running evaluations with `judgeval`. 
+For a deep dive into all the metrics you can run using `judgeval` scorers, click here. TODO  add link
