@@ -1,4 +1,4 @@
-from judgeval.scorers.base_scorer import JudgmentScorer
+from judgeval.judgeval.scorers.api_scorer import APIJudgmentScorer
 from judgeval.scorers.custom_scorer import CustomScorer
 from judgeval.scorers.prompt_scorer import PromptScorer, ClassifierScorer
 from judgeval.scorers.judgeval_scorers import (
@@ -14,7 +14,7 @@ from judgeval.scorers.judgeval_scorers import (
 )
 
 __all__ = [
-    "JudgmentScorer",
+    "APIJudgmentScorer",
     "CustomScorer",
     "PromptScorer",
     "ClassifierScorer",

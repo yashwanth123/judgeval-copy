@@ -8,7 +8,7 @@ import requests
 from judgeval.constants import ROOT_API
 from judgeval.data.datasets import EvalDataset
 from judgeval.data import ScoringResult, Example
-from judgeval.scorers import JudgmentScorer, CustomScorer, ClassifierScorer
+from judgeval.scorers import APIJudgmentScorer, CustomScorer, ClassifierScorer
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.run_evaluation import run_eval
 from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL
@@ -37,7 +37,7 @@ class JudgmentClient:
     def run_evaluation(
         self, 
         examples: List[Example],
-        scorers: List[Union[JudgmentScorer, CustomScorer]],
+        scorers: List[Union[APIJudgmentScorer, CustomScorer]],
         model: Union[str, List[str]],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
@@ -68,7 +68,7 @@ class JudgmentClient:
     def evaluate_dataset(
         self, 
         dataset: EvalDataset,
-        scorers: List[Union[JudgmentScorer, CustomScorer]],
+        scorers: List[Union[APIJudgmentScorer, CustomScorer]],
         model: Union[str, List[str]],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,

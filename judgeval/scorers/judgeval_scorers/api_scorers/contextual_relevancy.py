@@ -6,11 +6,11 @@ TODO add link to docs page for this scorer
 """
 
 # Internal imports
-from judgeval.scorers.base_scorer import JudgmentScorer
+from judgeval.judgeval.scorers.api_scorer import APIJudgmentScorer
 from judgeval.constants import APIScorer
 
 
-class ContextualRelevancyScorer(JudgmentScorer):
+class ContextualRelevancyScorer(APIJudgmentScorer):
     """
     Scorer that checks if the output of a model is relevant to the retrieval context
     """
