@@ -117,8 +117,8 @@ async def make_poem(input: str) -> str:
         return ""
 
 async def test_evaluation_mixed(input):
-    PROJECT_NAME = "testing_project"
-    with judgment.trace("testing_trace_evaluation", project_name=PROJECT_NAME) as trace:
+    PROJECT_NAME = "yo_xd"
+    with judgment.trace("yo_xd_1", project_name=PROJECT_NAME, overwrite=True) as trace:
         upper = await make_upper(input)
         result = await make_poem(upper)
         await answer_user_question("What if these shoes don't fit?")
