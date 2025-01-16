@@ -128,7 +128,7 @@ def check_missing_scorer_data(results: List[ScoringResult]) -> List[ScoringResul
             )
     return results
 
-def run_eval(evaluation_run: EvaluationRun):
+def run_eval(evaluation_run: EvaluationRun) -> List[ScoringResult]:
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
@@ -262,7 +262,6 @@ def run_eval(evaluation_run: EvaluationRun):
 
     info(f"Successfully merged {len(merged_results)} results")
 
-    actual_eval_run_name = evaluation_run.eval_name
     if evaluation_run.log_results:
         try:
             res = requests.post(
@@ -280,10 +279,32 @@ def run_eval(evaluation_run: EvaluationRun):
                 error(f"Error {res.status_code}: {error_message}")
                 raise Exception(f"Error {res.status_code}: {error_message}")
             else:
-                actual_eval_run_name = res.json()["eval_results_name"]
                 if "ui_results_url" in res.json():
                     rprint(f"\n🔍 You can view your evaluation results here: [rgb(106,0,255)]{res.json()['ui_results_url']}[/]\n")
                 
+                # Set the merged_result to the logged results (which contain the example_id in ScoringResult)
+                logged_results = res.json()["logged_results"]
+                # Convert each result dict back into a ScoringResult object
+                # Differing fields:
+                # ScoringResult doesn't have any of the fields beside the 'result' field.
+                
+                # Basically, we want to merge the logged_results.example_id into the logged_results.result
+                merged_results = []
+                for result in logged_results:
+                    cur_result = result['result']
+                    merged_result = ScoringResult(
+                        success=cur_result["success"],
+                        scorers_data=[ScorerData(**scorer_dict) for scorer_dict in cur_result["scorers_data"]] if cur_result["scorers_data"] else None,
+                        input=cur_result.get("input"),
+                        actual_output=cur_result.get("actual_output"), 
+                        expected_output=cur_result.get("expected_output"),
+                        context=cur_result.get("context"),
+                        retrieval_context=cur_result.get("retrieval_context"),
+                        trace_id=result.get("trace_id"),
+                        example_id=result.get("example_id"),
+                        eval_run_name=result.get("eval_result_run"),
+                    )
+                    merged_results.append(merged_result)
         except requests.exceptions.RequestException as e:
             error(f"Request failed while saving evaluation results to DB: {str(e)}")
             raise JudgmentAPIError(f"Request failed while saving evaluation results to DB: {str(e)}")
@@ -294,7 +315,8 @@ def run_eval(evaluation_run: EvaluationRun):
     for i, result in enumerate(merged_results):
         if not result.scorers_data:  # none of the scorers could be executed on this example
             info(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
-    return actual_eval_run_name, merged_results
+    
+    return merged_results
 
 
 if __name__ == "__main__":
