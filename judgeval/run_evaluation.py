@@ -11,7 +11,7 @@ from judgeval.data import (
     ScoringResult
 )
 from judgeval.scorers import (
-    CustomScorer, 
+    JudgevalScorer, 
     APIJudgmentScorer,
     ClassifierScorer
 )
@@ -257,7 +257,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
     # Group JudgmentScorers and CustomScorers, then evaluate them in parallel
     debug("Grouping scorers by type")
     judgment_scorers: List[APIJudgmentScorer] = []
-    custom_scorers: List[CustomScorer] = []
+    custom_scorers: List[JudgevalScorer] = []
     for scorer in evaluation_run.scorers:
         if isinstance(scorer, (APIJudgmentScorer, ClassifierScorer)):
             judgment_scorers.append(scorer)

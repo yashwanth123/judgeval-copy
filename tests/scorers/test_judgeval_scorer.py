@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import Mock, patch
 from typing import Dict, Optional
 
-from judgeval.scorers.custom_scorer import CustomScorer
+from judgeval.scorers.custom_scorer import JudgevalScorer
 from judgeval.judges import judgevalJudge
 from judgeval.common.exceptions import InvalidJudgeModelError
 
@@ -21,7 +21,7 @@ class MockJudge(judgevalJudge):
     def get_model_name(self, *args, **kwargs) -> str:
         return "mock-model"
 
-class SampleScorer(CustomScorer):
+class SampleScorer(JudgevalScorer):
     """Concrete implementation of CustomScorer for testing"""
     def score_example(self, example, *args, **kwargs) -> float:
         return 0.8
@@ -137,7 +137,7 @@ class TestCustomScorer:
 
     def test_abstract_methods_base_class(self):
         """Test that abstract methods raise NotImplementedError when not implemented"""
-        class IncompleteScorer(CustomScorer):
+        class IncompleteScorer(JudgevalScorer):
             pass
 
         scorer = IncompleteScorer(score_type="test", threshold=0.5)

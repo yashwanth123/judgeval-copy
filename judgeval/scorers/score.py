@@ -16,7 +16,7 @@ from judgeval.data import (
     create_process_example,
     create_scorer_data,
 )
-from judgeval.scorers import CustomScorer
+from judgeval.scorers import JudgevalScorer
 from judgeval.scorers.utils import clone_scorers, scorer_console_msg
 from judgeval.common.telemetry import capture_evaluation_run
 from judgeval.common.exceptions import MissingTestCaseParamsError
@@ -24,7 +24,7 @@ from judgeval.common.logger import example_logging_context, debug, error, warnin
 from judgeval.judges import judgevalJudge
 
 async def safe_a_score_example(
-    scorer: CustomScorer,
+    scorer: JudgevalScorer,
     example: Example,
     ignore_errors: bool,
     skip_on_missing_params: bool,
@@ -97,7 +97,7 @@ async def safe_a_score_example(
 async def score_task(
     task_id: int,
     progress: Progress,
-    scorer: CustomScorer,
+    scorer: JudgevalScorer,
     example: Example,
     ignore_errors: bool = True,
     skip_on_missing_params: bool = True,
@@ -183,7 +183,7 @@ async def score_task(
 
 
 async def score_with_indicator(
-    scorers: List[CustomScorer],
+    scorers: List[JudgevalScorer],
     example: Example,
     ignore_errors: bool,
     skip_on_missing_params: bool,
@@ -243,7 +243,7 @@ async def score_with_indicator(
 
 async def a_execute_scoring(
     examples: List[Example],
-    scorers: List[CustomScorer],
+    scorers: List[JudgevalScorer],
     model: Optional[Union[str, List[str], judgevalJudge]] = None,
     ignore_errors: bool = True,
     skip_on_missing_params: bool = True,
@@ -318,7 +318,7 @@ async def a_execute_scoring(
                             pbar.update(1)
                             continue
 
-                        cloned_scorers: List[CustomScorer] = clone_scorers(
+                        cloned_scorers: List[JudgevalScorer] = clone_scorers(
                             scorers
                         )
                         task = execute_with_semaphore(
@@ -344,7 +344,7 @@ async def a_execute_scoring(
                     if len(scorers) == 0:
                         continue
 
-                    cloned_scorers: List[CustomScorer] = clone_scorers(
+                    cloned_scorers: List[JudgevalScorer] = clone_scorers(
                         scorers
                     )
                     task = execute_with_semaphore(
@@ -366,7 +366,7 @@ async def a_execute_scoring(
 
 
 async def a_eval_examples_helper(
-    scorers: List[CustomScorer],
+    scorers: List[JudgevalScorer],
     example: Example,
     scoring_results: List[ScoringResult],
     score_index: int,

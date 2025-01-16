@@ -3,7 +3,7 @@ from pydantic import BaseModel, field_validator
 
 from judgeval.data import Example
 from judgeval.data.datasets import EvalDataset
-from judgeval.scorers import CustomScorer, APIJudgmentScorer
+from judgeval.scorers import JudgevalScorer, APIJudgmentScorer
 from judgeval.constants import ACCEPTABLE_MODELS
 from judgeval.common.logger import debug, error
 class EvaluationRun(BaseModel):
@@ -26,7 +26,7 @@ class EvaluationRun(BaseModel):
     project_name: Optional[str] = None
     eval_name: Optional[str] = None
     examples: List[Example]
-    scorers: List[Union[APIJudgmentScorer, CustomScorer]]
+    scorers: List[Union[APIJudgmentScorer, JudgevalScorer]]
     model: Union[str, List[str]]
     aggregator: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -69,7 +69,7 @@ class EvaluationRun(BaseModel):
         if not v:
             raise ValueError("Scorers cannot be empty.")
         for s in v:
-            if not isinstance(s, APIJudgmentScorer) and not isinstance(s, CustomScorer):
+            if not isinstance(s, APIJudgmentScorer) and not isinstance(s, JudgevalScorer):
                 raise ValueError(f"Invalid type for Scorer: {type(s)}")
         return v
 

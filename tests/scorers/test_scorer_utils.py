@@ -13,11 +13,11 @@ from judgeval.scorers.utils import (
     create_verbose_logs,
     get_or_create_event_loop,
 )
-from judgeval.scorers import CustomScorer
+from judgeval.scorers import JudgevalScorer
 from judgeval.data import Example
 
 
-class MockCustomScorer(CustomScorer):
+class MockCustomScorer(JudgevalScorer):
     """Mock implementation of CustomScorer for testing"""
     def __init__(self, **kwargs):
         super().__init__(
