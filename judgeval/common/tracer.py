@@ -364,7 +364,11 @@ class TraceClient:
                 "Content-Type": "application/json",
             }
         )
-        response.raise_for_status()
+        
+        if response.status_code == HTTPStatus.BAD_REQUEST:
+            raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
+        elif response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to save trace data: {response.text}")
         
         return self.trace_id, trace_data
 
