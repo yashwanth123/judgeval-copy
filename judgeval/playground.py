@@ -13,7 +13,7 @@ from judgeval.data.example import Example
 from judgeval.judges.base_judge import judgevalJudge
 from judgeval.judges.together_judge import TogetherJudge
 from judgeval.judges.utils import create_judge
-from judgeval.scorers.custom_scorer import JudgevalScorer
+from judgeval.judgeval.scorers.judgeval_scorer import JudgevalScorer
 from judgeval.scorers.score import *
 from judgeval.common.telemetry import capture_metric_type
 

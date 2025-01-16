@@ -2,7 +2,7 @@ import pytest
 from typing import Dict, Optional
 
 from judgeval.data.scorer_data import ScorerData, create_scorer_data
-from judgeval.scorers.custom_scorer import JudgevalScorer
+from judgeval.judgeval.scorers.judgeval_scorer import JudgevalScorer
 
 
 class MockCustomScorer(JudgevalScorer):
