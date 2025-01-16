@@ -19,6 +19,7 @@ import asyncio
 import json
 import warnings
 from pydantic import BaseModel
+from http import HTTPStatus
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
@@ -185,14 +186,18 @@ class TraceClient:
             threshold=threshold
         )
         
-        _, scoring_results = self.client.run_evaluation(
+        eval_run_name=f"{self.name.capitalize()}-{self._current_span}-{scorer.score_type.capitalize()}"
+        
+        # TODO: Maybe add the example_id to the scoring_results as well...
+        # Only problem is there are multiple examples per evaluation run, so we need to match them up
+        scoring_results = self.client.run_evaluation(
             examples=[example],
             scorers=[scorer],
             model=model,
             metadata={},
             log_results=log_results,
             project_name=self.project_name,
-            eval_run_name=f"{self.name.capitalize()}-{self._current_span}-{scorer.score_type.capitalize()}",
+            eval_run_name=eval_run_name,
         )
         
         self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation
@@ -201,6 +206,10 @@ class TraceClient:
         """Record evaluation results for the current span"""
         if self._current_span:
             duration = time.time() - start_time  # Calculate duration from start_time
+            
+            # Results should be a list of ScoringResults
+            print(f"{results=}")
+            
             self.add_entry(TraceEntry(
                 type="evaluation",
                 function=self._current_span,
@@ -318,7 +327,7 @@ class TraceClient:
         condensed.sort(key=lambda x: x["timestamp"])
         return condensed
 
-    def save(self) -> Tuple[str, dict]:
+    def save(self, empty_save: bool = False, overwrite: bool = False) -> Tuple[str, dict]:
         """
         Save the current trace to the database.
         Returns a tuple of (trace_id, trace_data) where trace_data is the trace data that was saved.
@@ -342,7 +351,9 @@ class TraceClient:
                 "completion_tokens": 0,  # Dummy value
                 "total_tokens": 0,  # Dummy value
             },  # TODO: Add token counts
-            "entries": condensed_entries
+            "entries": condensed_entries,
+            "empty_save": empty_save,
+            "overwrite": overwrite
         }
 
         # Save trace data by making POST request to API
@@ -378,7 +389,7 @@ class Tracer:
             self.initialized: bool = True
         
     @contextmanager
-    def trace(self, name: str, project_name: str = "default_project") -> Generator[TraceClient, None, None]:
+    def trace(self, name: str, project_name: str = "default_project", overwrite: bool = False) -> Generator[TraceClient, None, None]:
         """Start a new trace context using a context manager"""
         trace_id = str(uuid.uuid4())
         trace = TraceClient(self, trace_id, name, project_name=project_name)
@@ -389,7 +400,7 @@ class Tracer:
         with trace.span(name or "unnamed_trace") as span:
             try:
                 # Save the trace to the database to handle Evaluations' trace_id referential integrity
-                trace.save()
+                trace.save(empty_save=True, overwrite=overwrite)
                 yield trace
             finally:
                 self._current_trace = prev_trace
