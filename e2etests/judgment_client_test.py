@@ -245,6 +245,11 @@ if __name__ == "__main__":
     print("Evaluation run override successful")
     print("*" * 40)
     
+    print("Testing evaluation run override")
+    test_override_eval(client)
+    print("Evaluation run override successful")
+    print("*" * 40)
+    
     print("Testing dataset evaluation")
     test_evaluate_dataset(ui_client)
     print("Dataset evaluation successful")

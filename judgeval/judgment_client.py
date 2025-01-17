@@ -44,6 +44,7 @@ class JudgmentClient:
         log_results: bool = False,
         project_name: str = "",
         eval_run_name: str = "",
+        override: bool = False,
     ) -> List[ScoringResult]:
         """
         Executes an evaluation of `Example`s using one or more `Scorer`s
@@ -60,7 +61,7 @@ class JudgmentClient:
                 metadata=metadata,
                 judgment_api_key=self.judgment_api_key
             )
-            return run_eval(eval)
+            return run_eval(eval, override)
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
     

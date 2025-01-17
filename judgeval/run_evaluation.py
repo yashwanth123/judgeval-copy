@@ -18,6 +18,7 @@ from judgeval.scorers import (
 from judgeval.scorers.score import a_execute_scoring
 
 from judgeval.constants import (
+    ROOT_API,
     JUDGMENT_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
     APIScorer,
@@ -56,6 +57,7 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
         details = response.json().get("detail", "No details provided")
         raise JudgmentAPIError("An error occurred while executing the Judgment API request: " + details)
     # Check if the response status code is not 2XX
+    # Add check for the duplicate eval run name
     if not response.ok:
         error_message = response_data.get('detail', 'An unknown error occurred.')
         error(f"Error: {error_message=}")
@@ -128,7 +130,83 @@ def check_missing_scorer_data(results: List[ScoringResult]) -> List[ScoringResul
             )
     return results
 
-def run_eval(evaluation_run: EvaluationRun) -> List[ScoringResult]:
+def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_key: str) -> None:
+    """
+    Checks if an evaluation run name already exists for a given project.
+
+    Args:
+        eval_name (str): Name of the evaluation run
+        project_name (str): Name of the project
+        judgment_api_key (str): API key for authentication
+
+    Raises:
+        ValueError: If the evaluation run name already exists
+        JudgmentAPIError: If there's an API error during the check
+    """
+    try:
+        response = requests.post(
+            f"{ROOT_API}/eval-run-name-exists/",
+            json={
+                "eval_name": eval_name,
+                "project_name": project_name,
+                "judgment_api_key": judgment_api_key,
+            }
+        )
+        
+        if response.status_code == 409:
+            error(f"Evaluation run name '{eval_name}' already exists for this project")
+            raise ValueError(f"Evaluation run name '{eval_name}' already exists for this project")
+        
+        if not response.ok:
+            response_data = response.json()
+            error_message = response_data.get('detail', 'An unknown error occurred.')
+            error(f"Error checking eval run name: {error_message}")
+            raise JudgmentAPIError(error_message)
+            
+    except requests.exceptions.RequestException as e:
+        error(f"Failed to check if eval run name exists: {str(e)}")
+        raise JudgmentAPIError(f"Failed to check if eval run name exists: {str(e)}")
+
+def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: EvaluationRun) -> None:
+    """
+    Logs evaluation results to the Judgment API database.
+
+    Args:
+        merged_results (List[ScoringResult]): The results to log
+        evaluation_run (EvaluationRun): The evaluation run containing project info and API key
+
+    Raises:
+        JudgmentAPIError: If there's an API error during logging
+        ValueError: If there's a validation error with the results
+    """
+    try:
+        res = requests.post(
+            JUDGMENT_EVAL_LOG_API_URL,
+            json={
+                "results": [result.to_dict() for result in merged_results],
+                "judgment_api_key": evaluation_run.judgment_api_key,
+                "project_name": evaluation_run.project_name,
+                "eval_name": evaluation_run.eval_name,
+            }
+        )
+        
+        if not res.ok:
+            response_data = res.json()
+            error_message = response_data.get('detail', 'An unknown error occurred.')
+            error(f"Error {res.status_code}: {error_message}")
+            raise JudgmentAPIError(error_message)
+        
+        if "ui_results_url" in res.json():
+            rprint(f"\n🔍 You can view your evaluation results here: [rgb(106,0,255)]{res.json()['ui_results_url']}[/]\n")
+            
+    except requests.exceptions.RequestException as e:
+        error(f"Request failed while saving evaluation results to DB: {str(e)}")
+        raise JudgmentAPIError(f"Request failed while saving evaluation results to DB: {str(e)}")
+    except Exception as e:
+        error(f"Failed to save evaluation results to DB: {str(e)}")
+        raise ValueError(f"Failed to save evaluation results to DB: {str(e)}")
+
+def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[ScoringResult]:
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
@@ -150,6 +228,15 @@ def run_eval(evaluation_run: EvaluationRun) -> List[ScoringResult]:
     Returns:
         List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
     """
+    
+    # Call endpoint to check to see if eval run name exists (if we DON'T want to override and DO want to log results)
+    if not override and evaluation_run.log_results:
+        check_eval_run_name_exists(
+            evaluation_run.eval_name,
+            evaluation_run.project_name,
+            evaluation_run.judgment_api_key
+        )
+    
     # Set example IDs if not already set
     debug("Initializing examples with IDs and timestamps")
     for idx, example in enumerate(evaluation_run.examples):
@@ -263,59 +350,11 @@ def run_eval(evaluation_run: EvaluationRun) -> List[ScoringResult]:
     info(f"Successfully merged {len(merged_results)} results")
 
     if evaluation_run.log_results:
-        try:
-            res = requests.post(
-                JUDGMENT_EVAL_LOG_API_URL,
-                json={
-                    "results": [result.to_dict() for result in merged_results],
-                    "judgment_api_key": evaluation_run.judgment_api_key,
-                    "project_name": evaluation_run.project_name,
-                    "eval_name": evaluation_run.eval_name,
-                }
-            )
-            if not res.ok:
-                response_data = res.json()
-                error_message = response_data.get('detail', 'An unknown error occurred.')
-                error(f"Error {res.status_code}: {error_message}")
-                raise Exception(f"Error {res.status_code}: {error_message}")
-            else:
-                if "ui_results_url" in res.json():
-                    rprint(f"\n🔍 You can view your evaluation results here: [rgb(106,0,255)]{res.json()['ui_results_url']}[/]\n")
-                
-                # Set the merged_result to the logged results (which contain the example_id in ScoringResult)
-                logged_results = res.json()["logged_results"]
-                # Convert each result dict back into a ScoringResult object
-                # Differing fields:
-                # ScoringResult doesn't have any of the fields beside the 'result' field.
-                
-                # Basically, we want to merge the logged_results.example_id into the logged_results.result
-                merged_results = []
-                for result in logged_results:
-                    cur_result = result['result']
-                    merged_result = ScoringResult(
-                        success=cur_result["success"],
-                        scorers_data=[ScorerData(**scorer_dict) for scorer_dict in cur_result["scorers_data"]] if cur_result["scorers_data"] else None,
-                        input=cur_result.get("input"),
-                        actual_output=cur_result.get("actual_output"), 
-                        expected_output=cur_result.get("expected_output"),
-                        context=cur_result.get("context"),
-                        retrieval_context=cur_result.get("retrieval_context"),
-                        trace_id=result.get("trace_id"),
-                        example_id=result.get("example_id"),
-                        eval_run_name=result.get("eval_result_run"),
-                    )
-                    merged_results.append(merged_result)
-        except requests.exceptions.RequestException as e:
-            error(f"Request failed while saving evaluation results to DB: {str(e)}")
-            raise JudgmentAPIError(f"Request failed while saving evaluation results to DB: {str(e)}")
-        except Exception as e:
-            error(f"Failed to save evaluation results to DB: {str(e)}")
-            raise ValueError(f"Failed to save evaluation results to DB: {str(e)}")
+        log_evaluation_results(merged_results, evaluation_run)
 
     for i, result in enumerate(merged_results):
         if not result.scorers_data:  # none of the scorers could be executed on this example
             info(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
-    
     return merged_results
 
 
