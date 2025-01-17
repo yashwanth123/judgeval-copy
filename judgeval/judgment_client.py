@@ -8,7 +8,7 @@ import requests
 from judgeval.constants import ROOT_API
 from judgeval.data.datasets import EvalDataset
 from judgeval.data import ScoringResult, Example
-from judgeval.scorers import APIJudgmentScorer, JudgevalScorer, ClassifierScorer
+from judgeval.scorers import APIJudgmentScorer, JudgevalScorer, ClassifierScorer, ScorerWrapper
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.run_evaluation import run_eval
 from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL
@@ -37,7 +37,7 @@ class JudgmentClient:
     def run_evaluation(
         self, 
         examples: List[Example],
-        scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
+        scorers: List[Union[ScorerWrapper, JudgevalScorer]],
         model: Union[str, List[str]],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
@@ -45,17 +45,24 @@ class JudgmentClient:
         project_name: str = "",
         eval_run_name: str = "",
         override: bool = False,
+        use_judgment: bool = True
     ) -> List[ScoringResult]:
         """
         Executes an evaluation of `Example`s using one or more `Scorer`s
         """
         try:
+            # Load appropriate implementations for all scorers
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
+                scorer.load_implementation(use_judgment=use_judgment) if isinstance(scorer, ScorerWrapper) else scorer
+                for scorer in scorers
+            ]
+
             eval = EvaluationRun(
                 log_results=log_results,
                 project_name=project_name,
                 eval_name=eval_run_name,
                 examples=examples,
-                scorers=scorers,
+                scorers=loaded_scorers,
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,

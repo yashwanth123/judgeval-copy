@@ -11,6 +11,7 @@ from judgeval.scorers.judgeval_scorers import (
     ContextualPrecisionScorer,
     ContextualRecallScorer,
     AnswerRelevancyScorer,
+    ScorerWrapper
 )
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "ContextualPrecisionScorer",
     "ContextualRecallScorer",
     "AnswerRelevancyScorer",
+    "ScorerWrapper",
 ]
