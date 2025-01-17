@@ -256,8 +256,10 @@ async def a_execute_scoring(
     Executes evaluations of `Example`s asynchronously using one or more `CustomScorer`s.
     Each `Example` will be evaluated by all of the `CustomScorer`s in the `scorers` list.
 
+    Args:
         examples (List[Example]): A list of `Example` objects to be evaluated.
-        scorers (List[CustomScorer]): A list of `CustomScorer` objects to evaluate the examples.
+        scorers (List[CustomScorer]): A list of `CustomScorer` objects to evaluate the examples.\
+        model (Union[str, List[str], judgevalJudge]): The model to use for evaluation.
         ignore_errors (bool): Whether to ignore errors during evaluation.
         skip_on_missing_params (bool): Whether to skip evaluation if parameters are missing.
         show_indicator (bool): Whether to show a progress indicator.
@@ -267,7 +269,7 @@ async def a_execute_scoring(
         _use_bar_indicator (bool): Whether to use a progress bar indicator.
 
     Returns:
-        List[TestResult]: A list of `TestResult` objects containing the evaluation results.
+        List[ScoringResult]: A list of `ScoringResult` objects containing the evaluation results.
     """
     semaphore = asyncio.Semaphore(max_concurrent)
 

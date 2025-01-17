@@ -11,6 +11,7 @@ from judgeval.data import ScoringResult, Example
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer, ClassifierScorer, ScorerWrapper
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.run_evaluation import run_eval
+from judgeval.judges import judgevalJudge
 from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL
 from judgeval.common.exceptions import JudgmentAPIError
 from pydantic import BaseModel
@@ -38,7 +39,7 @@ class JudgmentClient:
         self, 
         examples: List[Example],
         scorers: List[Union[ScorerWrapper, JudgevalScorer]],
-        model: Union[str, List[str]],
+        model: Union[str, List[str], judgevalJudge],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         log_results: bool = False,
