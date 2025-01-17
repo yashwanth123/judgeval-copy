@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 import random
 import string
 
+from judgeval.scorers.prompt_scorer import ClassifierScorer
+
 load_dotenv()
 
 def get_client():
@@ -179,21 +181,47 @@ def test_evaluate_dataset(client: JudgmentClient):
     print(res)
     
 def test_classifier_scorer(client: JudgmentClient):
+    # Modifying a classifier scorer
+    # TODO: Some of the field names are not consistent between regular scorers and classifier scorers
+    # Make some methods private
     classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
-    faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    print(f"{classifier_scorer=}")
     
-    example1 = Example(
-        input="What if these shoes don't fit?",
-        actual_output="We offer a 30-day full refund at no extra cost, you would have known that if you read the website stupid!",
-        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    # TODO: Does ClassifierScorer actually use build_measure_prompt, enforce_prompt_format, etc.
+    # TODO: Ik PromptScorer uses it, but I don't think we need to redefine it in ClassifierScorer
+    
+    # Creating a classifier scorer from SDK
+    classifier_scorer_custom = ClassifierScorer(
+        name="Test Classifier Scorer",
+        threshold=0.5,
+        conversation=[],
+        options={}
     )
     
-    res = client.run_evaluation(
-        examples=[example1],
-        scorers=[classifier_scorer, faithfulness_scorer],
-        model="QWEN",
-    )
-    print(res)
+    classifier_scorer_custom.update_conversation(conversation=[{"role": "user", "content": "What is the capital of France?"}])
+    classifier_scorer_custom.update_options(options={"yes": 1, "no": 0})
+    
+    slug = client.push_classifier_scorer(scorer=classifier_scorer_custom)
+    
+    classifier_scorer_custom = client.fetch_classifier_scorer(slug=slug)
+    print(f"{classifier_scorer_custom=}")
+    
+    # faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    
+    # example1 = Example(
+    #     input="What if these shoes don't fit?",
+    #     actual_output="We offer a 30-day full refund at no extra cost, you would have known that if you read the website stupid!",
+    #     retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    # )
+    
+    # res = client.run_evaluation(
+    #     examples=[example1],
+    #     scorers=[classifier_scorer, faithfulness_scorer],
+    #     model="QWEN",
+    # )
+    # print(res)
+    
+    # Pushing a classifier scorer (from SDK)
 
 if __name__ == "__main__":
     # Test client functionality
@@ -202,15 +230,15 @@ if __name__ == "__main__":
     print("Client initialized successfully")
     print("*" * 40)
 
-    print("Testing dataset creation, pushing, and pulling")
-    test_dataset(ui_client)
-    print("Dataset creation, pushing, and pulling successful")
-    print("*" * 40)
+    # print("Testing dataset creation, pushing, and pulling")
+    # test_dataset(ui_client)
+    # print("Dataset creation, pushing, and pulling successful")
+    # print("*" * 40)
     
-    print("Testing evaluation run")
-    test_run_eval(ui_client)
-    print("Evaluation run successful")
-    print("*" * 40)
+    # print("Testing evaluation run")
+    # test_run_eval(ui_client)
+    # print("Evaluation run successful")
+    # print("*" * 40)
     
     print("Testing evaluation run override")
     test_override_eval(client)
@@ -221,6 +249,7 @@ if __name__ == "__main__":
     test_evaluate_dataset(ui_client)
     print("Dataset evaluation successful")
     print("*" * 40)
+    # print("*" * 40)
     
     print("Testing classifier scorer")
     test_classifier_scorer(ui_client)
