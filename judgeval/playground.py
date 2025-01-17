@@ -13,9 +13,8 @@ from judgeval.data.example import Example
 from judgeval.judges.base_judge import judgevalJudge
 from judgeval.judges.together_judge import TogetherJudge
 from judgeval.judges.utils import create_judge
-from judgeval.judgeval.scorers.judgeval_scorer import JudgevalScorer
+from judgeval.scorers.judgeval_scorer import JudgevalScorer
 from judgeval.scorers.score import *
-from judgeval.common.telemetry import capture_metric_type
 
 """
 Testing implementation of CustomFaithfulness
@@ -195,22 +194,21 @@ def metric_progress_indicator(
     total: int = 9999,
     transient: bool = True,
 ):
-    with capture_metric_type(metric.__name__):
-        console = Console(file=sys.stderr)  # Direct output to standard error
-        if _show_indicator:
-            with Progress(
-                SpinnerColumn(style="rgb(106,0,255)"),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,  # Use the custom console
-                transient=transient,
-            ) as progress:
-                progress.add_task(
-                    description=scorer_console_msg(metric, async_mode),
-                    total=total,
-                )
-                yield
-        else:
+    console = Console(file=sys.stderr)  # Direct output to standard error
+    if _show_indicator:
+        with Progress(
+            SpinnerColumn(style="rgb(106,0,255)"),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,  # Use the custom console
+            transient=transient,
+        ) as progress:
+            progress.add_task(
+                description=scorer_console_msg(metric, async_mode),
+                total=total,
+            )
             yield
+    else:
+        yield
 
 
 def prettify_list(lst: List[Any]):
