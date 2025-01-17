@@ -76,24 +76,31 @@ class JudgmentClient:
     def evaluate_dataset(
         self, 
         dataset: EvalDataset,
-        scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
-        model: Union[str, List[str]],
+        scorers: List[Union[ScorerWrapper, JudgevalScorer]],
+        model: Union[str, List[str], judgevalJudge],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         project_name: str = "",
         eval_run_name: str = "",
-        log_results: bool = False
+        log_results: bool = False,
+        use_judgment: bool = True
     ) -> List[ScoringResult]:
         """
         Executes an evaluation of a `EvalDataset` using one or more `Scorer`s
         """
         try:
+            # Load appropriate implementations for all scorers
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
+                scorer.load_implementation(use_judgment=use_judgment) if isinstance(scorer, ScorerWrapper) else scorer
+                for scorer in scorers
+            ]
+
             evaluation_run = EvaluationRun(
                 log_results=log_results,
                 project_name=project_name,
                 eval_name=eval_run_name,
                 examples=dataset.examples,
-                scorers=scorers,
+                scorers=loaded_scorers,
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,
