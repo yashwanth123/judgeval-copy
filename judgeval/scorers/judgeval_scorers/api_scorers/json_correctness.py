@@ -9,7 +9,7 @@ TODO add link to docs page for this scorer
 # External imports
 from pydantic import BaseModel, Field
 # Internal imports
-from judgeval.judgeval.scorers.api_scorer import APIJudgmentScorer
+from judgeval.scorers.api_scorer import APIJudgmentScorer
 from judgeval.constants import APIScorer
 
 
