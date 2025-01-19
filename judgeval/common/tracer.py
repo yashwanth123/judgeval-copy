@@ -207,9 +207,6 @@ class TraceClient:
         if self._current_span:
             duration = time.time() - start_time  # Calculate duration from start_time
             
-            # Results should be a list of ScoringResults
-            print(f"{results=}")
-            
             self.add_entry(TraceEntry(
                 type="evaluation",
                 function=self._current_span,
