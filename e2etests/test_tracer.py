@@ -27,37 +27,22 @@ async def make_upper(input: str) -> str:
         The uppercase version of the input string
     """
     output = input.upper()
+    
     await judgment.get_current_trace().async_evaluate(
-        input="What if these shoes don't fit?",
-        actual_output="We offer a 30-day full refund at no extra cost.",
-        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-        expected_output="We offer a 30-day full refund at no extra cost.",
-        expected_tools=["refund"],
-        score_type=APIScorer.FAITHFULNESS,
+        input=input,
+        actual_output=output,
+        score_type=APIScorer.SUMMARIZATION,
         threshold=0.5,
         model="gpt-4o-mini",
         log_results=True
     )
+
     return output
 
 @judgment.observe(span_type="tool")
 async def make_lower(input):
     output = input.lower()
     
-    await judgment.get_current_trace().async_evaluate(
-        input="How do I reset my password?",
-        actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-        expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-        context=["User Account"],
-        retrieval_context=["Password reset instructions"],
-        tools_called=["authentication"],
-        expected_tools=["authentication"],
-        additional_metadata={"difficulty": "medium"},
-        score_type=APIScorer.ANSWER_RELEVANCY,
-        threshold=0.5,
-        model="gpt-4o-mini",
-        log_results=True
-    )
     return output
 
 @judgment.observe(span_type="llm")
@@ -65,8 +50,6 @@ def llm_call(input):
     time.sleep(1.3)
     return "We have a 30 day full refund policy on shoes."
 
-# add to observe, specify the type
-# @judgment.observe(type="llm"), (type="tool"), type default is span
 @judgment.observe(span_type="tool")
 async def answer_user_question(input):
     output = llm_call(input)
@@ -100,6 +83,15 @@ async def make_poem(input: str) -> str:
         )
         anthropic_result = anthropic_response.content[0].text
         
+        await judgment.get_current_trace().async_evaluate(
+            input=input,
+            actual_output=anthropic_result,
+            score_type=APIScorer.ANSWER_RELEVANCY,
+            threshold=0.5,
+            model="gpt-4o-mini",
+            log_results=True
+        )
+        
         # Using OpenAI API
         openai_response = openai_client.chat.completions.create(
             model="gpt-4o-mini",
@@ -117,8 +109,8 @@ async def make_poem(input: str) -> str:
         return ""
 
 async def test_evaluation_mixed(input):
-    PROJECT_NAME = "yo_xd"
-    with judgment.trace("yo_xd_1", project_name=PROJECT_NAME, overwrite=True) as trace:
+    PROJECT_NAME = "NewPoemBot"
+    with judgment.trace("Use-claude", project_name=PROJECT_NAME, overwrite=True) as trace:
         upper = await make_upper(input)
         result = await make_poem(upper)
         await answer_user_question("What if these shoes don't fit?")
