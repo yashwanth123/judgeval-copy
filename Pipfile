@@ -6,15 +6,15 @@ name = "pypi"
 [packages]
 langfuse = "==2.50.3"
 litellm = "*"
-openai = "==1.47.1"
 python-dotenv = "==1.0.1"
-together = "*"
 fastapi = "*"
 uvicorn = "*"
 deepeval = "*"
 supabase = "*"
 requests = "*"
 pandas = "*"
+openai = "*"
+together = "*"
 anthropic = "*"
 
 [dev-packages]

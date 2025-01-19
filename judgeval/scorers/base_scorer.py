@@ -16,9 +16,20 @@ class JudgmentScorer(BaseModel):
 
     Args:
         score_type (APIScorer): The Judgment metric to use for scoring `Example`s
+        threshold (float): A value between 0 and 1 that determines the scoring threshold
     """
     threshold: float
     score_type: APIScorer
+
+    @field_validator('threshold')
+    def validate_threshold(cls, v):
+        """
+        Validates that the threshold is between 0 and 1 inclusive.
+        """
+        if not 0 <= v <= 1:
+            error(f"Threshold must be between 0 and 1, got: {v}")
+            raise ValueError(f"Threshold must be between 0 and 1, got: {v}")
+        return v
 
     @field_validator('score_type')
     def convert_to_enum_value(cls, v):
@@ -38,4 +49,3 @@ class JudgmentScorer(BaseModel):
     
     def __str__(self):
         return f"JudgmentScorer(score_type={self.score_type}, threshold={self.threshold})"
-    

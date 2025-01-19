@@ -11,6 +11,7 @@ from anthropic import Anthropic
 # Local imports
 from judgeval.common.tracer import Tracer, wrap
 from judgeval.constants import APIScorer
+from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer
 
 # Initialize the tracer and clients
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
@@ -28,13 +29,12 @@ async def make_upper(input: str) -> str:
     """
     output = input.upper()
     await judgment.get_current_trace().async_evaluate(
+        scorers=[FaithfulnessScorer(threshold=0.5)],
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",
         retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
         expected_output="We offer a 30-day full refund at no extra cost.",
         expected_tools=["refund"],
-        score_type=APIScorer.FAITHFULNESS,
-        threshold=0.5,
         model="gpt-4o-mini",
         log_results=True
     )
@@ -45,6 +45,7 @@ async def make_lower(input):
     output = input.lower()
     
     await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerRelevancyScorer(threshold=0.5)],
         input="How do I reset my password?",
         actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
         expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
@@ -53,8 +54,6 @@ async def make_lower(input):
         tools_called=["authentication"],
         expected_tools=["authentication"],
         additional_metadata={"difficulty": "medium"},
-        score_type=APIScorer.ANSWER_RELEVANCY,
-        threshold=0.5,
         model="gpt-4o-mini",
         log_results=True
     )
@@ -68,12 +67,11 @@ def llm_call(input):
 async def answer_user_question(input):
     output = llm_call(input)
     await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerRelevancyScorer(threshold=0.5)],
         input=input,
         actual_output=output,
         retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
         expected_output="We offer a 30-day full refund at no extra cost.",
-        score_type=APIScorer.ANSWER_RELEVANCY,
-        threshold=0.5,
         model="gpt-4o-mini",
         log_results=True
     )
