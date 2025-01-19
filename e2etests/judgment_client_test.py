@@ -35,36 +35,31 @@ def test_dataset(client: JudgmentClient):
     print(dataset)
 
 def test_run_eval(client: JudgmentClient):
+    # Single step in our workflow, an outreach Sales Agent
 
     example1 = Example(
-        input="What if these shoes don't fit?",
-        actual_output="We offer a 30-day full refund at no extra cost.",
-        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-        trace_id="2231abe3-e7e0-4909-8ab7-b4ab60b645c6"
+        input="Generate a cold outreach email for TechCorp. Facts: They recently launched an AI-powered analytics platform. Their CEO Sarah Chen previously worked at Google. They have 50+ enterprise clients.",
+        actual_output="Dear Ms. Chen,\n\nI noticed TechCorp's recent launch of your AI analytics platform and was impressed by its enterprise-focused approach. Your experience from Google clearly shines through in building scalable solutions, as evidenced by your impressive 50+ enterprise client base.\n\nWould you be open to a brief call to discuss how we could potentially collaborate?\n\nBest regards,\nAlex",
+        retrieval_context=["TechCorp launched AI analytics platform in 2024", "Sarah Chen is CEO, ex-Google executive", "Current client base: 50+ enterprise customers"],
     )
 
     example2 = Example(
-        input="How do I reset my password?",
-        actual_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-        expected_output="You can reset your password by clicking on 'Forgot Password' at the login screen.",
-        name="Password Reset",
-        context=["User Account"],
-        retrieval_context=["Password reset instructions"],
-        tools_called=["authentication"],
-        expected_tools=["authentication"],
-        additional_metadata={"difficulty": "medium"}
+        input="Generate a cold outreach email for GreenEnergy Solutions. Facts: They're developing solar panel technology that's 30% more efficient. They're looking to expand into the European market. They won a sustainability award in 2023.",
+        actual_output="Dear GreenEnergy Solutions team,\n\nCongratulations on your 2023 sustainability award! Your innovative solar panel technology with 30% higher efficiency is exactly what the European market needs right now.\n\nI'd love to discuss how we could support your European expansion plans.\n\nBest regards,\nAlex",
+        expected_output="A professional cold email mentioning the sustainability award, solar technology innovation, and European expansion plans",
+        context=["Business Development"],
+        retrieval_context=["GreenEnergy Solutions won 2023 sustainability award", "New solar technology 30% more efficient", "Planning European market expansion"],
     )
 
     scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
-    scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.HALLUCINATION)
-    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
+    scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.ANSWER_RELEVANCY)
 
-    PROJECT_NAME = "test_project_JOSEPH"
-    EVAL_RUN_NAME = "yomadude"
+    PROJECT_NAME = "OutreachWorkflow"
+    EVAL_RUN_NAME = "ColdEmailGenerator-Improve-BasePrompt"
     
-    _ = client.run_evaluation(
+    client.run_evaluation(
         examples=[example1, example2],
-        scorers=[scorer, c_scorer],
+        scorers=[scorer, scorer2],
         model="QWEN",
         metadata={"batch": "test"},
         project_name=PROJECT_NAME,
@@ -73,10 +68,7 @@ def test_run_eval(client: JudgmentClient):
         override=True,
     )
 
-    results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
-    # print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
-
-def test_override_eval(client: JudgmentClient):
+def test_override_eval(client: JudgmentClient):  
     example1 = Example(
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",
@@ -146,8 +138,6 @@ def test_override_eval(client: JudgmentClient):
         if "already exists" not in str(e):
             raise
         print(f"Successfully caught expected error: {e}")
-    
-    
 
 def test_evaluate_dataset(client: JudgmentClient):
 
@@ -181,47 +171,23 @@ def test_evaluate_dataset(client: JudgmentClient):
     print(res)
     
 def test_classifier_scorer(client: JudgmentClient):
-    # Modifying a classifier scorer
-    # TODO: Some of the field names are not consistent between regular scorers and classifier scorers
-    # Make some methods private
-    classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
-    print(f"{classifier_scorer=}")
+    classifier_scorer = client.fetch_classifier_scorer("tonescorer-pt0z")
+    faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
     
-    # TODO: Does ClassifierScorer actually use build_measure_prompt, enforce_prompt_format, etc.
-    # TODO: Ik PromptScorer uses it, but I don't think we need to redefine it in ClassifierScorer
-    
-    # Creating a classifier scorer from SDK
-    classifier_scorer_custom = ClassifierScorer(
-        name="Test Classifier Scorer",
-        threshold=0.5,
-        conversation=[],
-        options={}
+    example1 = Example(
+        input="What if these shoes don't fit?",
+        actual_output="We offer a 30-day full refund at no extra cost, you would have known that if you read the website stupid!",
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
     )
     
-    classifier_scorer_custom.update_conversation(conversation=[{"role": "user", "content": "What is the capital of France?"}])
-    classifier_scorer_custom.update_options(options={"yes": 1, "no": 0})
-    
-    slug = client.push_classifier_scorer(scorer=classifier_scorer_custom)
-    
-    classifier_scorer_custom = client.fetch_classifier_scorer(slug=slug)
-    print(f"{classifier_scorer_custom=}")
-    
-    # faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
-    
-    # example1 = Example(
-    #     input="What if these shoes don't fit?",
-    #     actual_output="We offer a 30-day full refund at no extra cost, you would have known that if you read the website stupid!",
-    #     retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-    # )
-    
-    # res = client.run_evaluation(
-    #     examples=[example1],
-    #     scorers=[classifier_scorer, faithfulness_scorer],
-    #     model="QWEN",
-    # )
-    # print(res)
-    
-    # Pushing a classifier scorer (from SDK)
+    res = client.run_evaluation(
+        examples=[example1],
+        scorers=[classifier_scorer, faithfulness_scorer],
+        model="QWEN",
+        log_results=True,
+        eval_run_name="ToneScorerTest",
+        project_name="ToneScorerTest",
+    )
 
 if __name__ == "__main__":
     # Test client functionality
@@ -235,30 +201,24 @@ if __name__ == "__main__":
     # print("Dataset creation, pushing, and pulling successful")
     # print("*" * 40)
     
-    # print("Testing evaluation run")
-    # test_run_eval(ui_client)
-    # print("Evaluation run successful")
+    print("Testing evaluation run")
+    test_run_eval(ui_client)
+    print("Evaluation run successful")
+    print("*" * 40)
+    
+    # print("Testing evaluation run override")
+    # test_override_eval(client)
+    # print("Evaluation run override successful")
     # print("*" * 40)
     
-    print("Testing evaluation run override")
-    test_override_eval(client)
-    print("Evaluation run override successful")
-    print("*" * 40)
-    
-    print("Testing evaluation run override")
-    test_override_eval(client)
-    print("Evaluation run override successful")
-    print("*" * 40)
-    
-    print("Testing dataset evaluation")
-    test_evaluate_dataset(ui_client)
-    print("Dataset evaluation successful")
-    print("*" * 40)
+    # print("Testing dataset evaluation")
+    # test_evaluate_dataset(ui_client)
+    # print("Dataset evaluation successful")
     # print("*" * 40)
     
-    print("Testing classifier scorer")
-    test_classifier_scorer(ui_client)
-    print("Classifier scorer test successful")
-    print("*" * 40)
+    # print("Testing classifier scorer")
+    # test_classifier_scorer(ui_client)
+    # print("Classifier scorer test successful")
+    # print("*" * 40)
 
     print("All tests passed successfully")
