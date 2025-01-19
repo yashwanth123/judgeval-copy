@@ -1,0 +1,99 @@
+---
+title: Introduction
+---
+
+## Overview
+
+Scorers act as measurement tools for evaluating LLM systems based on specific criteria. 
+`judgeval` comes with a set of **10+ built-in scorers** that you can easily start with, including:
+- [Answer Relevancy](/evaluation/scorers/answer_relevancy)
+- [Contextual Precision](/evaluation/scorers/contextual_precision)
+- [Contextual Recall](/evaluation/scorers/contextual_recall)
+- [Contextual Relevancy](/evaluation/scorers/contextual_relevancy)
+- [Faithfulness](/evaluation/scorers/faithfulness)
+- [Hallucination](/evaluation/scorers/hallucination)
+- [Summarization](/evaluation/scorers/summarization)
+- [Tool Correctness](/evaluation/scorers/tool_correctness)
+- [JSON Correctness](/evaluation/scorers/json_correctness)
+- [Custom Scorers](/evaluation/scorers/custom_scorers)
+- [Classifier Scorers](/evaluation/scorers/classifier_scorer)
+
+<Tip>
+We're always adding new scorers to `judgeval`. If you have a suggestion, please let us know at [contact@judment.ai](mailto:contact@judment.ai)!
+</Tip>
+
+Scorers execute on `Example`s, `GroundTruthExample`s, and `EvalDataset`s, producing a **score between 0 and 1**. 
+This enables you to **use evaluations as unit tests** by setting a `threshold` to determine whether an evaluation was successful or not. 
+
+<Note>
+Built-in scorers will succeed if the score is greater than or equal to the `threshold`. 
+</Note>
+
+## Categories of Scorers
+`judgeval` supports three categories of scorers. 
+- **Default Scorers**: built-in scorers that are ready to use
+- **Custom Scorers**: Powerful scorers that you can tailor to your own LLM system
+- **Classifier Scorers**: A special custom scorer that evaluates your LLM system using a natural language criteria
+
+In this section, we'll cover each kind of scorer and how to use them.
+
+### Default Scorers
+Most of the built-in scorers in `judgeval` are **LLM judges**, meaning they use LLMs to evaluate your LLM system. 
+This is intentional since **LLM evaluations are flexible, scalable, and strongly correlate with human evaluation**.
+
+`judgeval`'s default scorers have been meticulously crafted by our research team based on leading work in the LLM evaluation community. 
+
+Our implementations are described on their respective documentation pages. 
+Judgment implementations of default scorers are backed by **leading industry/academic research** and are preferable to other implementations because:
+- They are meticulously prompt-engineered to maximize evaluation quality and consistency
+- Provide a chain of thought for evaluation scores, so you can double-check the evaluation quality
+- Can be run using any LLM, including Judgment's **state-of-the-art LLM judges** developed in collaboration with **Stanford's AI Lab**.
+
+### Custom Scorers
+
+If you find that none of the default scorers meet your evaluation needs, setting up a custom scorer is easy with `judgeval`.
+You can create a custom scorer by inheritng from the `CustomScorer` class and implementing three methods:
+- `score_example()`: produces a score for a single `Example`.
+- `a_score_example()`: async version of `score_example()`. You may use the same implementation logic as `score_example()`.
+- `success_check()`: determines whether an evaluation was successful.
+
+Custom scorers can be as simple or complex as you want, and **do not need to use LLMs**. 
+For sample implementations, check out the `CustomScorer` [documentation page](/evaluation/scorers/custom_scorers).
+
+
+### Classifier Scorers
+
+Classifier scorers are a special type of custom scorer that can evaluate your LLM system using a natural language criteria. 
+
+TODO update this section when SDK is updated
+
+## Running Scorers
+
+All scorers in `judgeval` can be run uniformly through the `JudgmentClient`. All scorers are set to run in async mode by default in order to support parallelized evaluations for large datasets.
+
+```python run_scorer.py
+...
+
+client = JudgmentClient()
+results = client.run_evaluation(
+    examples=[example],
+    scorers=[scorer],
+    model="gpt-4o-mini",
+)
+```
+
+If you want to execute a `CustomScorer` without running it through the `JudgmentClient`, you can score locally.
+Simply use the `score_example()` or `a_score_example()` method directly:
+
+```python direct_scoring.py
+...
+
+example = Example(input="...", actual_output="...")
+
+scorer = CustomScorer()  # Your scorer here
+score = scorer.score_example(example)
+```
+
+<Tip>  
+To learn about how a certain default scorer works, check out its documentation page for a deep dive into how scores are calculated and what fields are required.
+</Tip>

@@ -7,7 +7,16 @@ import functools
 import requests
 import uuid
 from contextlib import contextmanager
-from typing import Optional, Any, List, Literal, Tuple, Generator, TypeAlias, Union
+from typing import (
+    Optional, 
+    Any, 
+    List, 
+    Literal, 
+    Tuple, 
+    Generator, 
+    TypeAlias, 
+    Union
+)
 from dataclasses import dataclass, field
 from datetime import datetime 
 from openai import OpenAI
@@ -24,7 +33,7 @@ from http import HTTPStatus
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import JudgmentScorer
+from judgeval.scorers import JudgmentScorer, CustomScorer
 from judgeval.data.result import ScoringResult
 
 # Define type aliases for better code readability and maintainability
@@ -156,6 +165,7 @@ class TraceClient:
             
     async def async_evaluate(
         self,
+        scorers: List[Union[JudgmentScorer, CustomScorer]],
         input: Optional[str] = None,
         actual_output: Optional[str] = None,
         expected_output: Optional[str] = None,
@@ -164,8 +174,6 @@ class TraceClient:
         tools_called: Optional[List[str]] = None,
         expected_tools: Optional[List[str]] = None,
         additional_metadata: Optional[Dict[str, Any]] = None,
-        score_type: Optional[str] = None,
-        threshold: Optional[float] = None,
         model: Optional[str] = None,
         log_results: Optional[bool] = False,
     ):
@@ -181,23 +189,15 @@ class TraceClient:
             additional_metadata=additional_metadata,
             trace_id=self.trace_id
         )
-        scorer = JudgmentScorer(
-            score_type=score_type,
-            threshold=threshold
-        )
-        
-        eval_run_name=f"{self.name.capitalize()}-{self._current_span}-{scorer.score_type.capitalize()}"
-        
-        # TODO: Maybe add the example_id to the scoring_results as well...
-        # Only problem is there are multiple examples per evaluation run, so we need to match them up
         scoring_results = self.client.run_evaluation(
             examples=[example],
-            scorers=[scorer],
+            scorers=scorers,
             model=model,
             metadata={},
             log_results=log_results,
-            project_name=self.project_name,
-            eval_run_name=eval_run_name,
+            project_name="TestSpanLevel1",  # TODO this should be dynamic
+            eval_run_name="TestSpanLevel1",
+            override=True,
         )
         
         self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation

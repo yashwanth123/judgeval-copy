@@ -5,8 +5,10 @@ Sanity checks for judgment client functionality
 import os
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import JudgmentScorer
-from judgeval.constants import APIScorer
+from judgeval.scorers import (
+    FaithfulnessScorer,
+    HallucinationScorer,
+)
 from judgeval.judges import TogetherJudge
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
@@ -51,8 +53,9 @@ def test_run_eval(client: JudgmentClient):
         retrieval_context=["GreenEnergy Solutions won 2023 sustainability award", "New solar technology 30% more efficient", "Planning European market expansion"],
     )
 
-    scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
-    scorer2 = JudgmentScorer(threshold=0.5, score_type=APIScorer.ANSWER_RELEVANCY)
+    scorer = FaithfulnessScorer(threshold=0.5)
+    scorer2 = HallucinationScorer(threshold=0.5)
+    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
     PROJECT_NAME = "OutreachWorkflow"
     EVAL_RUN_NAME = "ColdEmailGenerator-Improve-BasePrompt"
@@ -68,7 +71,10 @@ def test_run_eval(client: JudgmentClient):
         override=True,
     )
 
-def test_override_eval(client: JudgmentClient):  
+    results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
+    print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
+
+def test_override_eval(client: JudgmentClient):
     example1 = Example(
         input="What if these shoes don't fit?",
         actual_output="We offer a 30-day full refund at no extra cost.",
@@ -76,7 +82,7 @@ def test_override_eval(client: JudgmentClient):
         trace_id="2231abe3-e7e0-4909-8ab7-b4ab60b645c6"
     )
     
-    scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    scorer = FaithfulnessScorer(threshold=0.5)
 
     PROJECT_NAME = "test_eval_run_naming_collisions"
     EVAL_RUN_NAME = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
@@ -163,7 +169,7 @@ def test_evaluate_dataset(client: JudgmentClient):
     dataset = EvalDataset(examples=[example1, example2])
     res = client.evaluate_dataset(
         dataset=dataset,
-        scorers=[JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)],
+        scorers=[FaithfulnessScorer(threshold=0.5)],
         model="QWEN",
         metadata={"batch": "test"},
     )
@@ -171,8 +177,8 @@ def test_evaluate_dataset(client: JudgmentClient):
     print(res)
     
 def test_classifier_scorer(client: JudgmentClient):
-    classifier_scorer = client.fetch_classifier_scorer("tonescorer-pt0z")
-    faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
+    classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
+    faithfulness_scorer = FaithfulnessScorer(threshold=0.5)
     
     example1 = Example(
         input="What if these shoes don't fit?",
