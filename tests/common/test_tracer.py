@@ -163,7 +163,7 @@ def test_condense_trace(trace_client):
     # Test that the condensed entry's depth matches the enter event's depth
     assert len(condensed) == 1
     assert condensed[0]["function"] == "test_func"
-    assert condensed[0]["depth"] == entries[1]["depth"]  # Should match the input event's depth
+    assert condensed[0]["depth"] == entries[0]["depth"]  # Should match the input event's depth
     assert condensed[0]["inputs"] == {"x": 1}
     assert condensed[0]["output"] == "result"
     assert condensed[0]["duration"] == 1.0
