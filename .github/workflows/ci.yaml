@@ -1,11 +1,8 @@
 name: CI
 
-# Run on pull request, when first opened, and when approved, don't allow until the approved unit test pass
+# Run on pull request changes requested or approval
+# TODO: Don't allow until the approved unit test pass (can only do with Github Pro)
 on:
-  pull_request:
-    types: [opened, reopened]
-    branches:
-      - main
   pull_request_review:
     types: [submitted]
     branches:
