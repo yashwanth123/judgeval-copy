@@ -228,15 +228,27 @@ def test_evaluate_dataset(client: JudgmentClient):
     
 
 def test_classifier_scorer(client: JudgmentClient):
+    # Modifying a classifier scorer
+    # Make some methods private
     classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
     faithfulness_scorer = FaithfulnessScorer(threshold=0.5)
     
-    example1 = Example(
-        input="What if these shoes don't fit?",
-        actual_output="We offer a 30-day full refund at no extra cost, you would have known that if you read the website stupid!",
-        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    # Creating a classifier scorer from SDK
+    classifier_scorer_custom = ClassifierScorer(
+        name="Test Classifier Scorer",
+        threshold=0.5,
+        conversation=[],
+        options={}
     )
     
+    classifier_scorer_custom.update_conversation(conversation=[{"role": "user", "content": "What is the capital of France?"}])
+    classifier_scorer_custom.update_options(options={"yes": 1, "no": 0})
+    
+    slug = client.push_classifier_scorer(scorer=classifier_scorer_custom)
+    
+    classifier_scorer_custom = client.fetch_classifier_scorer(slug=slug)
+    print(f"{classifier_scorer_custom=}")
+
     res = client.run_evaluation(
         examples=[example1],
         scorers=[classifier_scorer, faithfulness_scorer],
