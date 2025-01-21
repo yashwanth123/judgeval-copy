@@ -3,13 +3,16 @@ Sanity checks for judgment client functionality
 """
 
 import os
+from pydantic import BaseModel
+
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import (
     FaithfulnessScorer,
     HallucinationScorer,
+    JSONCorrectnessScorer
 )
-from judgeval.judges import TogetherJudge
+from judgeval.judges import TogetherJudge, judgevalJudge
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
 from dotenv import load_dotenv
@@ -23,8 +26,10 @@ load_dotenv()
 def get_client():
     return JudgmentClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
 
+
 def get_ui_client():
     return JudgmentClient(judgment_api_key=os.getenv("UI_JUDGMENT_API_KEY"))
+
 
 def test_dataset(client: JudgmentClient):
     dataset: EvalDataset = client.create_dataset()
@@ -36,11 +41,51 @@ def test_dataset(client: JudgmentClient):
     dataset = client.pull_dataset(alias="test_dataset_5")
     print(dataset)
 
+
 def test_run_eval(client: JudgmentClient):
+    # Single step in our workflow, an outreach Sales Agent
+
+    example1 = Example(
+        input="Generate a cold outreach email for TechCorp. Facts: They recently launched an AI-powered analytics platform. Their CEO Sarah Chen previously worked at Google. They have 50+ enterprise clients.",
+        actual_output="Dear Ms. Chen,\n\nI noticed TechCorp's recent launch of your AI analytics platform and was impressed by its enterprise-focused approach. Your experience from Google clearly shines through in building scalable solutions, as evidenced by your impressive 50+ enterprise client base.\n\nWould you be open to a brief call to discuss how we could potentially collaborate?\n\nBest regards,\nAlex",
+        retrieval_context=["TechCorp launched AI analytics platform in 2024", "Sarah Chen is CEO, ex-Google executive", "Current client base: 50+ enterprise customers"],
+    )
+
+    example2 = Example(
+        input="Generate a cold outreach email for GreenEnergy Solutions. Facts: They're developing solar panel technology that's 30% more efficient. They're looking to expand into the European market. They won a sustainability award in 2023.",
+        actual_output="Dear GreenEnergy Solutions team,\n\nCongratulations on your 2023 sustainability award! Your innovative solar panel technology with 30% higher efficiency is exactly what the European market needs right now.\n\nI'd love to discuss how we could support your European expansion plans.\n\nBest regards,\nAlex",
+        expected_output="A professional cold email mentioning the sustainability award, solar technology innovation, and European expansion plans",
+        context=["Business Development"],
+        retrieval_context=["GreenEnergy Solutions won 2023 sustainability award", "New solar technology 30% more efficient", "Planning European market expansion"],
+    )
+
+    scorer = FaithfulnessScorer(threshold=0.5)
+    scorer2 = HallucinationScorer(threshold=0.5)
+    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
+
+    PROJECT_NAME = "OutreachWorkflow"
+    EVAL_RUN_NAME = "ColdEmailGenerator-Improve-BasePrompt"
+    
+    client.run_evaluation(
+        examples=[example1, example2],
+        scorers=[scorer, scorer2],
+        model="QWEN",
+        metadata={"batch": "test"},
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        log_results=True,
+        override=True,
+    )
+
+    results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
+    print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
+
+
+def test_json_scorer(client: JudgmentClient):
 
     example1 = Example(
         input="What if these shoes don't fit?",
-        actual_output="We offer a 30-day full refund at no extra cost.",
+        actual_output='{"tool": "authentication"}',
         retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
         trace_id="2231abe3-e7e0-4909-8ab7-b4ab60b645c6"
     )
@@ -57,16 +102,16 @@ def test_run_eval(client: JudgmentClient):
         additional_metadata={"difficulty": "medium"}
     )
 
-    scorer = FaithfulnessScorer(threshold=0.5)
-    scorer2 = HallucinationScorer(threshold=0.5)
-    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
+    class SampleSchema(BaseModel):
+        tool: str
 
+    scorer = JSONCorrectnessScorer(threshold=0.5, json_schema=SampleSchema)
     PROJECT_NAME = "test_project_JOSEPH"
     EVAL_RUN_NAME = "yomadude"
     
-    _ = client.run_evaluation(
+    res = client.run_evaluation(
         examples=[example1, example2],
-        scorers=[scorer, c_scorer],
+        scorers=[scorer],
         model="QWEN",
         metadata={"batch": "test"},
         project_name=PROJECT_NAME,
@@ -75,8 +120,8 @@ def test_run_eval(client: JudgmentClient):
         override=True,
     )
 
-    results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
-    print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
+    print(res)
+
 
 def test_override_eval(client: JudgmentClient):
     example1 = Example(
@@ -148,8 +193,7 @@ def test_override_eval(client: JudgmentClient):
         if "already exists" not in str(e):
             raise
         print(f"Successfully caught expected error: {e}")
-    
-    
+
 
 def test_evaluate_dataset(client: JudgmentClient):
 
@@ -182,6 +226,7 @@ def test_evaluate_dataset(client: JudgmentClient):
 
     print(res)
     
+
 def test_classifier_scorer(client: JudgmentClient):
     # Modifying a classifier scorer
     # Make some methods private
@@ -204,6 +249,66 @@ def test_classifier_scorer(client: JudgmentClient):
     classifier_scorer_custom = client.fetch_classifier_scorer(slug=slug)
     print(f"{classifier_scorer_custom=}")
 
+    res = client.run_evaluation(
+        examples=[example1],
+        scorers=[classifier_scorer, faithfulness_scorer],
+        model="QWEN",
+        log_results=True,
+        eval_run_name="ToneScorerTest",
+        project_name="ToneScorerTest",
+    )
+
+
+def test_custom_judge_vertexai(client: JudgmentClient):
+
+    import vertexai
+    from vertexai.generative_models import GenerativeModel
+
+    PROJECT_ID = "judgment-labs"
+    vertexai.init(project=PROJECT_ID, location="us-west1")
+
+    class VertexAIJudge(judgevalJudge):
+
+        def __init__(self, model_name: str = "gemini-1.5-flash-002"):
+            self.model_name = model_name
+            self.model = GenerativeModel(self.model_name)
+
+        def load_model(self):
+            return self.model
+
+        def generate(self, prompt) -> str:
+            # prompt is a List[dict] (conversation history)
+            # For models that don't support conversation history, we need to convert to string
+            # If you're using a model that supports chat history, you can just pass the prompt directly
+            response = self.model.generate_content(str(prompt))
+            return response.text
+
+        async def a_generate(self, prompt) -> str:
+            # prompt is a List[dict] (conversation history)
+            # For models that don't support conversation history, we need to convert to string
+            # If you're using a model that supports chat history, you can just pass the prompt directly
+            response = await self.model.generate_content_async(str(prompt))
+            return response.text
+
+        def get_model_name(self) -> str:
+            return self.model_name
+
+    example = Example(
+        input="What is the largest animal in the world?",
+        actual_output="The blue whale is the largest known animal.",
+        retrieval_context=["The blue whale is the largest known animal."],
+    )
+
+    judge = VertexAIJudge()
+
+    res = client.run_evaluation(
+        examples=[example],
+        scorers=[CustomFaithfulnessMetric()],
+        model=judge,
+    )
+    print(res)
+
+
 if __name__ == "__main__":
     # Test client functionality
     client = get_client()
@@ -220,6 +325,11 @@ if __name__ == "__main__":
     test_run_eval(ui_client)
     print("Evaluation run successful")
     print("*" * 40)
+
+    print("Testing JSON scorer")
+    test_json_scorer(ui_client)
+    print("JSON scorer test successful")
+    print("*" * 40)
     
     print("Testing evaluation run override")
     test_override_eval(client)
@@ -234,6 +344,11 @@ if __name__ == "__main__":
     print("Testing classifier scorer")
     test_classifier_scorer(ui_client)
     print("Classifier scorer test successful")
+    print("*" * 40)
+
+    print("Testing custom judge")
+    test_custom_judge_vertexai(ui_client)
+    print("Custom judge test successful")
     print("*" * 40)
 
     print("All tests passed successfully")

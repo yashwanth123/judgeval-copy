@@ -14,11 +14,11 @@ from judgeval.constants import APIScorer
 from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer
 
 # Initialize the tracer and clients
-judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
+judgment = Tracer(api_key=os.getenv("UI_JUDGMENT_API_KEY"))
 openai_client = wrap(OpenAI())
 anthropic_client = wrap(Anthropic())
 
-@judgment.observe
+@judgment.observe(span_type="tool")
 async def make_upper(input: str) -> str:
     """Convert input to uppercase and evaluate using judgment API.
     
@@ -28,6 +28,7 @@ async def make_upper(input: str) -> str:
         The uppercase version of the input string
     """
     output = input.upper()
+    
     await judgment.get_current_trace().async_evaluate(
         scorers=[FaithfulnessScorer(threshold=0.5)],
         input="What if these shoes don't fit?",
@@ -38,9 +39,10 @@ async def make_upper(input: str) -> str:
         model="gpt-4o-mini",
         log_results=True
     )
+
     return output
 
-@judgment.observe
+@judgment.observe(span_type="tool")
 async def make_lower(input):
     output = input.lower()
     
@@ -59,11 +61,12 @@ async def make_lower(input):
     )
     return output
 
-@judgment.observe
+@judgment.observe(span_type="llm")
 def llm_call(input):
+    time.sleep(1.3)
     return "We have a 30 day full refund policy on shoes."
 
-@judgment.observe
+@judgment.observe(span_type="tool")
 async def answer_user_question(input):
     output = llm_call(input)
     await judgment.get_current_trace().async_evaluate(
@@ -77,7 +80,7 @@ async def answer_user_question(input):
     )
     return output
 
-@judgment.observe
+@judgment.observe(span_type="tool")
 async def make_poem(input: str) -> str:
     """Generate a poem using both Anthropic and OpenAI APIs.
     
@@ -94,6 +97,15 @@ async def make_poem(input: str) -> str:
             max_tokens=30
         )
         anthropic_result = anthropic_response.content[0].text
+        
+        await judgment.get_current_trace().async_evaluate(
+            input=input,
+            actual_output=anthropic_result,
+            score_type=APIScorer.ANSWER_RELEVANCY,
+            threshold=0.5,
+            model="gpt-4o-mini",
+            log_results=True
+        )
         
         # Using OpenAI API
         openai_response = openai_client.chat.completions.create(
@@ -112,7 +124,8 @@ async def make_poem(input: str) -> str:
         return ""
 
 async def test_evaluation_mixed(input):
-    with judgment.trace("test_evaluation") as trace:
+    PROJECT_NAME = "NewPoemBot"
+    with judgment.trace("Use-claude", project_name=PROJECT_NAME, overwrite=True) as trace:
         upper = await make_upper(input)
         result = await make_poem(upper)
         await answer_user_question("What if these shoes don't fit?")
