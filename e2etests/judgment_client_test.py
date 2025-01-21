@@ -184,13 +184,9 @@ def test_evaluate_dataset(client: JudgmentClient):
     
 def test_classifier_scorer(client: JudgmentClient):
     # Modifying a classifier scorer
-    # TODO: Some of the field names are not consistent between regular scorers and classifier scorers
     # Make some methods private
     classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
     faithfulness_scorer = FaithfulnessScorer(threshold=0.5)
-    
-    # TODO: Does ClassifierScorer actually use build_measure_prompt, enforce_prompt_format, etc.
-    # TODO: Ik PromptScorer uses it, but I don't think we need to redefine it in ClassifierScorer
     
     # Creating a classifier scorer from SDK
     classifier_scorer_custom = ClassifierScorer(
@@ -207,23 +203,6 @@ def test_classifier_scorer(client: JudgmentClient):
     
     classifier_scorer_custom = client.fetch_classifier_scorer(slug=slug)
     print(f"{classifier_scorer_custom=}")
-    
-    # faithfulness_scorer = JudgmentScorer(threshold=0.5, score_type=APIScorer.FAITHFULNESS)
-    
-    # example1 = Example(
-    #     input="What if these shoes don't fit?",
-    #     actual_output="We offer a 30-day full refund at no extra cost, you would have known that if you read the website stupid!",
-    #     retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-    # )
-    
-    # res = client.run_evaluation(
-    #     examples=[example1],
-    #     scorers=[classifier_scorer, faithfulness_scorer],
-    #     model="QWEN",
-    # )
-    # print(res)
-    
-    # Pushing a classifier scorer (from SDK)
 
 if __name__ == "__main__":
     # Test client functionality
