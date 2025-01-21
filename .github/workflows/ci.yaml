@@ -1,6 +1,6 @@
 name: CI
 
-# Run on pull request changes requested or approval
+# Run on PR change request, approval, or comment.
 # TODO: Don't allow until the approved unit test pass (can only do with Github Pro)
 on:
   pull_request_review:
