@@ -28,6 +28,7 @@ import asyncio
 import json
 import warnings
 from pydantic import BaseModel
+from http import HTTPStatus
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
@@ -38,7 +39,7 @@ from judgeval.data.result import ScoringResult
 # Define type aliases for better code readability and maintainability
 ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic]  # Supported API clients
 TraceEntryType = Literal['enter', 'exit', 'output', 'input', 'evaluation']  # Valid trace entry types
-
+SpanType = Literal['span', 'tool', 'llm', 'evaluation']
 @dataclass
 class TraceEntry:
     """Represents a single trace entry with its visual representation.
@@ -58,7 +59,8 @@ class TraceEntry:
     duration: Optional[float] = None  # Time taken (for exit/evaluation entries)
     output: Any = None  # Function output value
     # Use field() for mutable defaults to avoid shared state issues
-    inputs: dict = field(default_factory=dict)  
+    inputs: dict = field(default_factory=dict)
+    span_type: SpanType = "span"
     evaluation_result: Optional[List[ScoringResult]] = field(default=None)
     
     def print_entry(self):
@@ -93,7 +95,8 @@ class TraceEntry:
             "duration": self.duration,
             "output": output,
             "inputs": self.inputs or None,  # Convert empty dict to None
-            "evaluation_result": [result.to_dict() for result in self.evaluation_result] if self.evaluation_result else None
+            "evaluation_result": [result.to_dict() for result in self.evaluation_result] if self.evaluation_result else None,
+            "span_type": self.span_type
         }
 
     def _serialize_output(self) -> Any:
@@ -112,17 +115,19 @@ class TraceEntry:
 
 class TraceClient:
     """Client for managing a single trace context"""
-    def __init__(self, tracer, trace_id: str, name: str):
+    def __init__(self, tracer, trace_id: str, name: str, project_name: str = "default_project"):
         self.tracer = tracer
         self.trace_id = trace_id
         self.name = name
+        self.project_name = project_name
         self.client: JudgmentClient = tracer.client
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
-        self._current_span = None
+        self.span_type = None
+        self._current_span: Optional[TraceEntry] = None
         
     @contextmanager
-    def span(self, name: str):
+    def span(self, name: str, span_type: SpanType = "span"):
         """Context manager for creating a trace span"""
         start_time = time.time()
         
@@ -132,7 +137,8 @@ class TraceClient:
             function=name,
             depth=self.tracer.depth,
             message=name,
-            timestamp=start_time
+            timestamp=start_time,
+            span_type=span_type
         ))
         
         self.tracer.depth += 1
@@ -152,7 +158,8 @@ class TraceClient:
                 depth=self.tracer.depth,
                 message=f"← {name}",
                 timestamp=time.time(),
-                duration=duration
+                duration=duration,
+                span_type=span_type
             ))
             self._current_span = prev_span
             
@@ -199,6 +206,7 @@ class TraceClient:
         """Record evaluation results for the current span"""
         if self._current_span:
             duration = time.time() - start_time  # Calculate duration from start_time
+            
             self.add_entry(TraceEntry(
                 type="evaluation",
                 function=self._current_span,
@@ -206,7 +214,8 @@ class TraceClient:
                 message=f"Evaluation results for {self._current_span}",
                 timestamp=time.time(),
                 evaluation_result=results,
-                duration=duration
+                duration=duration,
+                span_type="evaluation"
             ))
 
     def record_input(self, inputs: dict):
@@ -218,7 +227,8 @@ class TraceClient:
                 depth=self.tracer.depth,
                 message=f"Inputs to {self._current_span}",
                 timestamp=time.time(),
-                inputs=inputs
+                inputs=inputs,
+                span_type=self.span_type
             ))
 
     async def _update_coroutine_output(self, entry: TraceEntry, coroutine: Any):
@@ -240,7 +250,8 @@ class TraceClient:
                 depth=self.tracer.depth,
                 message=f"Output from {self._current_span}",
                 timestamp=time.time(),
-                output="<pending>" if inspect.iscoroutine(output) else output
+                output="<pending>" if inspect.iscoroutine(output) else output,
+                span_type=self.span_type
             )
             self.add_entry(entry)
             
@@ -266,45 +277,39 @@ class TraceClient:
     
     def condense_trace(self, entries: List[dict]) -> List[dict]:
         """
-        Condenses trace entries into a single entry for each function.
-        
-        Groups entries by function call and combines them into a single entry with:
-        - depth: deepest depth for this function call
-        - duration: time from first to last timestamp 
-        - function: function name
-        - inputs: non-None inputs
-        - output: non-None outputs
-        - evaluation_result: evaluation results
-        - timestamp: first timestamp of the function call
+        Condenses trace entries into a single entry for each function call.
         """
         condensed = []
-        current_func = None
-        current_entry = None
+        active_functions = []  # Stack to track nested function calls
+        function_entries = {}  # Store entries for each function
 
         for entry in entries:
+            function = entry["function"]
+            
             if entry["type"] == "enter":
-                # Start of new function call
-                current_func = entry["function"]
-                current_entry = {
+                # Initialize new function entry
+                function_entries[function] = {
                     "depth": entry["depth"],
-                    "function": entry["function"],
+                    "function": function,
                     "timestamp": entry["timestamp"],
                     "inputs": None,
                     "output": None,
-                    "evaluation_result": None
+                    "evaluation_result": None,
+                    "span_type": entry.get("span_type", "span")
                 }
-            
-            elif entry["type"] == "exit" and entry["function"] == current_func:
-                # End of current function
+                active_functions.append(function)
+                
+            elif entry["type"] == "exit" and function in active_functions:
+                # Complete function entry
+                current_entry = function_entries[function]
                 current_entry["duration"] = entry["timestamp"] - current_entry["timestamp"]
                 condensed.append(current_entry)
-                current_func = None
-                current_entry = None
-            
-            elif current_func and entry["function"] == current_func:
-                # Additional entries for current function
-                if entry["depth"] > current_entry["depth"]:
-                    current_entry["depth"] = entry["depth"]
+                active_functions.remove(function)
+                del function_entries[function]
+                
+            elif function in active_functions:
+                # Update existing function entry with additional data
+                current_entry = function_entries[function]
                 
                 if entry["type"] == "input" and entry["inputs"]:
                     current_entry["inputs"] = entry["inputs"]
@@ -315,9 +320,11 @@ class TraceClient:
                 if entry["type"] == "evaluation" and entry["evaluation_result"]:
                     current_entry["evaluation_result"] = entry["evaluation_result"]
 
+        # Sort by timestamp
+        condensed.sort(key=lambda x: x["timestamp"])
         return condensed
 
-    def save(self) -> Tuple[str, dict]:
+    def save(self, empty_save: bool = False, overwrite: bool = False) -> Tuple[str, dict]:
         """
         Save the current trace to the database.
         Returns a tuple of (trace_id, trace_data) where trace_data is the trace data that was saved.
@@ -333,6 +340,7 @@ class TraceClient:
             "trace_id": self.trace_id,
             "api_key": self.tracer.api_key,
             "name": self.name,
+            "project_name": self.project_name,
             "created_at": datetime.fromtimestamp(self.start_time).isoformat(),
             "duration": total_duration,
             "token_counts": {
@@ -340,7 +348,9 @@ class TraceClient:
                 "completion_tokens": 0,  # Dummy value
                 "total_tokens": 0,  # Dummy value
             },  # TODO: Add token counts
-            "entries": condensed_entries
+            "entries": condensed_entries,
+            "empty_save": empty_save,
+            "overwrite": overwrite
         }
 
         # Save trace data by making POST request to API
@@ -351,7 +361,11 @@ class TraceClient:
                 "Content-Type": "application/json",
             }
         )
-        response.raise_for_status()
+        
+        if response.status_code == HTTPStatus.BAD_REQUEST:
+            raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
+        elif response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to save trace data: {response.text}")
         
         return self.trace_id, trace_data
 
@@ -369,17 +383,17 @@ class Tracer:
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
             
-            self.api_key = api_key
-            self.client = JudgmentClient(judgment_api_key=api_key)
-            self.depth = 0
-            self._current_trace: Optional[TraceClient] = None
-            self.initialized = True
+            self.api_key: str = api_key
+            self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
+            self.depth: int = 0
+            self._current_trace: Optional[str] = None
+            self.initialized: bool = True
         
     @contextmanager
-    def trace(self, name: str = None) -> Generator[TraceClient, None, None]:
+    def trace(self, name: str, project_name: str = "default_project", overwrite: bool = False) -> Generator[TraceClient, None, None]:
         """Start a new trace context using a context manager"""
         trace_id = str(uuid.uuid4())
-        trace = TraceClient(self, trace_id, name or "unnamed_trace")
+        trace = TraceClient(self, trace_id, name, project_name=project_name)
         prev_trace = self._current_trace
         self._current_trace = trace
         
@@ -387,7 +401,7 @@ class Tracer:
         with trace.span(name or "unnamed_trace") as span:
             try:
                 # Save the trace to the database to handle Evaluations' trace_id referential integrity
-                trace.save()
+                trace.save(empty_save=True, overwrite=overwrite)
                 yield trace
             finally:
                 self._current_trace = prev_trace
@@ -398,16 +412,17 @@ class Tracer:
         """
         return self._current_trace    
 
-    def observe(self, func=None, *, name=None):
+    def observe(self, func=None, *, name=None, span_type: SpanType = "span"):
         """
         Decorator to trace function execution with detailed entry/exit information.
         
         Args:
             func: The function to trace
             name: Optional custom name for the function
+            span_type: The type of span to use for this observation (default: "span")
         """
         if func is None:
-            return lambda f: self.observe(f, name=name)
+            return lambda f: self.observe(f, name=name, span_type=span_type)
         
         if asyncio.iscoroutinefunction(func):
             @functools.wraps(func)
@@ -415,7 +430,10 @@ class Tracer:
                 if self._current_trace:
                     span_name = name or func.__name__
                     
-                    with self._current_trace.span(span_name) as span:
+                    with self._current_trace.span(span_name, span_type=span_type) as span:
+                        # Set the span type
+                        span.span_type = span_type
+                        
                         # Record inputs
                         span.record_input({
                             'args': list(args),
@@ -438,7 +456,10 @@ class Tracer:
                 if self._current_trace:
                     span_name = name or func.__name__
                     
-                    with self._current_trace.span(span_name) as span:
+                    with self._current_trace.span(span_name, span_type=span_type) as span:
+                        # Set the span type
+                        span.span_type = span_type
+                        
                         # Record inputs
                         span.record_input({
                             'args': list(args),
@@ -471,7 +492,7 @@ def wrap(client: Any) -> Any:
         if not (tracer and tracer._current_trace):
             return original_create(*args, **kwargs)
 
-        with tracer._current_trace.span(span_name) as span:
+        with tracer._current_trace.span(span_name, span_type="llm") as span:
             # Format and record the input parameters
             input_data = _format_input_data(client, **kwargs)
             span.record_input(input_data)

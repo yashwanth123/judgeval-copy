@@ -101,7 +101,7 @@ class CustomScorer:
         raise NotImplementedError("You must implement the `a_score` method in your custom scorer") 
     
     @abstractmethod
-    def success_check(self) -> bool:
+    def _success_check(self) -> bool:
         """
         For unit testing, determines whether the test case passes or fails
         """

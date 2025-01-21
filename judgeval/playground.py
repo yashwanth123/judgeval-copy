@@ -566,7 +566,7 @@ class CustomFaithfulnessMetric(CustomScorer):
         score = faithfulness_count / number_of_verdicts
         return 0 if self.strict_mode and score < self.threshold else score
 
-    def success_check(self) -> bool:
+    def _success_check(self) -> bool:
         if self.error is not None:
             self.success = False
         else:

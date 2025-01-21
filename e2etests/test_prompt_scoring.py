@@ -36,7 +36,7 @@ class SentimentScorer(PromptScorer):
         )
         self.score = 0.0
 
-    def build_measure_prompt(self, example: Example):
+    def _build_measure_prompt(self, example: Example):
         SYSTEM_ROLE = (
             'You are a great judge of emotional intelligence. You understand the feelings ' 
             'and intentions of others. You will be tasked with judging whether the following '
@@ -51,16 +51,16 @@ class SentimentScorer(PromptScorer):
         ] 
         return conversation
     
-    def build_schema(self):
+    def _build_schema(self):
         return {
             "score": int,
             "reason": str
         }
     
-    def process_response(self, response):
+    def _process_response(self, response):
         return response["score"], response["reason"]
     
-    def success_check(self):
+    def _success_check(self):
         POSITIVITY_THRESHOLD = 3  # we want all model responses to be somewhat positive in tone
         return self.score <= POSITIVITY_THRESHOLD
 
