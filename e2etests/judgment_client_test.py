@@ -280,5 +280,4 @@ if __name__ == "__main__":
     print("Classifier scorer test successful")
     print("*" * 40)
 
->>>>>>> add_json_correctness_scorer
     print("All tests passed successfully")
