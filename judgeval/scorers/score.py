@@ -311,7 +311,6 @@ async def a_execute_scoring(
                             debug(f"Scorer threshold: {scorer.threshold}")
                         if hasattr(scorer, 'model'):
                             debug(f"Scorer model: {type(scorer.model).__name__}")
-
                 if isinstance(ex, Example):
                     if len(scorers) == 0:
                         pbar.update(1)
