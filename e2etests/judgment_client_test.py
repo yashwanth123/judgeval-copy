@@ -12,7 +12,7 @@ from judgeval.scorers import (
     HallucinationScorer,
     JSONCorrectnessScorer
 )
-from judgeval.judges import TogetherJudge
+from judgeval.judges import TogetherJudge, judgevalJudge
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
 from dotenv import load_dotenv
@@ -26,8 +26,10 @@ load_dotenv()
 def get_client():
     return JudgmentClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
 
+
 def get_ui_client():
     return JudgmentClient(judgment_api_key=os.getenv("UI_JUDGMENT_API_KEY"))
+
 
 def test_dataset(client: JudgmentClient):
     dataset: EvalDataset = client.create_dataset()
@@ -38,6 +40,7 @@ def test_dataset(client: JudgmentClient):
     # PULL
     dataset = client.pull_dataset(alias="test_dataset_5")
     print(dataset)
+
 
 def test_run_eval(client: JudgmentClient):
     # Single step in our workflow, an outreach Sales Agent
@@ -191,6 +194,7 @@ def test_override_eval(client: JudgmentClient):
             raise
         print(f"Successfully caught expected error: {e}")
 
+
 def test_evaluate_dataset(client: JudgmentClient):
 
     example1 = Example(
@@ -222,6 +226,7 @@ def test_evaluate_dataset(client: JudgmentClient):
 
     print(res)
     
+
 def test_classifier_scorer(client: JudgmentClient):
     classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
     faithfulness_scorer = FaithfulnessScorer(threshold=0.5)
@@ -241,6 +246,57 @@ def test_classifier_scorer(client: JudgmentClient):
         project_name="ToneScorerTest",
     )
 
+
+def test_custom_judge_vertexai(client: JudgmentClient):
+
+    import vertexai
+    from vertexai.generative_models import GenerativeModel
+
+    PROJECT_ID = "judgment-labs"
+    vertexai.init(project=PROJECT_ID, location="us-west1")
+
+    class VertexAIJudge(judgevalJudge):
+
+        def __init__(self, model_name: str = "gemini-1.5-flash-002"):
+            self.model_name = model_name
+            self.model = GenerativeModel(self.model_name)
+
+        def load_model(self):
+            return self.model
+
+        def generate(self, prompt) -> str:
+            # prompt is a List[dict] (conversation history)
+            # For models that don't support conversation history, we need to convert to string
+            # If you're using a model that supports chat history, you can just pass the prompt directly
+            response = self.model.generate_content(str(prompt))
+            return response.text
+
+        async def a_generate(self, prompt) -> str:
+            # prompt is a List[dict] (conversation history)
+            # For models that don't support conversation history, we need to convert to string
+            # If you're using a model that supports chat history, you can just pass the prompt directly
+            response = await self.model.generate_content_async(str(prompt))
+            return response.text
+
+        def get_model_name(self) -> str:
+            return self.model_name
+
+    example = Example(
+        input="What is the largest animal in the world?",
+        actual_output="The blue whale is the largest known animal.",
+        retrieval_context=["The blue whale is the largest known animal."],
+    )
+
+    judge = VertexAIJudge()
+
+    res = client.run_evaluation(
+        examples=[example],
+        scorers=[CustomFaithfulnessMetric()],
+        model=judge,
+    )
+    print(res)
+
+
 if __name__ == "__main__":
     # Test client functionality
     client = get_client()
@@ -258,8 +314,6 @@ if __name__ == "__main__":
     print("Evaluation run successful")
     print("*" * 40)
 
-<<<<<<< HEAD
-=======
     print("Testing JSON scorer")
     test_json_scorer(ui_client)
     print("JSON scorer test successful")
@@ -278,6 +332,11 @@ if __name__ == "__main__":
     print("Testing classifier scorer")
     test_classifier_scorer(ui_client)
     print("Classifier scorer test successful")
+    print("*" * 40)
+
+    print("Testing custom judge")
+    test_custom_judge_vertexai(ui_client)
+    print("Custom judge test successful")
     print("*" * 40)
 
     print("All tests passed successfully")

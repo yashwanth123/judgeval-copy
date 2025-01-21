@@ -258,6 +258,7 @@ async def a_execute_scoring(
 
         examples (List[Example]): A list of `Example` objects to be evaluated.
         scorers (List[CustomScorer]): A list of `CustomScorer` objects to evaluate the examples.
+        model (Union[str, List[str], judgevalJudge]): The model to use for evaluation.
         ignore_errors (bool): Whether to ignore errors during evaluation.
         skip_on_missing_params (bool): Whether to skip evaluation if parameters are missing.
         show_indicator (bool): Whether to show a progress indicator.
@@ -267,7 +268,7 @@ async def a_execute_scoring(
         _use_bar_indicator (bool): Whether to use a progress bar indicator.
 
     Returns:
-        List[TestResult]: A list of `TestResult` objects containing the evaluation results.
+        List[ScoringResult]: A list of `ScoringResult` objects containing the evaluation results.
     """
     semaphore = asyncio.Semaphore(max_concurrent)
 
@@ -379,7 +380,7 @@ async def a_eval_examples_helper(
     Args:
         scorers (List[CustomScorer]): List of CustomScorer objects to evaluate the example.
         example (Example): The example to be evaluated.
-        scoring_results (List[TestResult]): List to store the scoring results.
+        scoring_results (List[ScoringResult]): List to store the scoring results.
         score_index (int): Index at which the result should be stored in scoring_results.
         ignore_errors (bool): Flag to indicate whether to ignore errors during scoring.
         skip_on_missing_params (bool): Flag to indicate whether to skip scoring if parameters are missing.
@@ -420,7 +421,7 @@ async def a_eval_examples_helper(
     run_duration = test_end_time - scoring_start_time
     
     process_example.update_run_duration(run_duration)   # Update process example with execution time duration
-    scoring_results[score_index] = generate_scoring_result(process_example)  # Converts the outcomes of the executed test to a TestResult and saves it
+    scoring_results[score_index] = generate_scoring_result(process_example)  # Converts the outcomes of the executed test to a ScoringResult and saves it
 
     if pbar is not None:
         pbar.update(1)
