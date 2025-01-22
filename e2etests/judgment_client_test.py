@@ -13,7 +13,7 @@ from judgeval.scorers import (
     JSONCorrectnessScorer
 )
 from judgeval.judges import TogetherJudge, judgevalJudge
-from judgeval.playground import CustomFaithfulnessMetric
+from judgeval.e2etests.playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
 from dotenv import load_dotenv
 import random
