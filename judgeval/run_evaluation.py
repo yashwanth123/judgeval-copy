@@ -354,3 +354,17 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
         if not result.scorers_data:  # none of the scorers could be executed on this example
             info(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
     return merged_results
+
+def assert_test(evaluation_run: EvaluationRun):
+
+    failed_scorers: List[ScorerData] = []
+
+    results = run_eval(evaluation_run)
+
+    for result in results:
+        if not result.success:
+            # collect all the failed scorers
+            failed_scorers_data = [scorer_data for scorer_data in result.scorers_data if not scorer_data['success']]
+            failed_scorers.extend(failed_scorers_data)
+
+    AssertionError(f"The following scorers failed: {failed_scorers}")
