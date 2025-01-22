@@ -12,14 +12,12 @@ from judgeval.scorers import CustomScorer
 from judgeval.judges import judgevalJudge
 from judgeval.judges.utils import create_judge
 from judgeval.data import Example, ExampleParams
-from judgeval.scorers.metrics.faithfulness.template import FaithfulnessTemplate
-from judgeval.scorers.metrics.faithfulness.schema import Claims
-from judgeval.scorers.metrics.summarization.template import SummarizationTemplate
-from judgeval.scorers.metrics.summarization.schema import *
-from server.logger import setup_logger
+from judgeval.scorers.judgeval_scorers.local_implementations.faithfulness.prompts import (
+    FaithfulnessTemplate, 
+    Claims
+)
+from judgeval.scorers.judgeval_scorers.local_implementations.summarization.prompts import *
 
-
-logger = setup_logger(__name__)
 
 required_params = [
     ExampleParams.INPUT,
@@ -40,7 +38,7 @@ class SummarizationMetric(CustomScorer):
         verbose_mode: bool = False,
         user: Optional[str] = None
     ):
-        logger.info(f"Initializing SummarizationMetric with model: {model}")
+        # logger.info(f"Initializing SummarizationMetric with model: {model}")
         self.user = user
         self.threshold = 1 if strict_mode else threshold
         self.model, self.using_native_model = create_judge(model, user=user)
@@ -57,14 +55,14 @@ class SummarizationMetric(CustomScorer):
         self.strict_mode = strict_mode
         self.verbose_mode = verbose_mode
 
-        logger.debug(f"Initialized with threshold: {self.threshold}, n: {n}, strict_mode: {strict_mode}")
+        # logger.debug(f"Initialized with threshold: {self.threshold}, n: {n}, strict_mode: {strict_mode}")
 
     def score_example(
         self,
         example: Example,
         _show_indicator: bool = True,
     ) -> float:
-        logger.info("Starting synchronous summarization measurement")
+        # logger.info("Starting synchronous summarization measurement")
         check_example_params(example, required_params, self)
         
         with scorer_progress_meter(self, display_meter=_show_indicator):
@@ -77,17 +75,17 @@ class SummarizationMetric(CustomScorer):
                 self.claims: List[str] = self._generate_claims(
                     example.actual_output
                 )
-                logger.debug(f"Generated {len(self.claims)} claims")
+                # logger.debug(f"Generated {len(self.claims)} claims")
                 
                 self.coverage_verdicts: List[SummarizationCoverageVerdict] = (
                     self._generate_coverage_verdicts(example)
                 )
-                logger.debug(f"Generated {len(self.coverage_verdicts)} coverage verdicts")
+                # logger.debug(f"Generated {len(self.coverage_verdicts)} coverage verdicts")
                 
                 self.alignment_verdicts: List[SummarizationAlignmentVerdict] = (
                     self._generate_alignment_verdicts(example)
                 )
-                logger.debug(f"Generated {len(self.alignment_verdicts)} alignment verdicts")
+                # logger.debug(f"Generated {len(self.alignment_verdicts)} alignment verdicts")
                 
                 alignment_score = self._calculate_score(ScoreType.ALIGNMENT)
                 coverage_score = self._calculate_score(ScoreType.COVERAGE)
@@ -109,7 +107,7 @@ class SummarizationMetric(CustomScorer):
                     ],
                 )
 
-                logger.info(f"Measurement complete. Score: {self.score}, Success: {self.success}")
+                # logger.info(f"Measurement complete. Score: {self.score}, Success: {self.success}")
                 return self.score
 
     async def a_score_example(
@@ -138,7 +136,7 @@ class SummarizationMetric(CustomScorer):
             - Generate reason explaining the scoring
             - Check if score meets threshold for success
         """
-        logger.debug("Starting async measurement")
+        # logger.debug("Starting async measurement")
         check_example_params(example, required_params, self)
 
         with scorer_progress_meter(
@@ -152,7 +150,7 @@ class SummarizationMetric(CustomScorer):
                 self._a_generate_coverage_verdicts(example),
                 self._a_generate_alignment_verdicts(example),
             )
-            logger.debug(f"Generated {len(self.coverage_verdicts)} coverage and {len(self.alignment_verdicts)} alignment verdicts")
+            # logger.debug(f"Generated {len(self.coverage_verdicts)} coverage and {len(self.alignment_verdicts)} alignment verdicts")
             
             alignment_score = self._calculate_score(ScoreType.ALIGNMENT)
             coverage_score = self._calculate_score(ScoreType.COVERAGE)
@@ -174,13 +172,13 @@ class SummarizationMetric(CustomScorer):
                 ],
             )
 
-            logger.info(f"Async measurement complete. Score: {self.score}, Success: {self.success}")
+            # logger.info(f"Async measurement complete. Score: {self.score}, Success: {self.success}")
             return self.score
 
     async def _a_generate_reason(self) -> str:
-        logger.debug("Generating reason asynchronously")
+        # logger.debug("Generating reason asynchronously")
         if self.include_reason is False:
-            logger.debug("Reason generation skipped - include_reason is False")
+            # logger.debug("Reason generation skipped - include_reason is False")
             return None
 
         contradictions = []
@@ -224,7 +222,7 @@ class SummarizationMetric(CustomScorer):
                 res: Reason = await self.model.a_generate(prompt, schema=Reason, user=self.user)
                 return res.reason
             except TypeError:
-                logger.error("Failed to parse response with schema, falling back to raw json parsing")
+                # logger.error("Failed to parse response with schema, falling back to raw json parsing")
                 res = await self.model.a_generate(prompt, user=self.user)
                 data = parse_response_json(res, self)
                 return data["reason"]
@@ -274,17 +272,17 @@ class SummarizationMetric(CustomScorer):
                 res: Reason = self.model.generate(prompt, schema=Reason, user=self.user)
                 return res.reason
             except TypeError:
-                logger.error("Failed to parse response with schema, falling back to raw json parsing")
+                # logger.error("Failed to parse response with schema, falling back to raw json parsing")
                 res = self.model.generate(prompt, user=self.user)
                 data = parse_response_json(res, self)
                 return data["reason"]
 
     def _calculate_score(self, score_type: ScoreType) -> float:
-        logger.debug(f"Calculating {score_type.value} score")
+        # logger.debug(f"Calculating {score_type.value} score")
         if score_type == ScoreType.ALIGNMENT:
             total = len(self.alignment_verdicts)
             if total == 0:
-                logger.warning("No alignment verdicts found, returning score of 0")
+                # logger.warning("No alignment verdicts found, returning score of 0")
                 return 0
             faithfulness_count = 0
             for verdict in self.alignment_verdicts:
@@ -297,7 +295,7 @@ class SummarizationMetric(CustomScorer):
 
         else:
             if self.assessment_questions is None:
-                logger.debug("No assessment questions provided, returning perfect coverage score")
+                # logger.debug("No assessment questions provided, returning perfect coverage score")
                 return 1
             total = 0
             coverage_count = 0
@@ -308,12 +306,12 @@ class SummarizationMetric(CustomScorer):
                         coverage_count += 1
 
             if total == 0:
-                logger.warning("No valid coverage verdicts found, returning score of 0")
+                # logger.warning("No valid coverage verdicts found, returning score of 0")
                 return 0
 
             score = coverage_count / total
 
-        logger.debug(f"Calculated {score_type.value} score: {score}")
+        # logger.debug(f"Calculated {score_type.value} score: {score}")
         return 0 if self.strict_mode and score < self.threshold else score
 
     async def _a_generate_answers(self, text: str) -> List[str]:
@@ -336,7 +334,7 @@ class SummarizationMetric(CustomScorer):
                 return data["answers"]
 
     def _generate_answers(self, text: str) -> List[str]:
-        logger.debug("Generating answers")
+        # logger.debug("Generating answers")
         prompt = SummarizationTemplate.generate_answers(
             questions=self.assessment_questions, text=text
         )
@@ -349,7 +347,7 @@ class SummarizationMetric(CustomScorer):
                 res: Answers = self.model.generate(prompt, schema=Answers, user=self.user)
                 return res.answers
             except TypeError:
-                logger.error("Failed to parse answers with schema, falling back to raw json parsing")
+                # logger.error("Failed to parse answers with schema, falling back to raw json parsing")
                 res = self.model.generate(prompt, user=self.user)
                 data = parse_response_json(res, self)
                 return data["answers"]
@@ -372,7 +370,7 @@ class SummarizationMetric(CustomScorer):
                 return data["questions"]
 
     def _generate_assessment_questions(self, text: str):
-        logger.debug(f"Generating {self.n} assessment questions")
+        # logger.debug(f"Generating {self.n} assessment questions")
         prompt = SummarizationTemplate.generate_questions(text=text, n=self.n)
         if self.using_native_model:
             res = self.model.generate(prompt, user=self.user)
@@ -383,7 +381,7 @@ class SummarizationMetric(CustomScorer):
                 res: Questions = self.model.generate(prompt, schema=Questions, user=self.user)
                 return res.questions
             except TypeError:
-                logger.error("Failed to parse questions with schema, falling back to raw json parsing")
+                # logger.error("Failed to parse questions with schema, falling back to raw json parsing")
                 res = self.model.generate(prompt, user=self.user)
                 data = parse_response_json(res, self)
                 return data["questions"]
@@ -405,7 +403,7 @@ class SummarizationMetric(CustomScorer):
         summary_answers = results[1]
 
         if len(original_answers) != len(summary_answers):
-            logger.error(f"Mismatched answer lengths: original={len(original_answers)}, summary={len(summary_answers)}")
+            # logger.error(f"Mismatched answer lengths: original={len(original_answers)}, summary={len(summary_answers)}")
             raise ValueError("Number of verdicts generated does not equal.")
 
         coverage_veridcts: List[SummarizationCoverageVerdict] = []
@@ -431,7 +429,7 @@ class SummarizationMetric(CustomScorer):
         summary_answers = self._generate_answers(test_case.actual_output)
 
         if len(original_answers) != len(summary_answers):
-            logger.error(f"Mismatched answer lengths: original={len(original_answers)}, summary={len(summary_answers)}")
+            # logger.error(f"Mismatched answer lengths: original={len(original_answers)}, summary={len(summary_answers)}")
             raise ValueError("Number of verdicts generated does not equal.")
 
         coverage_veridcts: List[SummarizationCoverageVerdict] = []
@@ -451,7 +449,7 @@ class SummarizationMetric(CustomScorer):
         test_case: Example,
     ) -> List[SummarizationAlignmentVerdict]:
         if len(self.claims) == 0:
-            logger.warning("No claims generated, returning empty alignment verdicts")
+            # logger.warning("No claims generated, returning empty alignment verdicts")
             return []
 
         verdicts: List[SummarizationAlignmentVerdict] = []
@@ -476,7 +474,7 @@ class SummarizationMetric(CustomScorer):
                 verdicts = [item for item in res.verdicts]
                 return verdicts
             except TypeError:
-                logger.error("Failed to parse verdicts with schema, falling back to raw json parsing")
+                # logger.error("Failed to parse verdicts with schema, falling back to raw json parsing")
                 res = await self.model.a_generate(prompt, user=self.user)
                 data = parse_response_json(res, self)
                 verdicts = [
@@ -490,7 +488,7 @@ class SummarizationMetric(CustomScorer):
         test_case: Example,
     ) -> List[SummarizationAlignmentVerdict]:
         if len(self.claims) == 0:
-            logger.warning("No claims generated, returning empty alignment verdicts")
+            # logger.warning("No claims generated, returning empty alignment verdicts")
             return []
 
         verdicts: List[SummarizationAlignmentVerdict] = []
@@ -514,7 +512,7 @@ class SummarizationMetric(CustomScorer):
                 verdicts = [item for item in res.verdicts]
                 return verdicts
             except TypeError:
-                logger.error("Failed to parse verdicts with schema, falling back to raw json parsing")
+                # logger.error("Failed to parse verdicts with schema, falling back to raw json parsing")
                 res = self.model.generate(prompt, user=self.user)
                 data = parse_response_json(res, self)
                 verdicts = [
@@ -535,7 +533,7 @@ class SummarizationMetric(CustomScorer):
                 res: Claims = await self.model.a_generate(prompt, schema=Claims, user=self.user)
                 return res.claims
             except TypeError:
-                logger.error("Failed to parse verdicts with schema, falling back to raw json parsing")
+                # logger.error("Failed to parse verdicts with schema, falling back to raw json parsing")
                 res = await self.model.a_generate(prompt, user=self.user)
                 data = parse_response_json(res, self)
                 return data["claims"]
@@ -552,25 +550,24 @@ class SummarizationMetric(CustomScorer):
                 res: Claims = self.model.generate(prompt, schema=Claims, user=self.user)
                 return res.claims
             except TypeError:
-                logger.error("Failed to parse claims with schema, falling back to raw json parsing")
+                # logger.error("Failed to parse claims with schema, falling back to raw json parsing")
                 res = self.model.generate(prompt, user=self.user)
                 data = parse_response_json(res, self)
                 return data["claims"]
 
     def success_check(self) -> bool:
         if self.error is not None:
-            logger.warning(f"Metric failed with error: {self.error}")
+            # logger.warning(f"Metric failed with error: {self.error}")
             self.success = False
         else:
             try:
                 self.success = self.score >= self.threshold
-                logger.debug(f"Success check: score {self.score} >= threshold {self.threshold} = {self.success}")
+                # logger.debug(f"Success check: score {self.score} >= threshold {self.threshold} = {self.success}")
             except:
-                logger.error("Failed to determine success status", exc_info=True)
+                # logger.error("Failed to determine success status", exc_info=True)
                 self.success = False
         return self.success
 
     @property
     def __name__(self):
         return "Summarization"
-    
