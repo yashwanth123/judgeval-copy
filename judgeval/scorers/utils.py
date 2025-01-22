@@ -1,7 +1,5 @@
 """
 Util functions for Scorer objects
-
-TODO add logging
 """
 
 import asyncio
