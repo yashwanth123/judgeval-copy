@@ -8,8 +8,7 @@ from together import Together, AsyncTogether
 PATH_TO_DOTENV = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(dotenv_path=PATH_TO_DOTENV)
 
-# Set callbacks
-# litellm.success_callback = ["langfuse"]  # log input/output to langfuse
+
 # Initialize OpenAI client
 client = OpenAI()
 
