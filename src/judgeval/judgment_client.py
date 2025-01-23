@@ -222,7 +222,7 @@ class JudgmentClient:
         """
         request_body = {
             "name": scorer.name,
-            "conversation": [m.model_dump() for m in scorer.conversation],
+            "conversation": scorer.conversation,
             "options": scorer.options,
             "judgment_api_key": self.judgment_api_key,
             "slug": slug
