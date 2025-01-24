@@ -289,3 +289,4 @@ class AnswerRelevancyScorer(JudgevalScorer):
     @property
     def __name__(self):
         return "Answer Relevancy"
+    
