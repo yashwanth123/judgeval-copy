@@ -16,7 +16,8 @@ from judgeval.scorers.judgeval_scorers.api_scorers import (
 
 from judgeval.scorers.judgeval_scorers.local_implementations import (
     AnswerRelevancyScorer as LocalAnswerRelevancyScorer,
-    ContextualPrecisionScorer as LocalContextualPrecisionScorer
+    ContextualPrecisionScorer as LocalContextualPrecisionScorer,
+    ContextualRecallScorer as LocalContextualRecallScorer
 )
 
 class ScorerWrapper:
@@ -106,7 +107,8 @@ ContextualPrecisionScorer = ScorerWrapper(
 )
 
 ContextualRecallScorer = ScorerWrapper(
-    api_implementation=APIContextualRecallScorer
+    api_implementation=APIContextualRecallScorer,
+    local_implementation=LocalContextualRecallScorer
 )
 
 __all__ = [
