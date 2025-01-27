@@ -4,6 +4,8 @@ from judgeval.scorers.judgeval_scorers.local_implementations.contextual_recall.c
 from judgeval.scorers.judgeval_scorers.local_implementations.contextual_relevancy.contextual_relevancy_scorer import ContextualRelevancyScorer
 from judgeval.scorers.judgeval_scorers.local_implementations.faithfulness.faithfulness_scorer import FaithfulnessScorer
 from judgeval.scorers.judgeval_scorers.local_implementations.json_correctness.json_correctness_scorer import JsonCorrectnessScorer
+from judgeval.scorers.judgeval_scorers.local_implementations.tool_correctness.tool_correctness_scorer import ToolCorrectnessScorer 
+
 
 __all__ = [
     "AnswerRelevancyScorer",
@@ -11,5 +13,6 @@ __all__ = [
     "ContextualRecallScorer",
     "ContextualRelevancyScorer",
     "FaithfulnessScorer",
-    "JsonCorrectnessScorer"
+    "JsonCorrectnessScorer",
+    "ToolCorrectnessScorer"
 ]
