@@ -18,7 +18,9 @@ from judgeval.scorers.judgeval_scorers.local_implementations import (
     AnswerRelevancyScorer as LocalAnswerRelevancyScorer,
     ContextualPrecisionScorer as LocalContextualPrecisionScorer,
     ContextualRecallScorer as LocalContextualRecallScorer,
-    ContextualRelevancyScorer as LocalContextualRelevancyScorer
+    ContextualRelevancyScorer as LocalContextualRelevancyScorer,
+    FaithfulnessScorer as LocalFaithfulnessScorer,
+    JsonCorrectnessScorer as LocalJsonCorrectnessScorer
 )
 
 class ScorerWrapper:
@@ -83,7 +85,8 @@ ToolCorrectnessScorer = ScorerWrapper(
 )
 
 JSONCorrectnessScorer = ScorerWrapper(
-    api_implementation=APIJSONCorrectnessScorer
+    api_implementation=APIJSONCorrectnessScorer,
+    local_implementation=LocalJsonCorrectnessScorer
 )
 
 SummarizationScorer = ScorerWrapper(
@@ -95,7 +98,8 @@ HallucinationScorer = ScorerWrapper(
 )
 
 FaithfulnessScorer = ScorerWrapper(
-    api_implementation=APIFaithfulnessScorer
+    api_implementation=APIFaithfulnessScorer,
+    local_implementation=LocalFaithfulnessScorer
 )
 
 ContextualRelevancyScorer = ScorerWrapper(
