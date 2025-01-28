@@ -25,7 +25,7 @@ Your task is to take each context in contexts and determine whether the `actual 
 Additional notes:
 You should NOT use any prior knowledge you have in your decision making process; take each context at face value. 
 Since you will determine a verdict for EACH context, the number of 'verdicts' is EXACTLY EQUAL TO the number of contexts. 
-You should be lenient in your judgment when the actual output lacks detail; you should ONLY provide a 'no' answer if the context contradicts the actual output.
+You should be lenient in your judgment when the actual output lacks detail with respect to the context segment; you should ONLY provide a 'no' answer if the context contradicts the actual output.
 
 ==== FORMATTING INSTRUCTIONS ====
 You should return a JSON object with a key 'verdicts', which is a list of JSON objects. Each JSON object corresponds to a context in `contexts`, and should have 2 fields: 'verdict' and 'reason'. 
@@ -68,6 +68,7 @@ You will be provided with a list of `contradictions`, which are factual discrepa
 Additionally, you will be provided with a hallucination score, which is a float (0 - 1, where 0 is the best score) indicating the fraction of context segments that contradict the actual output.
 
 Your task is to provide a CLEAR and CONCISE reason for the hallucination score. 
+If the hallucination score is 0 (no contradictions), you should instead respond with a positive remark with an upbeat encouraging tone (but don't overblow the kind attitude).
         
 ==== FORMATTING INSTRUCTIONS ====
 Please make sure to only return in JSON format, with the 'reason' key providing the reason.
