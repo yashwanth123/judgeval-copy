@@ -1,5 +1,4 @@
 from judgeval.data import Example
-from judgeval.run_evaluation import assert_test
 from judgeval.scorers import (
     FaithfulnessScorer,
     AnswerRelevancyScorer
@@ -30,12 +29,10 @@ def test_assert_test():
     scorer = FaithfulnessScorer(threshold=0.5)
     scorer1 = AnswerRelevancyScorer(threshold=0.5)
 
-    results = client.run_evaluation(
+    results = client.assert_test(
         eval_run_name="test_eval",
         examples=[example, example1, example2],
         scorers=[scorer, scorer1],
         model="QWEN",
     )
-
-    assert_test(results)
     
