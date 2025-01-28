@@ -365,33 +365,56 @@ def assert_test(ScoringResults: List[ScoringResult]):
     Returns:
         List[ScorerData]: List of failed scorer data objects
     """
-    failed_scorers: List[ScorerData] = []
-
+    failed_cases: List[ScorerData] = []
 
     for result in ScoringResults:
         if not result.success:
-            # If the result was not successful, check each scorer_data
-            for scorer_data in result.scorers_data:
-                if not scorer_data.success:
-                    failed_scorers.append(scorer_data)
 
-    if failed_scorers:
-        error_msg = f"The following scorers failed: \n"
-        for fail in failed_scorers:
-            error_msg += (
-                f"\nScorer Name: {fail.name}\n"
-                f"Threshold: {fail.threshold}\n"
-                f"Success: {fail.success}\n" 
-                f"Score: {fail.score}\n"
-                f"Reason: {fail.reason}\n"
-                f"Strict Mode: {fail.strict_mode}\n"
-                f"Evaluation Model: {fail.evaluation_model}\n"
-                f"Error: {fail.error}\n"
-                f"Evaluation Cost: {fail.evaluation_cost}\n"
-                f"Verbose Logs: {fail.verbose_logs}\n"
-                f"Additional Metadata: {fail.additional_metadata}\n"
-            )
+            # Create a test case context with all relevant fields
+            test_case = {
+                'input': result.input,
+                'actual_output': result.actual_output,
+                'expected_output': result.expected_output,
+                'context': result.context,
+                'retrieval_context': result.retrieval_context,
+                'eval_run_name': result.eval_run_name,
+                'failed_scorers': []
+            }
+            if result.scorers_data:
+                # If the result was not successful, check each scorer_data
+                for scorer_data in result.scorers_data:
+                    if not scorer_data.success:
+                        test_case['failed_scorers'].append(scorer_data)
+
+            failed_cases.append(test_case)
+
+    if failed_cases:
+        error_msg = f"The following test cases failed: \n"
+        for fail_case in failed_cases:
+            error_msg += f"\nInput: {fail_case['input']}\n"
+            error_msg += f"Actual Output: {fail_case['actual_output']}\n"
+            error_msg += f"Expected Output: {fail_case['expected_output']}\n"
+            error_msg += f"Context: {fail_case['context']}\n"
+            error_msg += f"Retrieval Context: {fail_case['retrieval_context']}\n"
+            error_msg += f"Eval Run Name: {fail_case['eval_run_name']}\n"
     
-        raise AssertionError(f"The following scorers failed: {error_msg}")
+            for fail_scorer in fail_case['failed_scorers']:
+
+                error_msg += (
+                    f"\nScorer Name: {fail_scorer.name}\n"
+                    f"Threshold: {fail_scorer.threshold}\n"
+                    f"Success: {fail_scorer.success}\n" 
+                    f"Score: {fail_scorer.score}\n"
+                    f"Reason: {fail_scorer.reason}\n"
+                    f"Strict Mode: {fail_scorer.strict_mode}\n"
+                    f"Evaluation Model: {fail_scorer.evaluation_model}\n"
+                    f"Error: {fail_scorer.error}\n"
+                    f"Evaluation Cost: {fail_scorer.evaluation_cost}\n"
+                    f"Verbose Logs: {fail_scorer.verbose_logs}\n"
+                    f"Additional Metadata: {fail_scorer.additional_metadata}\n"
+                )
+            error_msg += "-"*100
+    
+        raise AssertionError(error_msg)
             
 
