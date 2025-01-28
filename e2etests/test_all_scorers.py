@@ -8,7 +8,8 @@ from judgeval.scorers import (AnswerRelevancyScorer,
                               ContextualPrecisionScorer,
                               ContextualRecallScorer,
                               ContextualRelevancyScorer,
-                              FaithfulnessScorer)
+                              FaithfulnessScorer,
+                              HallucinationScorer)
 
 from judgeval.data import Example
 
@@ -194,10 +195,41 @@ def test_faithfulness_scorer():
     print(res)
 
 
+def test_hallucination_scorer():
+
+    example_1 = Example(
+        input="What's the capital of France?",
+        actual_output="The capital of France is Paris.",
+        expected_output="France's capital is Paris. It used to be called the city of lights until 1968.",
+        context=[
+            "Paris is a city in central France. It is the capital of France.",
+            "Paris is well known for its museums, architecture, and cuisine.",
+            "Flights to Paris are available from San Francisco starting at $1000."
+        ]
+    )
+
+    scorer = HallucinationScorer(threshold=0.5)
+
+    client = JudgmentClient()
+    PROJECT_NAME = "test-project"
+    EVAL_RUN_NAME = "test-run-hallucination"
+    res = client.run_evaluation(
+        examples=[example_1],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=False,
+        override=True,
+    )
+
+    print(res)
 if __name__ == "__main__":
     # test_ar_scorer()
     # test_cp_scorer()
     # test_cr_scorer()
     # test_crelevancy_scorer()
-    test_faithfulness_scorer()
+    # test_faithfulness_scorer()
+    test_hallucination_scorer()
     
