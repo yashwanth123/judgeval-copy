@@ -355,16 +355,43 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
             info(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
     return merged_results
 
-def assert_test(evaluation_run: EvaluationRun):
+def assert_test(ScoringResults: List[ScoringResult]):
+    """
+    Collects all failed scorers from the scoring results.
 
+    Args:
+        ScoringResults (List[ScoringResult]): List of scoring results to check
+
+    Returns:
+        List[ScorerData]: List of failed scorer data objects
+    """
     failed_scorers: List[ScorerData] = []
 
-    results = run_eval(evaluation_run)
 
-    for result in results:
+    for result in ScoringResults:
         if not result.success:
-            # collect all the failed scorers
-            failed_scorers_data = [scorer_data for scorer_data in result.scorers_data if not scorer_data['success']]
-            failed_scorers.extend(failed_scorers_data)
+            # If the result was not successful, check each scorer_data
+            for scorer_data in result.scorers_data:
+                if not scorer_data.success:
+                    failed_scorers.append(scorer_data)
 
-    AssertionError(f"The following scorers failed: {failed_scorers}")
+    if failed_scorers:
+        error_msg = f"The following scorers failed: \n"
+        for fail in failed_scorers:
+            error_msg += (
+                f"\nScorer Name: {fail.name}\n"
+                f"Threshold: {fail.threshold}\n"
+                f"Success: {fail.success}\n" 
+                f"Score: {fail.score}\n"
+                f"Reason: {fail.reason}\n"
+                f"Strict Mode: {fail.strict_mode}\n"
+                f"Evaluation Model: {fail.evaluation_model}\n"
+                f"Error: {fail.error}\n"
+                f"Evaluation Cost: {fail.evaluation_cost}\n"
+                f"Verbose Logs: {fail.verbose_logs}\n"
+                f"Additional Metadata: {fail.additional_metadata}\n"
+            )
+    
+        raise AssertionError(f"The following scorers failed: {error_msg}")
+            
+
