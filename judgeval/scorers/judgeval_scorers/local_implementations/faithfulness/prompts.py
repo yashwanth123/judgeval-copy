@@ -25,7 +25,7 @@ class Reason(BaseModel):
 
 class FaithfulnessTemplate:
     @staticmethod
-    def generate_claims(text):
+    def find_claims(text):
         return f"""==== TASK INSTRUCTIONS ====
 You will be provided with a passage of text. Based on the text, your task is to generate a comprehensive list of ALL CLAIMS that can be inferred from the text.  
 For every claim that you derive from the text, provide the source of the claim via quoting the original text. Please try to extract EVERY CLAIM that is in the original text; priortize generating the most claims rather than being concise. 
@@ -41,39 +41,39 @@ Example Text:
 "Einstein won the nobel prize in 1968 for his discovery of the photoelectric effect."
 
 Example JSON: 
-{
+{{
     "claims": [
-        {
+        {{
              "claim": "Einstein won the nobel prize for his discovery of the photoelectric effect.",
              "quote": "Einstein won the nobel prize in 1968 for his discovery of the photoelectric effect."
-        }
-        {
+        }},
+        {{
              "claim": "Einstein won the nobel prize in 1968.",
              "quote": "Einstein won the nobel prize in 1968 for his discovery of the photoelectric effect."
-        }
+        }}
     ]  
-}
+}}
 ---- END OF EXAMPLE 1 ----
 
 ---- START OF EXAMPLE 2 ----
 Example Text: "The Wright brothers successfully flew the first powered airplane on December 17, 1903, in Kitty Hawk, North Carolina."
 
-{
+{{
     "claims": [
-        {
+        {{
             "claim": "The Wright brothers flew the first powered airplane.",
             "quote": "The Wright brothers successfully flew the first powered airplane on December 17, 1903, in Kitty Hawk, North Carolina."
-        },
-        {
+        }},
+        {{
             "claim": "The Wright brothers made their flight in Kitty Hawk, North Carolina.",
             "quote": "The Wright brothers successfully flew the first powered airplane on December 17, 1903, in Kitty Hawk, North Carolina."
-        },
-        {
+        }},
+        {{
             "claim": "The first powered airplane flight occurred on December 17, 1903.",
             "quote": "The Wright brothers successfully flew the first powered airplane on December 17, 1903, in Kitty Hawk, North Carolina."
-        }
+        }}
     ]
-}
+}}
 ---- END OF EXAMPLE 2 ----
 
 ---- START OF EXAMPLE 3 ----
@@ -81,38 +81,38 @@ Example Text:
 "The Great Wall of China was built over many centuries by different Chinese dynasties. Construction began more than 2,000 years ago during the Warring States period. The most famous sections were built during the Ming Dynasty. The wall stretches for thousands of miles across northern China and was primarily built for military defense."
 
 Example JSON:
-{
+{{
     "claims": [
-        {
+        {{
             "claim": "The Great Wall of China was built by multiple Chinese dynasties",
             "quote": "The Great Wall of China was built over many centuries by different Chinese dynasties."
-        },
-        {
+        }},
+        {{
             "claim": "Construction of the Great Wall began over 2,000 years ago",
             "quote": "Construction began more than 2,000 years ago during the Warring States period."
-        },
-        {
+        }},
+        {{
             "claim": "Construction started during the Warring States period",
             "quote": "Construction began more than 2,000 years ago during the Warring States period."
-        },
-        {
+        }},
+        {{
             "claim": "The most well-known parts of the wall were constructed during the Ming Dynasty",
             "quote": "The most famous sections were built during the Ming Dynasty."
-        },
-        {
+        }},
+        {{
             "claim": "The Great Wall extends for thousands of miles",
             "quote": "The wall stretches for thousands of miles across northern China"
-        },
-        {
+        }},
+        {{
             "claim": "The wall is located in northern China",
             "quote": "The wall stretches for thousands of miles across northern China"
-        },
-        {
+        }},
+        {{
             "claim": "The Great Wall was constructed for defensive military purposes",
             "quote": "was primarily built for military defense."
-        }
+        }}
     ]
-}
+}}
 ---- END OF EXAMPLE 3 ----
 
 ==== END OF EXAMPLES ====
@@ -126,7 +126,7 @@ JSON:
 """
 
     @staticmethod
-    def generate_verdicts(claims, retrieval_context):
+    def create_verdicts(claims, retrieval_context):
         return f"""==== TASK INSTRUCTIONS ====
 You will be provided with a list of claims from an LLM's output text, accompanied by the retrieval documents that the LLM used to generate the output. 
 Your task is to determine whether EACH claim is factually consistent with the retrieval context ("yes", "no", or "idk"). 
@@ -213,7 +213,7 @@ JSON:
 """
 
     @staticmethod
-    def generate_reason(score, contradictions):
+    def justify_reason(score, contradictions):
         return f"""==== TASK INSTRUCTIONS ====
 You will be provided with a list of contradictions and a faithfulness score. 
 The list of contradictions will be references to statements made by a RAG generator that contradicted one or more document(s) from the retrieval context. 
