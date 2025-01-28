@@ -523,7 +523,7 @@ class SummarizationMetric(CustomScorer):
 
     async def _a_generate_claims(self, text: str) -> List[str]:
         # Borrow faithfulness template
-        prompt = FaithfulnessTemplate.generate_claims(text=text)
+        prompt = FaithfulnessTemplate.find_claims(text=text)
         if self.using_native_model:
             res = await self.model.a_generate(prompt, user=self.user)
             data = parse_response_json(res, self)
@@ -540,7 +540,7 @@ class SummarizationMetric(CustomScorer):
 
     def _generate_claims(self, text: str) -> List[str]:
         # Borrow faithfulness template
-        prompt = FaithfulnessTemplate.generate_claims(text=text)
+        prompt = FaithfulnessTemplate.find_claims(text=text)
         if self.using_native_model:
             res = self.model.generate(prompt, user=self.user)
             data = parse_response_json(res, self)

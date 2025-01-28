@@ -141,10 +141,12 @@ class FaithfulnessScorer(JudgevalScorer):
             if verdict.verdict.strip().lower() == "no":
                 contradictions.append(verdict.model_dump())
 
-        prompt: dict = FaithfulnessTemplate.generate_reason(
+        prompt: dict = FaithfulnessTemplate.justify_reason(
             contradictions=contradictions,
             score=format(self.score, ".2f"),
         )
+        
+        print(f"{prompt=}")
 
         if self.using_native_model:
             res = await self.model.a_generate(prompt)
@@ -168,7 +170,7 @@ class FaithfulnessScorer(JudgevalScorer):
             if verdict.verdict.strip().lower() == "no":
                 contradictions.append(verdict.reason)
 
-        prompt: dict = FaithfulnessTemplate.generate_reason(
+        prompt: dict = FaithfulnessTemplate.justify_reason(
             contradictions=contradictions,
             score=format(self.score, ".2f"),
         )
@@ -196,10 +198,12 @@ class FaithfulnessScorer(JudgevalScorer):
             claim["claim"] for claim in self.claims
         ]  # We only need the claims, not the quotes involved
 
-        prompt = FaithfulnessTemplate.generate_verdicts(
+        prompt = FaithfulnessTemplate.create_verdicts(
             claims=claims,
             retrieval_context=retrieval_context,
         )
+
+        print(f"Verdicts Prompt: {prompt}")
 
         if self.using_native_model:
             res = await self.model.a_generate(prompt)
@@ -253,7 +257,7 @@ class FaithfulnessScorer(JudgevalScorer):
                 return verdicts
 
     async def _a_generate_claims(self, actual_output: str) -> List[str]:
-        prompt = FaithfulnessTemplate.generate_claims(text=actual_output)
+        prompt = FaithfulnessTemplate.find_claims(text=actual_output)
         if self.using_native_model:
             res = await self.model.a_generate(prompt)
             data = parse_response_json(res, self)
