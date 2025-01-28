@@ -2,7 +2,6 @@ from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, field_validator
 
 from judgeval.data import Example
-from judgeval.data.datasets import EvalDataset
 from judgeval.scorers import JudgevalScorer, APIJudgmentScorer
 from judgeval.constants import ACCEPTABLE_MODELS
 from judgeval.common.logger import debug, error
@@ -82,10 +81,10 @@ class EvaluationRun(BaseModel):
         
         # Check if model is a judgevalJudge
         if isinstance(v, judgevalJudge):
-            # Verify all scorers are CustomScorer when using judgevalJudge
+            # Verify all scorers are JudgevalScorer when using judgevalJudge
             scorers = values.data.get('scorers', [])
-            if not all(isinstance(s, CustomScorer) for s in scorers):
-                raise ValueError("When using a judgevalJudge model, all scorers must be CustomScorer type")
+            if not all(isinstance(s, JudgevalScorer) for s in scorers):
+                raise ValueError("When using a judgevalJudge model, all scorers must be JudgevalScorer type")
             return v
             
         # Check if model is string or list of strings
