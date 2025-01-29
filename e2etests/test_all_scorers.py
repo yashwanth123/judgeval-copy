@@ -9,7 +9,8 @@ from judgeval.scorers import (AnswerRelevancyScorer,
                               ContextualRecallScorer,
                               ContextualRelevancyScorer,
                               FaithfulnessScorer,
-                              HallucinationScorer)
+                              HallucinationScorer,
+                              SummarizationScorer,)
 
 from judgeval.data import Example
 
@@ -223,13 +224,39 @@ def test_hallucination_scorer():
         use_judgment=False,
         override=True,
     )
-
     print(res)
+
+
+def test_summarization_scorer():
+
+    example_1 = Example(
+        input="Paris is the capital city of France and one of the most populous cities in Europe. The city is known for its iconic landmarks like the Eiffel Tower, Louvre Museum, and Notre-Dame Cathedral. Paris is also a global center for art, fashion, gastronomy and culture. The city's romantic atmosphere, historic architecture, and world-class museums attract millions of visitors each year.",
+        actual_output="Paris is France's capital and a major European city famous for landmarks like the Eiffel Tower. It's a global hub for art, fashion and culture that draws many tourists.",
+    )
+
+    scorer = SummarizationScorer(threshold=0.5)
+
+    client = JudgmentClient()
+    PROJECT_NAME = "test-project"
+    EVAL_RUN_NAME = "test-run-summarization"
+    res = client.run_evaluation(
+        examples=[example_1],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=False,
+        override=True,
+    )
+    print(res)
+
 if __name__ == "__main__":
     # test_ar_scorer()
     # test_cp_scorer()
     # test_cr_scorer()
     # test_crelevancy_scorer()
     # test_faithfulness_scorer()
-    test_hallucination_scorer()
+    # test_hallucination_scorer()
+    test_summarization_scorer()
     
