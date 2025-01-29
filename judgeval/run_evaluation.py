@@ -354,3 +354,65 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
         if not result.scorers_data:  # none of the scorers could be executed on this example
             info(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
     return merged_results
+
+def assert_test(scoring_results: List[ScoringResult]) -> None:
+    """
+    Collects all failed scorers from the scoring results.
+
+    Args:
+        ScoringResults (List[ScoringResult]): List of scoring results to check
+
+    Returns:
+        None. Raises exceptions for any failed test cases.
+    """
+    failed_cases: List[ScorerData] = []
+
+    for result in scoring_results:
+        if not result.success:
+
+            # Create a test case context with all relevant fields
+            test_case = {
+                'input': result.input,
+                'actual_output': result.actual_output,
+                'expected_output': result.expected_output,
+                'context': result.context,
+                'retrieval_context': result.retrieval_context,
+                'eval_run_name': result.eval_run_name,
+                'failed_scorers': []
+            }
+            if result.scorers_data:
+                # If the result was not successful, check each scorer_data
+                for scorer_data in result.scorers_data:
+                    if not scorer_data.success:
+                        test_case['failed_scorers'].append(scorer_data)
+            failed_cases.append(test_case)
+
+    if failed_cases:
+        error_msg = f"The following test cases failed: \n"
+        for fail_case in failed_cases:
+            error_msg += f"\nInput: {fail_case['input']}\n"
+            error_msg += f"Actual Output: {fail_case['actual_output']}\n"
+            error_msg += f"Expected Output: {fail_case['expected_output']}\n"
+            error_msg += f"Context: {fail_case['context']}\n"
+            error_msg += f"Retrieval Context: {fail_case['retrieval_context']}\n"
+            error_msg += f"Eval Run Name: {fail_case['eval_run_name']}\n"
+    
+            for fail_scorer in fail_case['failed_scorers']:
+
+                error_msg += (
+                    f"\nScorer Name: {fail_scorer.name}\n"
+                    f"Threshold: {fail_scorer.threshold}\n"
+                    f"Success: {fail_scorer.success}\n" 
+                    f"Score: {fail_scorer.score}\n"
+                    f"Reason: {fail_scorer.reason}\n"
+                    f"Strict Mode: {fail_scorer.strict_mode}\n"
+                    f"Evaluation Model: {fail_scorer.evaluation_model}\n"
+                    f"Error: {fail_scorer.error}\n"
+                    f"Evaluation Cost: {fail_scorer.evaluation_cost}\n"
+                    f"Verbose Logs: {fail_scorer.verbose_logs}\n"
+                    f"Additional Metadata: {fail_scorer.additional_metadata}\n"
+                )
+            error_msg += "-"*100
+    
+        raise AssertionError(error_msg)
+    
