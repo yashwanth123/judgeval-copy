@@ -57,47 +57,50 @@ class SummarizationScorer(JudgevalScorer):
         _show_indicator: bool = True,
     ) -> float:
         check_example_params(example, required_params, self)
-        
-        with scorer_progress_meter(self, display_meter=_show_indicator):
-            if self.async_mode:
-                loop = get_or_create_event_loop()
-                loop.run_until_complete(
-                    self.a_score_example(example, _show_indicator=False)
-                )
-            else:
-                self.claims: List[str] = self._generate_claims(
-                    example.actual_output
-                )
-                
-                self.info_coverage_verdicts: List[InfoCoverageVerdict] = (
-                    self._generate_info_coverage_verdicts(example)
-                )
-                
-                self.contradiction_verdicts: List[ContradictionVerdict] = (
-                    self._generate_contradiction_verdicts(example)
-                )
-                
-                contradiction_score = self._calculate_score(ScoreType.CONTRADICTION)
-                info_coverage_score = self._calculate_score(ScoreType.INFO_COVERAGE)
-                self.score_breakdown = {
-                    ScoreType.CONTRADICTION.value: contradiction_score,
-                    ScoreType.INFO_COVERAGE.value: info_coverage_score,
-                }
-                self.score = min(contradiction_score, info_coverage_score)
-                self.reason = self._generate_reason()
-                self.success = self.score >= self.threshold
-                self.verbose_logs = create_verbose_logs(
-                    self,
-                    steps=[
-                        f"Claims:\n{self.claims}",
-                        f"Assessment Questions:\n{self.assessment_questions}",
-                        f"Info Coverage Verdicts:\n{[v.model_dump() for v in self.info_coverage_verdicts]}",
-                        f"Contradiction Verdicts:\n{[v.model_dump() for v in self.contradiction_verdicts]}",
-                        f"Score: {self.score}\nReason: {self.reason}",
-                    ],
-                )
+        try:
+            with scorer_progress_meter(self, display_meter=_show_indicator):
+                if self.async_mode:
+                    loop = get_or_create_event_loop()
+                    loop.run_until_complete(
+                        self.a_score_example(example, _show_indicator=False)
+                    )
+                else:
+                    self.claims: List[str] = self._generate_claims(
+                        example.actual_output
+                    )
+                    
+                    self.info_coverage_verdicts: List[InfoCoverageVerdict] = (
+                        self._generate_info_coverage_verdicts(example)
+                    )
+                    
+                    self.contradiction_verdicts: List[ContradictionVerdict] = (
+                        self._generate_contradiction_verdicts(example)
+                    )
+                    
+                    contradiction_score = self._calculate_score(ScoreType.CONTRADICTION)
+                    info_coverage_score = self._calculate_score(ScoreType.INFO_COVERAGE)
+                    self.score_breakdown = {
+                        ScoreType.CONTRADICTION.value: contradiction_score,
+                        ScoreType.INFO_COVERAGE.value: info_coverage_score,
+                    }
+                    self.score = min(contradiction_score, info_coverage_score)
+                    self.reason = self._generate_reason()
+                    self.success = self.score >= self.threshold
+                    self.verbose_logs = create_verbose_logs(
+                        self,
+                        steps=[
+                            f"Claims:\n{self.claims}",
+                            f"Assessment Questions:\n{self.assessment_questions}",
+                            f"Info Coverage Verdicts:\n{[v.model_dump() for v in self.info_coverage_verdicts]}",
+                            f"Contradiction Verdicts:\n{[v.model_dump() for v in self.contradiction_verdicts]}",
+                            f"Score: {self.score}\nReason: {self.reason}",
+                        ],
+                    )
 
-                return self.score
+                    return self.score
+        except Exception as e:
+            print(f"Error in SummarizationScorer score_example: {e}")
+            raise
 
     async def a_score_example(
         self,
