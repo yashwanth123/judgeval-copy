@@ -355,7 +355,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
             info(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
     return merged_results
 
-def assert_test(ScoringResults: List[ScoringResult]):
+def assert_test(scoring_results: List[ScoringResult]) -> None:
     """
     Collects all failed scorers from the scoring results.
 
@@ -367,7 +367,7 @@ def assert_test(ScoringResults: List[ScoringResult]):
     """
     failed_cases: List[ScorerData] = []
 
-    for result in ScoringResults:
+    for result in scoring_results:
         if not result.success:
 
             # Create a test case context with all relevant fields
@@ -385,7 +385,6 @@ def assert_test(ScoringResults: List[ScoringResult]):
                 for scorer_data in result.scorers_data:
                     if not scorer_data.success:
                         test_case['failed_scorers'].append(scorer_data)
-
             failed_cases.append(test_case)
 
     if failed_cases:
@@ -417,6 +416,3 @@ def assert_test(ScoringResults: List[ScoringResult]):
     
         raise AssertionError(error_msg)
     
-    return None
-            
-
