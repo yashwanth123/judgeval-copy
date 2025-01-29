@@ -126,40 +126,43 @@ class SummarizationScorer(JudgevalScorer):
             - Check if score meets threshold for success
         """
         check_example_params(example, required_params, self)
-
-        with scorer_progress_meter(
-            self,
-            async_mode=True,
-            display_meter=_show_indicator,
-        ):
-            self.claims = await self._a_generate_claims(example.actual_output),
-            
-            self.info_coverage_verdicts, self.contradiction_verdicts = await asyncio.gather(
-                self._a_generate_info_coverage_verdicts(example),
-                self._a_generate_contradiction_verdicts(example),
-            )
-            
-            contradiction_score = self._calculate_score(ScoreType.CONTRADICTION)
-            info_coverage_score = self._calculate_score(ScoreType.INFO_COVERAGE)
-            self.score_breakdown = {
-                ScoreType.CONTRADICTION.value: contradiction_score,
-                ScoreType.INFO_COVERAGE.value: info_coverage_score,
-            }
-            self.score = min(contradiction_score, info_coverage_score)
-            self.reason = await self._a_generate_reason()
-            self.success = self.score >= self.threshold
-            self.verbose_logs = create_verbose_logs(
+        try:
+            with scorer_progress_meter(
                 self,
-                steps=[
-                    f"Claims:\n{self.claims}",
-                    f"Assessment Questions:\n{self.assessment_questions}",
-                    f"Info Coverage Verdicts:\n{[v.model_dump() for v in self.info_coverage_verdicts]}",
-                    f"Contradiction Verdicts:\n{[v.model_dump() for v in self.contradiction_verdicts]}",
-                    f"Score: {self.score}\nReason: {self.reason}",
-                ],
-            )
+                async_mode=True,
+                display_meter=_show_indicator,
+            ):
+                self.claims = await self._a_generate_claims(example.actual_output),
+                
+                self.info_coverage_verdicts, self.contradiction_verdicts = await asyncio.gather(
+                    self._a_generate_info_coverage_verdicts(example),
+                    self._a_generate_contradiction_verdicts(example),
+                )
+                
+                contradiction_score = self._calculate_score(ScoreType.CONTRADICTION)
+                info_coverage_score = self._calculate_score(ScoreType.INFO_COVERAGE)
+                self.score_breakdown = {
+                    ScoreType.CONTRADICTION.value: contradiction_score,
+                    ScoreType.INFO_COVERAGE.value: info_coverage_score,
+                }
+                self.score = min(contradiction_score, info_coverage_score)
+                self.reason = await self._a_generate_reason()
+                self.success = self.score >= self.threshold
+                self.verbose_logs = create_verbose_logs(
+                    self,
+                    steps=[
+                        f"Claims:\n{self.claims}",
+                        f"Assessment Questions:\n{self.assessment_questions}",
+                        f"Info Coverage Verdicts:\n{[v.model_dump() for v in self.info_coverage_verdicts]}",
+                        f"Contradiction Verdicts:\n{[v.model_dump() for v in self.contradiction_verdicts]}",
+                        f"Score: {self.score}\nReason: {self.reason}",
+                    ],
+                )
 
-            return self.score
+                return self.score
+        except Exception as e:
+            print(f"Error in SummarizationScorer a_score_example: {e}")
+            raise
 
     async def _a_generate_reason(self) -> str:
         if self.include_reason is False:

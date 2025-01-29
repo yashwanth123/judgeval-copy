@@ -186,7 +186,7 @@ JSON:
 """
 
     @staticmethod
-    def generate_contradiction_verdicts(orignal_text, summary_claims):
+    def generate_contradiction_verdicts(original_text, summary_claims):
         return f"""==== TASK INSTRUCTIONS ====
 
 You will be provided with a text and a list of summary claims. The list of claims is drawn from a summary of the original text. 
@@ -238,7 +238,7 @@ Example:
 
 ==== YOUR TURN ====
 Original Text:
-{orignal_text}
+{original_text}
 
 Summary Claims:
 {summary_claims}
