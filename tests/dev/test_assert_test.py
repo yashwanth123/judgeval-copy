@@ -2,6 +2,7 @@ import pytest
 from judgeval.data import ScoringResult, ScorerData
 from judgeval.run_evaluation import assert_test
 
+
 def test_assert_test_all_passing():
     """Test when all results are successful"""
     scorer_data = ScorerData(
