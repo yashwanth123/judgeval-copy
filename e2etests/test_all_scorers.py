@@ -194,9 +194,6 @@ def test_faithfulness_scorer():
         use_judgment=False,
         override=True,
     )
-
-    print(res)
-
     assert res[0].success == True  # faithful_example should pass
     assert res[1].success == False, res[1]  # contradictory_example should fail
 
