@@ -75,8 +75,6 @@ class FaithfulnessScorer(JudgevalScorer):
                     )
                 )
             else:
-                print(f"{self.using_native_model=}")
-
                 self.claims = self._generate_claims(example.actual_output, all_claims=all_claims)
                 if self.additional_metadata is None:
                     self.additional_metadata = {}
@@ -145,9 +143,6 @@ class FaithfulnessScorer(JudgevalScorer):
             contradictions=contradictions,
             score=format(self.score, ".2f"),
         )
-        
-        print(f"{prompt=}")
-
         if self.using_native_model:
             res = await self.model.a_generate(prompt)
             data = parse_response_json(res, self)
@@ -202,9 +197,6 @@ class FaithfulnessScorer(JudgevalScorer):
             claims=claims,
             retrieval_context=retrieval_context,
         )
-
-        print(f"Verdicts Prompt: {prompt}")
-
         if self.using_native_model:
             res = await self.model.a_generate(prompt)
             data = parse_response_json(res, self)
@@ -232,10 +224,15 @@ class FaithfulnessScorer(JudgevalScorer):
             return []
 
         verdicts: List[FaithfulnessVerdict] = []
-        prompt = langfuse.get_prompt("FAITHFULNESS_REPLACEMENT")
-        # Extract just the claims from the self.claims object
-        claims = [claim["claim"] for claim in self.claims]
-        prompt = prompt.compile(claims=claims, retrieval_context=retrieval_context)
+
+        claims = [
+            claim["claim"] for claim in self.claims
+        ]  # We only need the claims, not the quotes involved
+
+        prompt = FaithfulnessTemplate.create_verdicts(
+            claims=claims,
+            retrieval_context=retrieval_context,
+        )
         if self.using_native_model:
             res = self.model.generate(prompt)
             data = parse_response_json(res, self)
@@ -272,12 +269,7 @@ class FaithfulnessScorer(JudgevalScorer):
                 return data["claims"]
 
     def _generate_claims(self, actual_output: str, all_claims: bool = False) -> List[str]:
-        print(f"{self.using_native_model=}")
-        if all_claims:
-            prompt = langfuse.get_prompt("GENERATE_ALL_CLAIMS")
-        else:
-            prompt = langfuse.get_prompt("GENERATE_CLAIMS")
-        prompt = prompt.compile(text=actual_output)
+        prompt = FaithfulnessTemplate.find_claims(text=actual_output)
         if self.using_native_model:
             res = self.model.generate(prompt)
             data = parse_response_json(res, self)
