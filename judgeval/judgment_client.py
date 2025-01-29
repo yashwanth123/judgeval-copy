@@ -252,7 +252,7 @@ class JudgmentClient:
         project_name: str = "",
         eval_run_name: str = "",
         override: bool = False,
-    ) -> List[ScoringResult]:
+    ) -> None:
         
         results = self.run_evaluation(
             examples=examples,

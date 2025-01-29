@@ -363,7 +363,7 @@ def assert_test(ScoringResults: List[ScoringResult]):
         ScoringResults (List[ScoringResult]): List of scoring results to check
 
     Returns:
-        List[ScorerData]: List of failed scorer data objects
+        None. Raises exceptions for any failed test cases.
     """
     failed_cases: List[ScorerData] = []
 
@@ -416,5 +416,7 @@ def assert_test(ScoringResults: List[ScoringResult]):
             error_msg += "-"*100
     
         raise AssertionError(error_msg)
+    
+    return None
             
 
