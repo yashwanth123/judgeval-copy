@@ -22,7 +22,8 @@ from judgeval.scorers.judgeval_scorers.local_implementations import (
     FaithfulnessScorer as LocalFaithfulnessScorer,
     JsonCorrectnessScorer as LocalJsonCorrectnessScorer,
     ToolCorrectnessScorer as LocalToolCorrectnessScorer,
-    HallucinationScorer as LocalHallucinationScorer
+    HallucinationScorer as LocalHallucinationScorer,
+    SummarizationScorer as LocalSummarizationScorer
 )
 
 class ScorerWrapper:
@@ -93,7 +94,8 @@ JSONCorrectnessScorer = ScorerWrapper(
 )
 
 SummarizationScorer = ScorerWrapper(
-    api_implementation=APISummarizationScorer
+    api_implementation=APISummarizationScorer,
+    local_implementation=LocalSummarizationScorer
 )
 
 HallucinationScorer = ScorerWrapper(

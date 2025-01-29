@@ -6,6 +6,7 @@ from judgeval.scorers.judgeval_scorers.local_implementations.faithfulness.faithf
 from judgeval.scorers.judgeval_scorers.local_implementations.json_correctness.json_correctness_scorer import JsonCorrectnessScorer
 from judgeval.scorers.judgeval_scorers.local_implementations.tool_correctness.tool_correctness_scorer import ToolCorrectnessScorer 
 from judgeval.scorers.judgeval_scorers.local_implementations.hallucination.hallucination_scorer import HallucinationScorer
+from judgeval.scorers.judgeval_scorers.local_implementations.summarization.summarization_scorer import SummarizationScorer
 
 __all__ = [
     "AnswerRelevancyScorer",
@@ -16,4 +17,5 @@ __all__ = [
     "JsonCorrectnessScorer",
     "ToolCorrectnessScorer",
     "HallucinationScorer",
+    "SummarizationScorer",
 ]
