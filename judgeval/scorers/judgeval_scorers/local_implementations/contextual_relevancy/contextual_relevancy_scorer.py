@@ -116,10 +116,6 @@ class ContextualRelevancyScorer(JudgevalScorer):
                     irrelevancies.append(verdict.model_dump())
                 else:
                     relevant_statements.append(verdict.model_dump())
-        print(irrelevancies)
-        print("-" * 100)
-        print(relevant_statements)
-
         prompt: dict = ContextualRelevancyTemplate.generate_reason(
             input=input,
             irrelevancies=irrelevancies,
