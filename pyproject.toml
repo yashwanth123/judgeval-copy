@@ -1,6 +1,6 @@
 [project]
 name = "judgeval"
-version = "0.0.5"
+version = "0.0.2"
 authors = [
     { name="Andrew Li", email="andrew@judgmentlabs.ai" },
     { name="Alex Shan", email="alex@judgmentlabs.ai" },
@@ -13,8 +13,8 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-license = "MIT"
-license-files = ["LICEN[CS]E*"]
+license = "Apache-2.0"
+license-files = ["LICENSE.md"]
 dependencies = [
     "langfuse==2.50.3",
     "litellm>=1.48.10",
