@@ -1,7 +1,7 @@
 from typing import List, Optional, Union, Any
 from pydantic import BaseModel, ValidationError, create_model
 
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 from judgeval.scorers.utils import (get_or_create_event_loop,
                                     scorer_progress_meter,
                                     create_verbose_logs,
@@ -23,7 +23,7 @@ class JsonCorrectnessScorer(JudgevalScorer):
     def __init__(
         self,
         json_schema: Union[BaseModel, dict],
-        model: Optional[Union[str, judgevalJudge]] = None,
+        model: Optional[Union[str, JudgevalJudge]] = None,
         threshold: float = 0.5,
         async_mode: bool = True,
         strict_mode: bool = False,

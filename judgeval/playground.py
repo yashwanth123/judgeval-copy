@@ -10,7 +10,7 @@ import re
 
 from judgeval import langfuse
 from judgeval.data.example import Example
-from judgeval.judges.base_judge import judgevalJudge
+from judgeval.judges.base_judge import JudgevalJudge
 from judgeval.judges.together_judge import TogetherJudge
 from judgeval.judges.utils import create_judge
 from judgeval.scorers.judgeval_scorer import JudgevalScorer

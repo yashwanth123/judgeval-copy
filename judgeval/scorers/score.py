@@ -20,7 +20,7 @@ from judgeval.scorers import JudgevalScorer
 from judgeval.scorers.utils import clone_scorers, scorer_console_msg
 from judgeval.common.exceptions import MissingTestCaseParamsError
 from judgeval.common.logger import example_logging_context, debug, error, warning, info
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 
 async def safe_a_score_example(
     scorer: JudgevalScorer,
@@ -243,7 +243,7 @@ async def score_with_indicator(
 async def a_execute_scoring(
     examples: List[Example],
     scorers: List[JudgevalScorer],
-    model: Optional[Union[str, List[str], judgevalJudge]] = None,
+    model: Optional[Union[str, List[str], JudgevalJudge]] = None,
     ignore_errors: bool = True,
     skip_on_missing_params: bool = True,
     show_indicator: bool = True,

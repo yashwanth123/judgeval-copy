@@ -4,10 +4,10 @@ from unittest.mock import Mock, patch
 from typing import Dict, Optional
 
 from judgeval.judgeval.scorers.judgeval_scorer import JudgevalScorer
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 from judgeval.common.exceptions import InvalidJudgeModelError
 
-class MockJudge(judgevalJudge):
+class MockJudge(JudgevalJudge):
     """Mock implementation of judgevalJudge for testing"""
     def load_model(self, *args, **kwargs):
         return Mock()

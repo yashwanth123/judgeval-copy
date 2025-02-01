@@ -14,7 +14,7 @@ from judgeval.scorers.utils import (
     check_example_params
 )
 from judgeval.judges.utils import create_judge
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 from judgeval.scorers.utils import (
     scorer_progress_meter, 
     create_verbose_logs, 
@@ -40,7 +40,7 @@ class FaithfulnessScorer(JudgevalScorer):
     def __init__(
         self,
         threshold: float = 0.5,
-        model: Optional[Union[str, judgevalJudge]] = None,
+        model: Optional[Union[str, JudgevalJudge]] = None,
         include_reason: bool = True,
         async_mode: bool = True,
         strict_mode: bool = False,

@@ -6,7 +6,7 @@ Enables client to use multiple models to generate responses and then aggregate t
 from judgeval import *
 import pydantic
 from typing import List, Union, Mapping, Dict
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 from judgeval.common.utils import get_completion_multiple_models, get_chat_completion, aget_completion_multiple_models, aget_chat_completion
 from judgeval.common.logger import debug, error
 
@@ -115,7 +115,7 @@ def build_dynamic_mixture_prompt(
 BASE_CONVERSATION = [
     {"role": "system", "content": "You are a helpful assistant."},
 ]  # for string inputs, we need to add the user query to a base conversation, since LiteLLM only accepts a list of dictionaries as a chat history
-class MixtureOfJudges(judgevalJudge):
+class MixtureOfJudges(JudgevalJudge):
     """
     IMPORTANT: When supplying custom prompts and conversation histories for aggregation, supply them in the following format:
     in kwargs:

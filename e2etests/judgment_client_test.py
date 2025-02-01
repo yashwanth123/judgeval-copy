@@ -10,7 +10,7 @@ from judgeval.scorers import (
     HallucinationScorer,
     AnswerRelevancyScorer
 )
-from judgeval.judges import TogetherJudge, judgevalJudge
+from judgeval.judges import TogetherJudge, JudgevalJudge
 from judgeval.playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
 from dotenv import load_dotenv
@@ -211,7 +211,7 @@ def test_custom_judge_vertexai(client: JudgmentClient):
     PROJECT_ID = "judgment-labs"
     vertexai.init(project=PROJECT_ID, location="us-west1")
     
-    class VertexAIJudge(judgevalJudge):
+    class VertexAIJudge(JudgevalJudge):
 
         def __init__(self, model_name: str = "gemini-1.5-flash-002"):
             self.model_name = model_name

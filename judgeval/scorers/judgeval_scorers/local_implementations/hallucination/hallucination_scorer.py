@@ -27,7 +27,7 @@ from judgeval.scorers.utils import (get_or_create_event_loop,
                                     check_example_params,
                                     )
 from judgeval.scorers import JudgevalScorer
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 from judgeval.judges.utils import create_judge
 from judgeval.data import Example, ExampleParams
 from judgeval.scorers.judgeval_scorers.local_implementations.hallucination.prompts import *
@@ -44,7 +44,7 @@ class HallucinationScorer(JudgevalScorer):
     def __init__(
         self,
         threshold: float = 0.5,
-        model: Optional[Union[str, judgevalJudge]] = None,
+        model: Optional[Union[str, JudgevalJudge]] = None,
         include_reason: bool = True,
         async_mode: bool = False,
         strict_mode: bool = False,

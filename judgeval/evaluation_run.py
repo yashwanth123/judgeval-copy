@@ -5,7 +5,7 @@ from judgeval.data import Example
 from judgeval.scorers import JudgevalScorer, APIJudgmentScorer
 from judgeval.constants import ACCEPTABLE_MODELS
 from judgeval.common.logger import debug, error
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 
 class EvaluationRun(BaseModel):
     """
@@ -28,7 +28,7 @@ class EvaluationRun(BaseModel):
     eval_name: Optional[str] = None
     examples: List[Example]
     scorers: List[Union[APIJudgmentScorer, JudgevalScorer]]
-    model: Union[str, List[str], judgevalJudge]
+    model: Union[str, List[str], JudgevalJudge]
     aggregator: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
     # API Key will be "" until user calls client.run_eval(), then API Key will be set
@@ -80,7 +80,7 @@ class EvaluationRun(BaseModel):
             raise ValueError("Model cannot be empty.")
         
         # Check if model is a judgevalJudge
-        if isinstance(v, judgevalJudge):
+        if isinstance(v, JudgevalJudge):
             # Verify all scorers are JudgevalScorer when using judgevalJudge
             scorers = values.data.get('scorers', [])
             if not all(isinstance(s, JudgevalScorer) for s in scorers):

@@ -9,7 +9,7 @@ from typing import Optional, Dict, Union, List
 from abc import abstractmethod
 
 from judgeval.common.logger import debug, info, warning, error
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 from judgeval.judges.utils import create_judge
 
 
@@ -77,7 +77,7 @@ class JudgevalScorer:
             self.verbose_logs = verbose_logs
             self.additional_metadata = additional_metadata
 
-    def _add_model(self, model: Optional[Union[str, List[str], judgevalJudge]] = None):
+    def _add_model(self, model: Optional[Union[str, List[str], JudgevalJudge]] = None):
         """
         Adds the evaluation model to the CustomScorer instance 
 
