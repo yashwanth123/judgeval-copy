@@ -254,3 +254,30 @@ class JudgmentClient:
             raise JudgmentAPIError(f"Failed to save classifier scorer: {response.json().get('detail', '')}")
             
         return response.json()["slug"]
+    
+    def assert_test(
+        self, 
+        examples: List[Example],
+        scorers: List[Union[JudgmentScorer, CustomScorer]],
+        model: Union[str, List[str], judgevalJudge],
+        aggregator: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        log_results: bool = False,
+        project_name: str = "",
+        eval_run_name: str = "",
+        override: bool = False,
+    ) -> None:
+        
+        results = self.run_evaluation(
+            examples=examples,
+            scorers=scorers,
+            model=model,
+            aggregator=aggregator,
+            metadata=metadata,
+            log_results=log_results,
+            project_name=project_name,
+            eval_run_name=eval_run_name,
+            override=override
+        )
+        
+        assert_test(results)

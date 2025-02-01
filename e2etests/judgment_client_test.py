@@ -4,6 +4,7 @@ Sanity checks for judgment client functionality
 
 import os
 from pydantic import BaseModel
+import pytest
 
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
@@ -80,6 +81,37 @@ def test_run_eval(client: JudgmentClient):
 
     results = client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
     print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
+
+
+def test_assert_test(client: JudgmentClient):
+
+    # Create examples and scorers as before
+    example = Example(
+        input="What if these shoes don't fit?",
+        actual_output="We offer a 30-day full refund at no extra cost.",
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    )
+
+    example1 = Example(
+        input="How much are your croissants?",
+        actual_output="Sorry, we don't accept electronic returns.",
+    )
+
+    example2 = Example(
+        input="Who is the best basketball player in the world?",
+        actual_output="No, the room is too small.",
+    )
+
+    scorer = FaithfulnessScorer(threshold=0.5)
+    scorer1 = AnswerRelevancyScorer(threshold=0.5)
+
+    with pytest.raises(AssertionError):
+        client.assert_test(
+            eval_run_name="test_eval",
+            examples=[example, example1, example2],
+            scorers=[scorer, scorer1],
+            model="QWEN",
+        )
 
 
 def test_json_scorer(client: JudgmentClient):
@@ -382,6 +414,11 @@ if __name__ == "__main__":
     print("Testing evaluation run")
     test_run_eval(ui_client)
     print("Evaluation run successful")
+    print("*" * 40)
+
+    print("Testing assert test")
+    test_assert_test(client)
+    print("Assert test successful")
     print("*" * 40)
 
     print("Testing JSON scorer")
