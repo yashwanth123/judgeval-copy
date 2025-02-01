@@ -37,15 +37,14 @@ $$
 ```python json_correctness.py
 from judgeval import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import JudgmentScorer
-from judgeval.constants import APIScorer
+from judgeval.scorers import JSONCorrectnessScorer
 client = JudgmentClient()
 example = Example(
     input="Create a JSON object with the keys 'field1' (str) and 'field2' (int). Fill them with random values.",
     # Replace this with your LLM system's output
     actual_output="{'field1': 'value1', 'field2': 1}",
 )
-scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.JSON_CORRECTNESS)  # TODO update this
+scorer = JSONCorrectnessScorer(threshold=0.8)
 results = client.run_evaluation(
     examples=[example],
     scorers=[scorer],

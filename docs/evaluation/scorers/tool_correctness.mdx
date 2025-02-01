@@ -29,8 +29,7 @@ TODO add more docs here regarding tool ordering, exact match, or even correct to
 ```python tool_correctness.py
 from judgeval import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import JudgmentScorer
-from judgeval.constants import APIScorer
+from judgeval.scorers import ToolCorrectnessScorer
 
 client = JudgmentClient()
 example = Example(
@@ -40,7 +39,7 @@ example = Example(
     expected_output=["DBQuery", "GoogleSearch"],
 )
 # supply your own threshold
-scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.TOOL_CORRECTNESS)
+scorer = ToolCorrectnessScorer(threshold=0.8)
 
 results = client.run_evaluation(
     examples=[example],
