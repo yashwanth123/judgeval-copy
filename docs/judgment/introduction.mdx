@@ -1,0 +1,37 @@
+
+
+
+## Creating Classifier Scorers 
+
+ClassifierScorers are **powerful** evaluators that can be created in minutes via Judgment's platform or SDK 
+using **natural language criteria**.
+
+<Tip> 
+For more information on what a ClassifierScorer is, click [here](/evaluation/scorers/classifier_scorer).
+</Tip>
+
+**Here's how to create a ClassifierScorer:**
+
+1. Navigate to the `Scorers` tab in the Judgment platform. You'll find this on via the sidebar on the left.
+2. Click the `Create Scorer` button in the top right corner.
+
+![Alt text](/images/create_scorer.png "Optional title")
+
+3. Here, you can create a custom scorer by using a criteria in natural language, supplying custom arguments from the [`Example`](evaluation/data_examples) class. 
+Then, you supply a set of **choices** the scorer can select from when evaluating an example. Finally, you can test your scorer on samples in our playground.
+
+4. Once you're finished, you can save the scorer and use it in your evaluation runs just like any other scorer in `judgeval`.
+
+### Example 
+
+Here's an example of building a `ClassifierScorer` that checks if the LLM's tone is too aggressive. 
+This might be useful when building a customer support chatbot.
+
+![Alt text](images/create_aggressive_scorer.png "Optional title")
+
+<Tip>
+A great use of ClassifierScorers is to prototype an evaluation criteria on a small set of examples before 
+using it to benchmark your workflow.
+
+To learn more about `ClassifierScorer`s, click [here](/evaluation/scorers/classifier_scorer).
+</Tip>
