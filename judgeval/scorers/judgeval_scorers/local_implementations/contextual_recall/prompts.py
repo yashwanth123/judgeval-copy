@@ -21,7 +21,7 @@ class ContextualRecallTemplate:
     def generate_verdicts(expected_output, retrieval_context):
         return f"""
 ==== TASK INSTRUCTIONS ====
-You will be provided with an expected output and a retrieval context (list of retrieved documents). Your task is to take each sentence in the expected output and determine whether the sentence is ATTRIBUTE or RELEVANT to ANY PART of the retrieval context.
+You will be provided with an expected output and a retrieval context (list of retrieved documents). Your task is to take each sentence in the expected output and determine whether the sentence is ATTRIBUTABLE or RELEVANT to ANY PART of the retrieval context.
 
 ==== FORMATTING YOUR ANSWER ====
 Please format your answer as a list of JSON objects, each with two keys: `verdict` and `reason`.
