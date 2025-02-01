@@ -8,12 +8,12 @@ from judgeval.scorers.score import (safe_a_score_example,
                                     score_with_indicator,
                                     a_execute_scoring,
                                     a_eval_examples_helper)
-from judgeval.scorers import CustomScorer
+from judgeval.scorers import JudgevalScorer
 from judgeval.data import Example, ScoringResult, ProcessExample, ScorerData
 from judgeval.common.exceptions import MissingTestCaseParamsError
 
 
-class MockCustomScorer(CustomScorer):
+class MockCustomScorer(JudgevalScorer):
     def score_example(self, example, *args, **kwargs):
         pass
 
@@ -577,7 +577,7 @@ def mock_examples():
 
 @pytest.fixture
 def mock_scorer():
-    class MockScorer(CustomScorer):
+    class MockScorer(JudgevalScorer):
         def __init__(self):
             self.success = None
             self.error = None
@@ -791,7 +791,7 @@ def mock_example():
 @pytest.fixture
 def mock_scorer():
     """Create a mock CustomScorer"""
-    scorer = Mock(spec=CustomScorer)
+    scorer = Mock(spec=JudgevalScorer)
     scorer.__name__ = "MockScorer"
     scorer.threshold = 0.8
     scorer.strict_mode = True

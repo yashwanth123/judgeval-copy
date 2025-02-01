@@ -2,11 +2,10 @@ from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, field_validator
 
 from judgeval.data import Example
-from judgeval.scorers import CustomScorer, JudgmentScorer
-from judgeval.judges import judgevalJudge
+from judgeval.scorers import JudgevalScorer, APIJudgmentScorer
 from judgeval.constants import ACCEPTABLE_MODELS
 from judgeval.common.logger import debug, error
-
+from judgeval.judges import JudgevalJudge
 
 class EvaluationRun(BaseModel):
     """
@@ -28,8 +27,8 @@ class EvaluationRun(BaseModel):
     project_name: Optional[str] = None
     eval_name: Optional[str] = None
     examples: List[Example]
-    scorers: List[Union[JudgmentScorer, CustomScorer]]
-    model: Union[str, List[str], judgevalJudge]
+    scorers: List[Union[APIJudgmentScorer, JudgevalScorer]]
+    model: Union[str, List[str], JudgevalJudge]
     aggregator: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
     # API Key will be "" until user calls client.run_eval(), then API Key will be set
@@ -81,7 +80,7 @@ class EvaluationRun(BaseModel):
         if not v:
             raise ValueError("Scorers cannot be empty.")
         for s in v:
-            if not isinstance(s, JudgmentScorer) and not isinstance(s, CustomScorer):
+            if not isinstance(s, APIJudgmentScorer) and not isinstance(s, JudgevalScorer):
                 raise ValueError(f"Invalid type for Scorer: {type(s)}")
         return v
 
@@ -89,20 +88,21 @@ class EvaluationRun(BaseModel):
     def validate_model(cls, v, values):
         if not v:
             raise ValueError("Model cannot be empty.")
+        
         # Check if model is a judgevalJudge
-        if isinstance(v, judgevalJudge):
-            # Verify all scorers are CustomScorer when using judgevalJudge
+        if isinstance(v, JudgevalJudge):
+            # Verify all scorers are JudgevalScorer when using judgevalJudge
             scorers = values.data.get('scorers', [])
-            if not all(isinstance(s, CustomScorer) for s in scorers):
-                raise ValueError("When using a judgevalJudge model, all scorers must be CustomScorer type")
+            if not all(isinstance(s, JudgevalScorer) for s in scorers):
+                raise ValueError("When using a judgevalJudge model, all scorers must be JudgevalScorer type")
             return v
-
+            
         # Check if model is string or list of strings
         if isinstance(v, str):
             if v not in ACCEPTABLE_MODELS:
                 raise ValueError(f"Model name {v} not recognized.")
             return v
-
+            
         if isinstance(v, list):
             if not all(isinstance(m, str) for m in v):
                 raise ValueError("When providing a list of models, all elements must be strings")
@@ -110,7 +110,7 @@ class EvaluationRun(BaseModel):
                 if m not in ACCEPTABLE_MODELS:
                     raise ValueError(f"Model name {m} not recognized.")
             return v
-        raise ValueError(f"Model must be one of: string, list of strings, or judgevalJudge instance. Received type {type(v)}.")
+        raise ValueError(f"Model must be one of: string, list of strings, or JudgevalJudge instance. Received type {type(v)}.")
 
     @field_validator('aggregator', mode='before')
     def validate_aggregator(cls, v, values):

@@ -9,15 +9,19 @@ from typing import Optional, Dict, Union, List
 from abc import abstractmethod
 
 from judgeval.common.logger import debug, info, warning, error
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 from judgeval.judges.utils import create_judge
 
 
-class CustomScorer:
+class JudgevalScorer:
     """
+    Base class for scorers in `judgeval`.
+
+    In practice, you should not implement this class unless you are creating a custom scorer.
+    Judgeval offers 10+ default scorers that you can use out of the box.
+    
     If you want to create a scorer that does not fall under any of the ready-made Judgment scorers,
-    you can create a custom scorer by extending this class. This is best used for special use cases
-    where none of Judgment's scorers are suitable.
+    you can create a custom scorer by extending this class.
     """
     score_type: str  # name of your new scorer
     threshold: float  # The threshold to pass a test while using this scorer as a scorer
@@ -73,7 +77,7 @@ class CustomScorer:
             self.verbose_logs = verbose_logs
             self.additional_metadata = additional_metadata
 
-    def _add_model(self, model: Optional[Union[str, List[str], judgevalJudge]] = None):
+    def _add_model(self, model: Optional[Union[str, List[str], JudgevalJudge]] = None):
         """
         Adds the evaluation model to the CustomScorer instance 
 

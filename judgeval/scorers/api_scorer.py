@@ -10,7 +10,7 @@ from judgeval.common.logger import debug, info, warning, error
 from judgeval.constants import APIScorer
 
 
-class JudgmentScorer(BaseModel):
+class APIJudgmentScorer(BaseModel):
     """
     Class for ready-made, "out-of-the-box" scorer that uses Judgment evaluators to score `Example`s.
 
@@ -49,3 +49,4 @@ class JudgmentScorer(BaseModel):
     
     def __str__(self):
         return f"JudgmentScorer(score_type={self.score_type}, threshold={self.threshold})"
+    

@@ -1,0 +1,3 @@
+from judgeval.scorers.judgeval_scorers.local_implementations.contextual_relevancy.contextual_relevancy_scorer import ContextualRelevancyScorer
+
+__all__ = ["ContextualRelevancyScorer"]

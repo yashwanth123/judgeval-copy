@@ -11,8 +11,8 @@ from judgeval.data import (
     ScoringResult
 )
 from judgeval.scorers import (
-    CustomScorer, 
-    JudgmentScorer,
+    JudgevalScorer, 
+    APIJudgmentScorer,
     ClassifierScorer
 )
 from judgeval.scorers.score import a_execute_scoring
@@ -65,7 +65,7 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
 
 def merge_results(api_results: List[ScoringResult], local_results: List[ScoringResult]) -> List[ScoringResult]:
     """
-    When executing scorers that come from both the Judgment API and custom scorers, we're left with
+    When executing scorers that come from both the Judgment API and local scorers, we're left with
     results for each type of scorer. This function merges the results from the API and local evaluations,
     grouped by example. In particular, we merge the `scorers_data` field of each `ScoringResult` object.
 
@@ -128,6 +128,7 @@ def check_missing_scorer_data(results: List[ScoringResult]) -> List[ScoringResul
             )
     return results
 
+
 def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_key: str) -> None:
     """
     Checks if an evaluation run name already exists for a given project.
@@ -164,6 +165,7 @@ def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_k
     except requests.exceptions.RequestException as e:
         error(f"Failed to check if eval run name exists: {str(e)}")
         raise JudgmentAPIError(f"Failed to check if eval run name exists: {str(e)}")
+
 
 def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: EvaluationRun) -> None:
     """
@@ -204,6 +206,7 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
         error(f"Failed to save evaluation results to DB: {str(e)}")
         raise ValueError(f"Failed to save evaluation results to DB: {str(e)}")
 
+
 def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[ScoringResult]:
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
@@ -215,7 +218,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
             project_name (str): The name of the project the evaluation results belong to
             eval_name (str): The name of the evaluation run
             examples (List[Example]): The examples to evaluate
-            scorers (List[Union[JudgmentScorer, CustomScorer]]): A list of scorers to use for evaluation
+            scorers (List[Union[JudgmentScorer, JudgevalScorer]]): A list of scorers to use for evaluation
             model (str): The model used as a judge when using LLM as a Judge
             aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
             metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
@@ -255,19 +258,19 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
     
     debug(f"Starting evaluation run with {len(evaluation_run.examples)} examples")
     
-    # Group JudgmentScorers and CustomScorers, then evaluate them in parallel
+    # Group APIJudgmentScorers and JudgevalScorers, then evaluate them in parallel
     debug("Grouping scorers by type")
-    judgment_scorers: List[JudgmentScorer] = []
-    custom_scorers: List[CustomScorer] = []
+    judgment_scorers: List[APIJudgmentScorer] = []
+    local_scorers: List[JudgevalScorer] = []
     for scorer in evaluation_run.scorers:
-        if isinstance(scorer, (JudgmentScorer, ClassifierScorer)):
+        if isinstance(scorer, (APIJudgmentScorer, ClassifierScorer)):
             judgment_scorers.append(scorer)
             debug(f"Added judgment scorer: {type(scorer).__name__}")
         else:
-            custom_scorers.append(scorer)
-            debug(f"Added custom scorer: {type(scorer).__name__}")
+            local_scorers.append(scorer)
+            debug(f"Added local scorer: {type(scorer).__name__}")
     
-    debug(f"Found {len(judgment_scorers)} judgment scorers and {len(custom_scorers)} custom scorers")
+    debug(f"Found {len(judgment_scorers)} judgment scorers and {len(local_scorers)} local scorers")
     
     api_results: List[ScoringResult] = []
     local_results: List[ScoringResult] = []
@@ -289,7 +292,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 log_results=evaluation_run.log_results
             )
             debug("Sending request to Judgment API")    
-            response_data: List[Dict] = execute_api_eval(api_evaluation_run)  # ScoringResults
+            response_data: List[Dict] = execute_api_eval(api_evaluation_run)  # Dicts are `ScoringResult` objs
             info(f"Received {len(response_data['results'])} results from API")
         except JudgmentAPIError as e:
             error(f"An error occurred while executing the Judgment API request: {str(e)}")
@@ -318,7 +321,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 api_results.append(ScoringResult(**filtered_result))
 
     # Run local evals
-    if custom_scorers:  # List[CustomScorer]
+    if local_scorers:  # List[JudgevalScorer]
         info("Starting local evaluation")
         for example in evaluation_run.examples:
             with example_logging_context(example.timestamp, example.example_id):
@@ -327,7 +330,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
         results: List[ScoringResult] = asyncio.run(
             a_execute_scoring(
                 evaluation_run.examples,
-                custom_scorers,
+                local_scorers,
                 model=evaluation_run.model,
                 ignore_errors=True,
                 skip_on_missing_params=True,

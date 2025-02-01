@@ -33,7 +33,7 @@ from http import HTTPStatus
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import JudgmentScorer, CustomScorer
+from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
 from judgeval.data.result import ScoringResult
 
 # Define type aliases for better code readability and maintainability
@@ -165,7 +165,7 @@ class TraceClient:
             
     async def async_evaluate(
         self,
-        scorers: List[Union[JudgmentScorer, CustomScorer]],
+        scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
         input: Optional[str] = None,
         actual_output: Optional[str] = None,
         expected_output: Optional[str] = None,

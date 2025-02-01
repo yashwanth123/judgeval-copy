@@ -1,7 +1,7 @@
 from pydantic import BaseModel
-from judgeval.judges.base_judge import judgevalJudge
+from judgeval.judges.base_judge import JudgevalJudge
 from judgeval.judges.litellm_judge import LiteLLMJudge
 from judgeval.judges.together_judge import TogetherJudge
 from judgeval.judges.mixture_of_judges import MixtureOfJudges
 
-__all__ = ["judgevalJudge", "LiteLLMJudge", "TogetherJudge", "MixtureOfJudges"]
+__all__ = ["JudgevalJudge", "LiteLLMJudge", "TogetherJudge", "MixtureOfJudges"]

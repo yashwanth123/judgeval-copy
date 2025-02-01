@@ -8,10 +8,10 @@ import requests
 from judgeval.constants import ROOT_API
 from judgeval.data.datasets import EvalDataset
 from judgeval.data import ScoringResult, Example
-from judgeval.judges import judgevalJudge
-from judgeval.scorers import JudgmentScorer, CustomScorer, ClassifierScorer
+from judgeval.scorers import APIJudgmentScorer, JudgevalScorer, ClassifierScorer, ScorerWrapper
 from judgeval.evaluation_run import EvaluationRun
-from judgeval.run_evaluation import run_eval, assert_test
+from judgeval.run_evaluation import run_eval
+from judgeval.judges import JudgevalJudge
 from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL
 from judgeval.common.exceptions import JudgmentAPIError
 from pydantic import BaseModel
@@ -38,25 +38,32 @@ class JudgmentClient:
     def run_evaluation(
         self, 
         examples: List[Example],
-        scorers: List[Union[JudgmentScorer, CustomScorer]],
-        model: Union[str, List[str], judgevalJudge],
+        scorers: List[Union[ScorerWrapper, JudgevalScorer]],
+        model: Union[str, List[str], JudgevalJudge],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         log_results: bool = False,
         project_name: str = "",
         eval_run_name: str = "",
         override: bool = False,
+        use_judgment: bool = True
     ) -> List[ScoringResult]:
         """
         Executes an evaluation of `Example`s using one or more `Scorer`s
         """
         try:
+            # Load appropriate implementations for all scorers
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
+                scorer.load_implementation(use_judgment=use_judgment) if isinstance(scorer, ScorerWrapper) else scorer
+                for scorer in scorers
+            ]
+
             eval = EvaluationRun(
                 log_results=log_results,
                 project_name=project_name,
                 eval_name=eval_run_name,
                 examples=examples,
-                scorers=scorers,
+                scorers=loaded_scorers,
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,
@@ -69,24 +76,31 @@ class JudgmentClient:
     def evaluate_dataset(
         self, 
         dataset: EvalDataset,
-        scorers: List[Union[JudgmentScorer, CustomScorer]],
-        model: Union[str, List[str]],
+        scorers: List[Union[ScorerWrapper, JudgevalScorer]],
+        model: Union[str, List[str], JudgevalJudge],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         project_name: str = "",
         eval_run_name: str = "",
-        log_results: bool = False
+        log_results: bool = False,
+        use_judgment: bool = True
     ) -> List[ScoringResult]:
         """
         Executes an evaluation of a `EvalDataset` using one or more `Scorer`s
         """
         try:
+            # Load appropriate implementations for all scorers
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
+                scorer.load_implementation(use_judgment=use_judgment) if isinstance(scorer, ScorerWrapper) else scorer
+                for scorer in scorers
+            ]
+
             evaluation_run = EvaluationRun(
                 log_results=log_results,
                 project_name=project_name,
                 eval_name=eval_run_name,
                 examples=dataset.examples,
-                scorers=scorers,
+                scorers=loaded_scorers,
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,

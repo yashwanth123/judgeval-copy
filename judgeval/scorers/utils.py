@@ -15,10 +15,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.console import Console
 from typing import List, Optional, Any
 
-from judgeval.scorers import CustomScorer
+from judgeval.scorers import JudgevalScorer
+from judgeval.data import Example, ExampleParams
+from judgeval.scorers.exceptions import MissingExampleParamsError
 
 
-def clone_scorers(scorers: List[CustomScorer]) -> List[CustomScorer]:
+def clone_scorers(scorers: List[JudgevalScorer]) -> List[JudgevalScorer]:
     """
     Creates duplicates of the scorers passed as argument.
     """
@@ -40,7 +42,7 @@ def clone_scorers(scorers: List[CustomScorer]) -> List[CustomScorer]:
 
 
 def scorer_console_msg(
-    scorer: CustomScorer,
+    scorer: JudgevalScorer,
     async_mode: Optional[bool] = None,
 ):
     """
@@ -56,7 +58,7 @@ def scorer_console_msg(
 
 @contextmanager
 def scorer_progress_meter(
-    scorer: CustomScorer,
+    scorer: JudgevalScorer,
     async_mode: Optional[bool] = None,
     display_meter: bool = True,
     total: int = 100,
@@ -82,7 +84,7 @@ def scorer_progress_meter(
         yield
 
 
-def parse_response_json(llm_response: str, scorer: Optional[CustomScorer] = None) -> dict:
+def parse_response_json(llm_response: str, scorer: Optional[JudgevalScorer] = None) -> dict:
     """
     Extracts JSON output from an LLM response and returns it as a dictionary.
 
@@ -123,7 +125,7 @@ def print_verbose_logs(metric: str, logs: str):
     print("=" * 70)
 
 
-def create_verbose_logs(metric: CustomScorer, steps: List[str]) -> str:
+def create_verbose_logs(metric: JudgevalScorer, steps: List[str]) -> str:
     """
     Creates verbose logs for a scorer object.
 
@@ -174,3 +176,35 @@ def get_or_create_event_loop() -> asyncio.AbstractEventLoop:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     return loop
+
+
+def check_example_params(
+    example: Example,
+    example_params: List[ExampleParams],
+    scorer: JudgevalScorer,
+):
+    if isinstance(example, Example) is False:
+        error_str = f"in check_example_params(): Expected example to be of type 'Example', but got {type(example)}"
+        scorer.error = error_str
+        raise MissingExampleParamsError(error_str)
+
+    missing_params = []
+    for param in example_params:
+        if getattr(example, param.value) is None:
+            missing_params.append(f"'{param.value}'")
+
+    if missing_params:
+        if len(missing_params) == 1:
+            missing_params_str = missing_params[0]
+        elif len(missing_params) == 2:
+            missing_params_str = " and ".join(missing_params)
+        else:
+            missing_params_str = (
+                ", ".join(missing_params[:-1]) + ", and " + missing_params[-1]
+            )
+
+        error_str = f"{missing_params_str} fields in example cannot be None for the '{scorer.__name__}' scorer"
+        scorer.error = error_str
+        raise MissingExampleParamsError(error_str)
+
+

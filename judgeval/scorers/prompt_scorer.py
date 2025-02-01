@@ -30,7 +30,7 @@ from typing import List, Optional, Union, Tuple, Any, Mapping
 from pydantic import BaseModel, model_serializer, Field
 
 from judgeval.data import Example
-from judgeval.scorers import CustomScorer
+from judgeval.scorers import JudgevalScorer
 from judgeval.scorers.utils import (scorer_progress_meter, 
                                     parse_response_json,
                                     get_or_create_event_loop,
@@ -42,7 +42,7 @@ class ReasonScore(BaseModel):
     score: float
 
 
-class PromptScorer(CustomScorer, BaseModel):
+class PromptScorer(JudgevalScorer, BaseModel):
     name: str
     score_type: str
     threshold: float = Field(default=0.5)
@@ -73,7 +73,7 @@ class PromptScorer(CustomScorer, BaseModel):
             verbose_mode=verbose_mode,
         )
         # Then initialize CustomScorer
-        CustomScorer.__init__(
+        JudgevalScorer.__init__(
             self,
             score_type=name,
             threshold=1 if strict_mode else threshold,
@@ -310,7 +310,7 @@ class ClassifierScorer(PromptScorer):
             verbose_mode=verbose_mode,
         )
         # Then initialize CustomScorer
-        CustomScorer.__init__(
+        JudgevalScorer.__init__(
             self,
             score_type=name,
             threshold=threshold,

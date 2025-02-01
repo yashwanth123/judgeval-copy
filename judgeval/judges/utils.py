@@ -5,13 +5,13 @@ import litellm
 from typing import Optional, Union, Tuple, List
 
 from judgeval.common.exceptions import InvalidJudgeModelError
-from judgeval.judges import judgevalJudge, LiteLLMJudge, TogetherJudge, MixtureOfJudges
+from judgeval.judges import JudgevalJudge, LiteLLMJudge, TogetherJudge, MixtureOfJudges
 from judgeval.constants import TOGETHER_SUPPORTED_MODELS
 
 LITELLM_SUPPORTED_MODELS = set(litellm.model_list)
 
 def create_judge(
-    model: Optional[Union[str, List[str], judgevalJudge]] = None) -> Tuple[judgevalJudge, bool]:
+    model: Optional[Union[str, List[str], JudgevalJudge]] = None) -> Tuple[JudgevalJudge, bool]:
     """
     Creates a judge model from string(s) or a judgeval judge object.
 
@@ -24,10 +24,10 @@ def create_judge(
     """
     if model is None:  # default option
         return LiteLLMJudge(model="gpt-4o"), True
-    if not isinstance(model, (str, list, judgevalJudge)):
+    if not isinstance(model, (str, list, JudgevalJudge)):
         raise InvalidJudgeModelError(f"Model must be a string, list of strings, or a judgeval judge object. Got: {type(model)} instead.")
     # If model is already a valid judge type, return it and mark native
-    if isinstance(model, (judgevalJudge, LiteLLMJudge, TogetherJudge, MixtureOfJudges)):
+    if isinstance(model, (JudgevalJudge, LiteLLMJudge, TogetherJudge, MixtureOfJudges)):
         return model, True 
 
     # Either string or List[str]
