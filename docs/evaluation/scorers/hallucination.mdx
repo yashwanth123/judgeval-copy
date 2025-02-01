@@ -30,10 +30,9 @@ $$
 ## Sample Implementation
 
 ```python hallucination.py
-from judgeval.judgment_client import JudgmentClient
+from judgeval import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import JudgmentScorer
-from judgeval.constants import APIScorer
+from judgeval.scorers import HallucinationScorer
 
 client = JudgmentClient()
 example = Example(
@@ -44,7 +43,7 @@ example = Example(
     context=["**RETURN POLICY** all products returnable with no cost for 30-days after purchase (receipt required)."]
 )
 # supply your own threshold
-scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.HALLUCINATION)
+scorer = HallucinationScorer(threshold=0.8)
 
 results = client.run_evaluation(
     examples=[example],

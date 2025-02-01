@@ -25,10 +25,6 @@
       "url": "https://github.com/judgmentlabs"
     }
   ],
-  "topbarCtaButton": {
-    "name": "Dashboard",
-    "url": "https://dashboard.mintlify.com"
-  },
   "tabs": [
     {
       "name": "Tutorials",
@@ -74,6 +70,14 @@
           ]
         },
         "evaluation/judges"
+      ]
+    },
+    {
+      "group": "Monitoring",
+      "pages": [
+        "monitoring/introduction",
+        "monitoring/tracing",
+        "monitoring/production_insights"
       ]
     },
     {

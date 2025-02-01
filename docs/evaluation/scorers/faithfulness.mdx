@@ -37,10 +37,9 @@ $$
 ## Sample Implementation
 
 ```python faithfulness.py
-from judgeval.judgment_client import JudgmentClient
+from judgeval import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import JudgmentScorer
-from judgeval.constants import APIScorer
+from judgeval.scorers import FaithfulnessScorer
 
 client = JudgmentClient()
 example = Example(
@@ -51,7 +50,7 @@ example = Example(
     retrieval_context=["Return policy, all items: 30-day limit for full refund, no questions asked."]
 )
 # supply your own threshold
-scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.FAITHFULNESS)
+scorer = FaithfulnessScorer(threshold=0.8)
 
 results = client.run_evaluation(
     examples=[example],
