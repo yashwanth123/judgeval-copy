@@ -16,6 +16,7 @@ pandas = "*"
 openai = "*"
 together = "*"
 anthropic = "*"
+patronus = "*"
 
 [dev-packages]
 pytest = "*"

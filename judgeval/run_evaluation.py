@@ -47,7 +47,8 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
     
     try:
         # submit API request to execute evals
-        response = requests.post(JUDGMENT_EVAL_API_URL, json=evaluation_run.model_dump(warnings=False))
+        payload = evaluation_run.model_dump(warnings=False)
+        response = requests.post(JUDGMENT_EVAL_API_URL, json=payload)
         response_data = response.json()
     except Exception as e:
         error(f"Error: {e}")

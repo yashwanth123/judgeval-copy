@@ -49,8 +49,8 @@ class PromptScorer(JudgevalScorer, BaseModel):
     using_native_model: bool = Field(default=True)
 
     # DO NOT SET THESE FIELDS MANUALLY, THEY ARE SET BY THE SCORE_EXAMPLE METHOD
-    response: Optional[dict] = None
-    result: Optional[float] = None
+    _response: Optional[dict] = None
+    _result: Optional[float] = None
     
     def __init__(
         self,
@@ -100,11 +100,11 @@ class PromptScorer(JudgevalScorer, BaseModel):
             else:
                 result, reason = self.evaluate(example)
                 self.reason = reason
-                self.result = result
+                self._result = result
                 self.verbose_logs = create_verbose_logs(
                     self,
                     steps=[
-                        f"Results: {self.result}\nReason: {self.reason}",
+                        f"Results: {self._result}\nReason: {self.reason}",
                     ],
                 )
                 return result
@@ -120,11 +120,11 @@ class PromptScorer(JudgevalScorer, BaseModel):
         with scorer_progress_meter(self, display_meter=_show_indicator):
             result, reason = await self.a_evaluate(example)
             self.reason = reason
-            self.result = result
+            self._result = result
             self.verbose_logs = create_verbose_logs(
                 self,
                 steps=[
-                    f"Results: {self.result}\nReason: {self.reason}",
+                    f"Results: {self._result}\nReason: {self.reason}",
                 ],
             )
             return result
@@ -138,11 +138,11 @@ class PromptScorer(JudgevalScorer, BaseModel):
 
         NOTE: It is assumed that the model response will be JSON and contain a "score" and "reason" field.
         """
-        prompt = self.build_measure_prompt(example)
+        prompt = self._build_measure_prompt(example)
         if self.using_native_model:
             res = self.model.generate(prompt)
             response = parse_response_json(res, self)
-            result, reason = self.process_response(response)
+            result, reason = self._process_response(response)
             return result, reason
         else:
             raise NotImplementedError("Non-native judge models are not supported in synchronous mode yet.")
@@ -156,25 +156,25 @@ class PromptScorer(JudgevalScorer, BaseModel):
 
         NOTE: It is assumed that the model response will be JSON and contain a "score" and "reason" field.
         """
-        judge_prompt = self.build_measure_prompt(example)
-        schema = self.build_schema()
-        prompt = self.enforce_prompt_format(judge_prompt=judge_prompt, schema=schema)
+        judge_prompt = self._build_measure_prompt(example)
+        schema = self._build_schema()
+        prompt = self._enforce_prompt_format(judge_prompt=judge_prompt, schema=schema)
         if self.using_native_model:
             res = await self.model.a_generate(prompt)
             response = parse_response_json(res, self)
-            self.response = response
+            self._response = response
 
-            result, reason = self.process_response(response)
+            result, reason = self._process_response(response)
             self.score = result
             self.reason = reason
-            self.response = response
+            self._response = response
             return result, reason
         else:
             raise NotImplementedError("Non-native judge models are not supported in async mode yet.")
 
     # TODO: can we make this take *args and **kwargs? How does that work with a_evaluate() since we'd have to pass the same args
     @abstractmethod
-    def build_measure_prompt(self, example: Example) -> List[dict]:
+    def _build_measure_prompt(self, example: Example) -> List[dict]:
         # builds the prompt that is sent to the model inside of the `score_example()` method
         # returns either a string prompt or a conversation prompt of the form [{"role": "system", "content": "..."}, ...]
 
@@ -197,7 +197,7 @@ class PromptScorer(JudgevalScorer, BaseModel):
     
     # TODO: does this need to take *args and **kwargs? How does that work with a_evaluate() since we'd have to pass the same args
     @abstractmethod
-    def build_schema(self) -> dict:
+    def _build_schema(self) -> dict:
         """
         This function returns a dictionary that represents the schema of the JSON response that the judge model should return.
 
@@ -208,7 +208,7 @@ class PromptScorer(JudgevalScorer, BaseModel):
         """
         pass
     
-    def enforce_prompt_format(self, judge_prompt: List[dict], schema: dict):
+    def _enforce_prompt_format(self, judge_prompt: List[dict], schema: dict):
         """
         Formats the final prompt to the judge model.
 
@@ -248,7 +248,7 @@ class PromptScorer(JudgevalScorer, BaseModel):
             raise TypeError(f"Prompt must be a list of dictionaries. Got {type(judge_prompt)} instead.")
 
     @abstractmethod 
-    def process_response(self, response: dict):
+    def _process_response(self, response: dict):
         """
         Customizable method for processing the response from the judge model.
 
@@ -264,7 +264,7 @@ class PromptScorer(JudgevalScorer, BaseModel):
         pass
 
     @abstractmethod
-    def success_check(self, **kwargs) -> bool:
+    def _success_check(self, **kwargs) -> bool:
         """
         Determines whether or not the PromptScorer should consider the evaluation of a single example successful.
         """
@@ -320,7 +320,16 @@ class ClassifierScorer(PromptScorer):
             verbose_mode=verbose_mode,
         )
 
-    def build_measure_prompt(self, example: Example) -> List[dict]:
+    def _build_measure_prompt(self, example: Example) -> List[dict]:
+        """
+        Builds the measure prompt for the classifier scorer.
+
+        Args:
+            example (Example): The example to build the prompt for
+
+        Returns:
+            List[dict]: The measure prompt for the classifier scorer
+        """
         replacement_words = {
             "{{actual_output}}": example.actual_output,
             "{{expected_output}}": example.expected_output,
@@ -341,10 +350,10 @@ class ClassifierScorer(PromptScorer):
                         message["content"] = content.replace(key, str(value))
         return conversation_copy
 
-    def build_schema(self) -> dict:
+    def _build_schema(self) -> dict:
         return self.options
     
-    def enforce_prompt_format(self, judge_prompt: List[dict], schema: dict) -> List[dict]:
+    def _enforce_prompt_format(self, judge_prompt: List[dict], schema: dict) -> List[dict]:
         """
         Enforces the judge model to choose an option from the schema.
 
@@ -369,15 +378,45 @@ class ClassifierScorer(PromptScorer):
         judge_prompt[0]["content"] = system_role
         return judge_prompt
 
-    def process_response(self, response: dict) -> Tuple[float, str]:
+    def _process_response(self, response: dict) -> Tuple[float, str]:
         choice = response.get("choice")
         if choice not in self.options:
             raise ValueError(f"Invalid choice: {choice}. Expected one of: {self.options.keys()}")
         reason = response.get("reason", "No reason could be found in model response.")
         return self.options[choice], reason
 
-    def success_check(self, **kwargs) -> bool:
+    def _success_check(self, **kwargs) -> bool:
         return self.score >= self.threshold
+    
+    def update_name(self, name: str):
+        """
+        Updates the name of the scorer.
+        """
+        self.name = name
+        
+    def update_threshold(self, threshold: float):
+        """
+        Updates the threshold of the scorer.
+        """
+        self.threshold = threshold
+    
+    def update_conversation(self, conversation: List[dict]):
+        """
+        Updates the conversation with the new conversation.
+        
+        Sample conversation:
+        [{'role': 'system', 'content': "Did the chatbot answer the user's question in a kind way?: {{actual_output}}."}]
+        """
+        self.conversation = conversation
+        
+    def update_options(self, options: Mapping[str, float]):
+        """
+        Updates the options with the new options.
+        
+        Sample options:
+        {"yes": 1, "no": 0}
+        """
+        self.options = options
 
     def __str__(self):
         return f"ClassifierScorer(name={self.name}, slug={self.slug}, conversation={self.conversation}, threshold={self.threshold}, options={self.options})"

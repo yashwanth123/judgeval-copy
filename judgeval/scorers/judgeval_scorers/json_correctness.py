@@ -20,6 +20,13 @@ class JSONCorrectnessScorer(APIJudgmentScorer):
         super().__init__(threshold=threshold, score_type=APIScorer.JSON_CORRECTNESS)
         object.__setattr__(self, 'json_schema', json_schema)
 
+    def to_dict(self):
+        return {
+            "score_type": self.score_type,
+            "threshold": self.threshold,
+            "kwargs": {"json_schema": self.json_schema.model_json_schema()}
+        }
+
     @property
     def __name__(self):
         return "JSON Correctness"

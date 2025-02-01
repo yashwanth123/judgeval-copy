@@ -7,6 +7,7 @@ from judgeval.data import ScorerData, ProcessExample
 class ScoringResult:
     """
     A ScoringResult contains the output of one or more scorers applied to a single example.
+    Ie: One input, one actual_output, one expected_output, etc..., and 1+ scorer (Faithfulness, Hallucination, Summarization, etc...)
 
     Args:
         success (bool): Whether the evaluation was successful. 
@@ -32,6 +33,9 @@ class ScoringResult:
     retrieval_context: Optional[List[str]] = None
     trace_id: Optional[str] = None
     
+    example_id: Optional[str] = None
+    eval_run_name: Optional[str] = None
+    
     def to_dict(self) -> dict:
         """Convert the ScoringResult instance to a dictionary, properly serializing scorer_data."""
         return {
@@ -42,7 +46,8 @@ class ScoringResult:
             "expected_output": self.expected_output,
             "context": self.context,
             "retrieval_context": self.retrieval_context,
-            "trace_id": self.trace_id
+            "trace_id": self.trace_id,
+            "example_id": self.example_id
         }
     
     def __str__(self) -> str:
