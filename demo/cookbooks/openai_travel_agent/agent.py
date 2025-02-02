@@ -3,6 +3,21 @@ import requests
 import os
 from tavily import TavilyClient
 from dotenv import load_dotenv
+import chromadb
+from chromadb.utils import embedding_functions
+import json
+
+def populate_vector_db(collection, destinations_data):
+    """
+    Populate the vector DB with travel information.
+    destinations_data should be a list of dictionaries with 'destination' and 'information' keys
+    """
+    for data in destinations_data:
+        collection.add(
+            documents=[data['information']],
+            metadatas=[{"destination": data['destination']}],
+            ids=[f"destination_{data['destination'].lower().replace(' ', '_')}"]
+        )
 
 def search_tavily(query):
     """Fetch travel data using Tavily API."""
@@ -27,20 +42,59 @@ def get_weather(destination, start_date, end_date):
     """Search for weather information."""
     return search_tavily(f"Weather forecast for {destination} from {start_date} to {end_date}")
 
+def initialize_vector_db():
+    """Initialize ChromaDB with OpenAI embeddings."""
+    client = chromadb.Client()
+    embedding_fn = embedding_functions.OpenAIEmbeddingFunction(
+        api_key=os.getenv("OPENAI_API_KEY"),
+        model_name="text-embedding-3-small"
+    )
+    return client.get_or_create_collection(
+        "travel_information",
+        embedding_function=embedding_fn
+    )
+
+def query_vector_db(collection, destination, k=3):
+    """Query the vector database for existing travel information."""
+    try:
+        results = collection.query(
+            query_texts=[destination],
+            n_results=k
+        )
+        return results['documents'][0] if results['documents'] else []
+    except Exception:
+        return []
+
 def research_destination(destination, start_date, end_date):
     """Gather all necessary travel information for a destination."""
-    return {
+    # First, check the vector database
+    collection = initialize_vector_db()
+    existing_info = query_vector_db(collection, destination)
+    
+    # Get real-time information from Tavily
+    tavily_data = {
         "attractions": get_attractions(destination),
         "hotels": get_hotels(destination),
         "flights": get_flights(destination),
         "weather": get_weather(destination, start_date, end_date)
     }
+    
+    return {
+        "vector_db_results": existing_info,
+        **tavily_data
+    }
 
 def create_travel_plan(destination, start_date, end_date, research_data):
     """Generate a travel itinerary using the researched data."""
+    vector_db_context = "\n".join(research_data['vector_db_results']) if research_data['vector_db_results'] else "No pre-stored information available."
+    
     prompt = f"""
     Create a structured travel itinerary for a trip to {destination} from {start_date} to {end_date}.
-    Use the following travel data:
+    
+    Pre-stored destination information:
+    {vector_db_context}
+    
+    Current travel data:
     - Attractions: {research_data['attractions']}
     - Hotels: {research_data['hotels']}
     - Flights: {research_data['flights']}
@@ -51,7 +105,7 @@ def create_travel_plan(destination, start_date, end_date, research_data):
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role": "system", "content": "You are an expert travel planner."},
+            {"role": "system", "content": "You are an expert travel planner. Combine both historical and current information to create the best possible itinerary."},
             {"role": "user", "content": prompt}
         ]
     )
