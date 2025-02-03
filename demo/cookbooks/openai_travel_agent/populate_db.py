@@ -1,6 +1,3 @@
-from agent import initialize_vector_db, populate_vector_db
-from dotenv import load_dotenv
-
 # Sample travel destination data
 destinations_data = [
     {
@@ -74,25 +71,3 @@ Key Information:
 """
     }
 ]
-
-def main():
-    load_dotenv()
-    
-    # Initialize the vector database
-    collection = initialize_vector_db()
-    
-    # Populate the database
-    populate_vector_db(collection, destinations_data)
-    print("Vector database populated successfully!")
-    
-    # Verify the data was added
-    print("\nVerifying data...")
-    for data in destinations_data:
-        results = collection.query(
-            query_texts=[data["destination"]],
-            n_results=1
-        )
-        print(f"\nFound entry for {data['destination']}")
-
-if __name__ == "__main__":
-    main() 

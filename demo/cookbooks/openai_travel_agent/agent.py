@@ -8,7 +8,7 @@ from chromadb.utils import embedding_functions
 import json
 
 from judgeval.common.tracer import Tracer, wrap
-
+from demo.cookbooks.openai_travel_agent.populate_db import destinations_data
 
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
 
@@ -53,7 +53,7 @@ def get_weather(destination, start_date, end_date):
     """Search for weather information."""
     return search_tavily(f"Weather forecast for {destination} from {start_date} to {end_date}")
 
-@judgment.observe(span_type="tool")
+@judgment.observe(span_type="Retriever")
 def initialize_vector_db():
     """Initialize ChromaDB with OpenAI embeddings."""
     client = chromadb.Client()
@@ -61,24 +61,29 @@ def initialize_vector_db():
         api_key=os.getenv("OPENAI_API_KEY"),
         model_name="text-embedding-3-small"
     )
-    return client.get_or_create_collection(
+    res = client.get_or_create_collection(
         "travel_information",
         embedding_function=embedding_fn
     )
+    populate_vector_db(res, destinations_data)
+    print(f"res: {res}")
+    return res
 
-@judgment.observe(span_type="tool")
+@judgment.observe(span_type="Retriever")
 def query_vector_db(collection, destination, k=3):
     """Query the vector database for existing travel information."""
     try:
+        print(f"collection: {collection}, destination: {destination}, k: {k}")
         results = collection.query(
             query_texts=[destination],
             n_results=k
         )
+        print(f"query results: {results}")
         return results['documents'][0] if results['documents'] else []
     except Exception:
         return []
 
-@judgment.observe(span_type="tool")
+@judgment.observe(span_type="function")
 def research_destination(destination, start_date, end_date):
     """Gather all necessary travel information for a destination."""
     # First, check the vector database
@@ -98,7 +103,7 @@ def research_destination(destination, start_date, end_date):
         **tavily_data
     }
 
-@judgment.observe(span_type="tool")
+@judgment.observe(span_type="function")
 def create_travel_plan(destination, start_date, end_date, research_data):
     """Generate a travel itinerary using the researched data."""
     vector_db_context = "\n".join(research_data['vector_db_results']) if research_data['vector_db_results'] else "No pre-stored information available."
