@@ -9,7 +9,7 @@ from chromadb.utils import embedding_functions
 import json
 
 from judgeval.common.tracer import Tracer, wrap
-from judgeval.scorers import FaithfulnessScorer
+from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer
 from demo.cookbooks.openai_travel_agent.populate_db import destinations_data
 
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
@@ -27,7 +27,7 @@ def populate_vector_db(collection, destinations_data):
             ids=[f"destination_{data['destination'].lower().replace(' ', '_')}"]
         )
 
-@judgment.observe(span_type="tool")
+@judgment.observe(span_type="search tool")
 def search_tavily(query):
     """Fetch travel data using Tavily API."""
     API_KEY = os.getenv("TAVILY_API_KEY")
@@ -36,24 +36,60 @@ def search_tavily(query):
     return results
 
 @judgment.observe(span_type="tool")
-def get_attractions(destination):
+async def get_attractions(destination):
     """Search for top attractions in the destination."""
-    return search_tavily(f"Best tourist attractions in {destination}")
+    prompt = f"Best tourist attractions in {destination}"
+    attractions_search = search_tavily(prompt)
+    # await judgment.get_current_trace().async_evaluate(
+    #     scorers=[AnswerRelevancyScorer(threshold=0.5)],
+    #     input=prompt,
+    #     actual_output=str(attractions_search),
+    #     model="gpt-4o-mini",
+    #     log_results=True
+    # )
+    return attractions_search
 
 @judgment.observe(span_type="tool")
-def get_hotels(destination):
+async def get_hotels(destination):
     """Search for hotels in the destination."""
-    return search_tavily(f"Best hotels in {destination}")
+    prompt = f"Best hotels in {destination}"
+    hotels_search = search_tavily(prompt)
+    # await judgment.get_current_trace().async_evaluate(
+    #     scorers=[AnswerRelevancyScorer(threshold=0.5)],
+    #     input=prompt,
+    #     actual_output=str(hotels_search),
+    #     model="gpt-4o-mini",
+    #     log_results=True
+    # )
+    return hotels_search
 
 @judgment.observe(span_type="tool")
-def get_flights(destination):
+async def get_flights(destination):
     """Search for flights to the destination."""
-    return search_tavily(f"Flights to {destination} from major cities")
+    prompt = f"Flights to {destination} from major cities"
+    flights_search = search_tavily(prompt)
+    # await judgment.get_current_trace().async_evaluate(
+    #     scorers=[AnswerRelevancyScorer(threshold=0.5)],
+    #     input=prompt,
+    #     actual_output=str(flights_search),
+    #     model="gpt-4o-mini",
+    #     log_results=True
+    # )
+    return flights_search
 
 @judgment.observe(span_type="tool")
-def get_weather(destination, start_date, end_date):
+async def get_weather(destination, start_date, end_date):
     """Search for weather information."""
-    return search_tavily(f"Weather forecast for {destination} from {start_date} to {end_date}")
+    prompt = f"Weather forecast for {destination} from {start_date} to {end_date}"
+    weather_search = search_tavily(prompt)
+    # await judgment.get_current_trace().async_evaluate(
+    #     scorers=[AnswerRelevancyScorer(threshold=0.5)],
+    #     input=prompt,
+    #     actual_output=str(weather_search),
+    #     model="gpt-4o-mini",
+    #     log_results=True
+    # )
+    return weather_search
 
 @judgment.observe(span_type="Retriever")
 def initialize_vector_db():
@@ -86,7 +122,7 @@ def query_vector_db(collection, destination, k=3):
         return []
 
 @judgment.observe(span_type="function")
-def research_destination(destination, start_date, end_date):
+async def research_destination(destination, start_date, end_date):
     """Gather all necessary travel information for a destination."""
     # First, check the vector database
     collection = initialize_vector_db()
@@ -94,10 +130,10 @@ def research_destination(destination, start_date, end_date):
     
     # Get real-time information from Tavily
     tavily_data = {
-        "attractions": get_attractions(destination),
-        "hotels": get_hotels(destination),
-        "flights": get_flights(destination),
-        "weather": get_weather(destination, start_date, end_date)
+        "attractions": await get_attractions(destination),
+        "hotels": await get_hotels(destination),
+        "flights": await get_flights(destination),
+        "weather": await get_weather(destination, start_date, end_date)
     }
     
     return {
@@ -155,7 +191,7 @@ async def create_travel_plan(destination, start_date, end_date, research_data):
 async def generate_itinerary(destination, start_date, end_date):
     """Main function to generate a travel itinerary."""
     with judgment.trace("generate_itinerary", project_name="travel_agent") as trace:    
-        research_data = research_destination(destination, start_date, end_date)
+        research_data = await research_destination(destination, start_date, end_date)
         res = await create_travel_plan(destination, start_date, end_date, research_data)
 
         trace.save()
