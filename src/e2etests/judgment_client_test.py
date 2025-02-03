@@ -4,12 +4,14 @@ Sanity checks for judgment client functionality
 
 import os
 from pydantic import BaseModel
+import pytest
 
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import (
     FaithfulnessScorer,
     HallucinationScorer,
+    AnswerRelevancyScorer,
     JSONCorrectnessScorer
 )
 from judgeval.judges import TogetherJudge, judgevalJudge
@@ -81,6 +83,37 @@ def test_run_eval(client: JudgmentClient):
     print(f"Evaluation results for {EVAL_RUN_NAME} from database:", results)
 
 
+def test_assert_test(client: JudgmentClient):
+
+    # Create examples and scorers as before
+    example = Example(
+        input="What if these shoes don't fit?",
+        actual_output="We offer a 30-day full refund at no extra cost.",
+        retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    )
+
+    example1 = Example(
+        input="How much are your croissants?",
+        actual_output="Sorry, we don't accept electronic returns.",
+    )
+
+    example2 = Example(
+        input="Who is the best basketball player in the world?",
+        actual_output="No, the room is too small.",
+    )
+
+    scorer = FaithfulnessScorer(threshold=0.5)
+    scorer1 = AnswerRelevancyScorer(threshold=0.5)
+
+    with pytest.raises(AssertionError):
+        client.assert_test(
+            eval_run_name="test_eval",
+            examples=[example, example1, example2],
+            scorers=[scorer, scorer1],
+            model="QWEN",
+        )
+
+
 def test_json_scorer(client: JudgmentClient):
 
     example1 = Example(
@@ -118,9 +151,11 @@ def test_json_scorer(client: JudgmentClient):
         eval_run_name=EVAL_RUN_NAME,
         log_results=True,
         override=True,
+        use_judgment=True,
     )
 
     print(res)
+
 
 
 def test_override_eval(client: JudgmentClient):
@@ -193,7 +228,7 @@ def test_override_eval(client: JudgmentClient):
         if "already exists" not in str(e):
             raise
         print(f"Successfully caught expected error: {e}")
-
+    
 
 def test_evaluate_dataset(client: JudgmentClient):
 
@@ -247,7 +282,12 @@ def test_classifier_scorer(client: JudgmentClient):
     slug = client.push_classifier_scorer(scorer=classifier_scorer_custom)
     
     classifier_scorer_custom = client.fetch_classifier_scorer(slug=slug)
-    print(f"{classifier_scorer_custom=}")
+    
+    example1 = Example(
+        input="What is the capital of France?",
+        actual_output="Paris",
+        retrieval_context=["The capital of France is Paris."],
+    )
 
     res = client.run_evaluation(
         examples=[example1],
@@ -267,7 +307,7 @@ def test_custom_judge_vertexai(client: JudgmentClient):
     PROJECT_ID = "judgment-labs"
     vertexai.init(project=PROJECT_ID, location="us-west1")
 
-    class VertexAIJudge(judgevalJudge):
+    class VertexAIJudge(JudgevalJudge):
 
         def __init__(self, model_name: str = "gemini-1.5-flash-002"):
             self.model_name = model_name
@@ -309,6 +349,56 @@ def test_custom_judge_vertexai(client: JudgmentClient):
     print(res)
 
 
+def test_custom_judge_vertexai(client: JudgmentClient):
+    
+    import vertexai
+    from vertexai.generative_models import GenerativeModel
+
+    PROJECT_ID = "judgment-labs"
+    vertexai.init(project=PROJECT_ID, location="us-west1")
+    
+    class VertexAIJudge(JudgevalJudge):
+
+        def __init__(self, model_name: str = "gemini-1.5-flash-002"):
+            self.model_name = model_name
+            self.model = GenerativeModel(self.model_name)
+
+        def load_model(self):
+            return self.model
+
+        def generate(self, prompt) -> str:
+            # prompt is a List[dict] (conversation history)
+            # For models that don't support conversation history, we need to convert to string
+            # If you're using a model that supports chat history, you can just pass the prompt directly
+            response = self.model.generate_content(str(prompt))
+            return response.text
+        
+        async def a_generate(self, prompt) -> str:
+            # prompt is a List[dict] (conversation history)
+            # For models that don't support conversation history, we need to convert to string
+            # If you're using a model that supports chat history, you can just pass the prompt directly
+            response = await self.model.generate_content_async(str(prompt))
+            return response.text
+        
+        def get_model_name(self) -> str:
+            return self.model_name
+        
+    example = Example(
+        input="What is the largest animal in the world?",
+        actual_output="The blue whale is the largest known animal.",
+        retrieval_context=["The blue whale is the largest known animal."],
+    )
+
+    judge = VertexAIJudge()
+
+    res = client.run_evaluation(
+        examples=[example],
+        scorers=[CustomFaithfulnessMetric()],
+        model=judge,
+    )
+    print(res)
+
+
 if __name__ == "__main__":
     # Test client functionality
     client = get_client()
@@ -324,6 +414,11 @@ if __name__ == "__main__":
     print("Testing evaluation run")
     test_run_eval(ui_client)
     print("Evaluation run successful")
+    print("*" * 40)
+
+    print("Testing assert test")
+    test_assert_test(client)
+    print("Assert test successful")
     print("*" * 40)
 
     print("Testing JSON scorer")

@@ -2,7 +2,7 @@ import pydantic
 from typing import List, Union, Mapping
 
 from judgeval import *
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 from judgeval.common.utils import afetch_litellm_api_response, fetch_litellm_api_response
 from judgeval.common.logger import debug, error
 
@@ -11,7 +11,7 @@ BASE_CONVERSATION = [
 ]  # for string inputs, we need to add the user query to a base conversation, since LiteLLM only accepts a list of dictionaries as a chat history
 
 
-class LiteLLMJudge(judgevalJudge):
+class LiteLLMJudge(JudgevalJudge):
     def __init__(self, model: str = "gpt-4o-mini", **kwargs):
         debug(f"Initializing LiteLLMJudge with model={model}")
         self.model = model

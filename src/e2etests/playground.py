@@ -10,10 +10,10 @@ import re
 
 from judgeval import langfuse
 from judgeval.data.example import Example
-from judgeval.judges.base_judge import judgevalJudge
+from judgeval.judges.base_judge import JudgevalJudge
 from judgeval.judges.together_judge import TogetherJudge
 from judgeval.judges.utils import create_judge
-from judgeval.scorers.custom_scorer import CustomScorer
+from judgeval.scorers.judgeval_scorer import JudgevalScorer
 from judgeval.scorers.score import *
 
 """
@@ -188,7 +188,7 @@ JSON:
 
 @contextmanager
 def metric_progress_indicator(
-    metric: CustomScorer,
+    metric: JudgevalScorer,
     async_mode: Optional[bool] = None,
     _show_indicator: bool = True,
     total: int = 9999,
@@ -263,7 +263,7 @@ def print_verbose_logs(metric: str, logs: str):
     print("=" * 70)
 
 
-def construct_verbose_logs(metric: CustomScorer, steps: List[str]) -> str:
+def construct_verbose_logs(metric: JudgevalScorer, steps: List[str]) -> str:
     verbose_logs = ""
     for i in range(len(steps) - 1):
         verbose_logs += steps[i]
@@ -280,7 +280,7 @@ def construct_verbose_logs(metric: CustomScorer, steps: List[str]) -> str:
 
 
 def trimAndLoadJson(
-    input_string: str, metric: Optional[CustomScorer] = None
+    input_string: str, metric: Optional[JudgevalScorer] = None
 ) -> Any:
     start = input_string.find("{")
     end = input_string.rfind("}") + 1
@@ -304,7 +304,7 @@ def trimAndLoadJson(
         raise Exception(f"An unexpected error occurred: {str(e)}")
 
 
-class CustomFaithfulnessMetric(CustomScorer):
+class CustomFaithfulnessMetric(JudgevalScorer):
     def __init__(
         self,
         threshold: float = 0.5,

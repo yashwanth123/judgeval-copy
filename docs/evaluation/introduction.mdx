@@ -8,25 +8,6 @@ Evaluation is the process of **scoring** an LLM system's outputs with metrics; a
 - An evaluation dataset
 - Metrics we are interested in tracking
 
-The ideal fit of evaluation into an application workflow looks like this:
-
-![Alt text](/images/evaluation_diagram.png "Optional title")
-
-## Metrics 
-
-`judgeval` comes with a set of 10+ built-in evaluation metrics. These metrics are accessible through `judgeval`'s `Scorer` interface. 
-Every `Scorer` has a `threshold` parameter that you can use in the context of unit testing your app.
-
-```python scorer.py
-from judgeval.scorers import FaithfulnessScorer
-
-scorer = FaithfulnessScorer(threshold=1.0)
-```
-You can use scorers to evaluate your LLM system's outputs by using `Example`s.
-
-<Tip>
-We're always working on adding new scorers, so if you have a metric you'd like to add, please [let us know!](mailto:contact@judgmentlabs.ai)
-</Tip>
 
 ## Examples 
 
@@ -54,7 +35,7 @@ Creating an Example allows you to evaluate using
 `judgeval`'s default scorers:
 
 ```python example.py
-from judgeval.judgment_client import JudgmentClient
+from judgeval import JudgmentClient
 from judgeval.scorers import FaithfulnessScorer
 
 client = JudgmentClient()
@@ -101,6 +82,23 @@ results = client.evaluate_dataset(
     model="QWEN",
 )
 ```
+
+## Metrics 
+
+`judgeval` comes with a set of 10+ built-in evaluation metrics. These metrics are accessible through `judgeval`'s `Scorer` interface. 
+Every `Scorer` has a `threshold` parameter that you can use in the context of unit testing your app.
+
+```python scorer.py
+from judgeval.scorers import FaithfulnessScorer
+
+scorer = FaithfulnessScorer(threshold=1.0)
+```
+You can use scorers to evaluate your LLM system's outputs by using `Example`s.
+
+<Tip>
+We're always working on adding new scorers, so if you have a metric you'd like to add, please [let us know!](mailto:contact@judgmentlabs.ai)
+</Tip>
+
 
 **Congratulations!** 🎉 
 

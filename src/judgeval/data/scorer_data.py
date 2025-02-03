@@ -7,7 +7,7 @@ ScorerData holds the information related to a single, completed Scorer evaluatio
 from typing import List, Union, Optional, Dict
 from pydantic import BaseModel, Field
 
-from judgeval.scorers import CustomScorer
+from judgeval.scorers import JudgevalScorer
 
 class ScorerData(BaseModel):
     """
@@ -47,7 +47,7 @@ class ScorerData(BaseModel):
         }
 
 
-def create_scorer_data(scorer: CustomScorer) -> ScorerData:
+def create_scorer_data(scorer: JudgevalScorer) -> ScorerData:
     """
     After a `scorer` is run, it contains information about the example that was evaluated
     using the scorer. For example, after computing Faithfulness, the `scorer` object will contain

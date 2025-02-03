@@ -1,5 +1,5 @@
-from judgeval.scorers.base_scorer import JudgmentScorer
-from judgeval.scorers.custom_scorer import CustomScorer
+from judgeval.scorers.api_scorer import APIJudgmentScorer
+from judgeval.scorers.judgeval_scorer import JudgevalScorer
 from judgeval.scorers.prompt_scorer import PromptScorer, ClassifierScorer
 from judgeval.scorers.judgeval_scorers import (
     ToolCorrectnessScorer,
@@ -11,11 +11,12 @@ from judgeval.scorers.judgeval_scorers import (
     ContextualPrecisionScorer,
     ContextualRecallScorer,
     AnswerRelevancyScorer,
+    ScorerWrapper
 )
 
 __all__ = [
-    "JudgmentScorer",
-    "CustomScorer",
+    "APIJudgmentScorer",
+    "JudgevalScorer",
     "PromptScorer",
     "ClassifierScorer",
     "ToolCorrectnessScorer",
@@ -27,4 +28,5 @@ __all__ = [
     "ContextualPrecisionScorer",
     "ContextualRecallScorer",
     "AnswerRelevancyScorer",
+    "ScorerWrapper",
 ]

@@ -16,14 +16,14 @@ from judgeval.data import (
     create_process_example,
     create_scorer_data,
 )
-from judgeval.scorers import CustomScorer
+from judgeval.scorers import JudgevalScorer
 from judgeval.scorers.utils import clone_scorers, scorer_console_msg
 from judgeval.common.exceptions import MissingTestCaseParamsError
 from judgeval.common.logger import example_logging_context, debug, error, warning, info
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 
 async def safe_a_score_example(
-    scorer: CustomScorer,
+    scorer: JudgevalScorer,
     example: Example,
     ignore_errors: bool,
     skip_on_missing_params: bool,
@@ -96,7 +96,7 @@ async def safe_a_score_example(
 async def score_task(
     task_id: int,
     progress: Progress,
-    scorer: CustomScorer,
+    scorer: JudgevalScorer,
     example: Example,
     ignore_errors: bool = True,
     skip_on_missing_params: bool = True,
@@ -182,7 +182,7 @@ async def score_task(
 
 
 async def score_with_indicator(
-    scorers: List[CustomScorer],
+    scorers: List[JudgevalScorer],
     example: Example,
     ignore_errors: bool,
     skip_on_missing_params: bool,
@@ -242,8 +242,8 @@ async def score_with_indicator(
 
 async def a_execute_scoring(
     examples: List[Example],
-    scorers: List[CustomScorer],
-    model: Optional[Union[str, List[str], judgevalJudge]] = None,
+    scorers: List[JudgevalScorer],
+    model: Optional[Union[str, List[str], JudgevalJudge]] = None,
     ignore_errors: bool = True,
     skip_on_missing_params: bool = True,
     show_indicator: bool = True,
@@ -256,9 +256,10 @@ async def a_execute_scoring(
     Executes evaluations of `Example`s asynchronously using one or more `CustomScorer`s.
     Each `Example` will be evaluated by all of the `CustomScorer`s in the `scorers` list.
 
+    Args:
         examples (List[Example]): A list of `Example` objects to be evaluated.
-        scorers (List[CustomScorer]): A list of `CustomScorer` objects to evaluate the examples.
-        model (Union[str, List[str], judgevalJudge]): The model to use for evaluation.
+        scorers (List[JudgevalScorer]): A list of `JudgevalScorer` objects to evaluate the examples.
+        model (Union[str, List[str], JudgevalJudge]): The model to use for evaluation.
         ignore_errors (bool): Whether to ignore errors during evaluation.
         skip_on_missing_params (bool): Whether to skip evaluation if parameters are missing.
         show_indicator (bool): Whether to show a progress indicator.
@@ -316,8 +317,8 @@ async def a_execute_scoring(
                     if len(scorers) == 0:
                         pbar.update(1)
                         continue
-
-                    cloned_scorers: List[CustomScorer] = clone_scorers(
+                    
+                    cloned_scorers: List[JudgevalScorer] = clone_scorers(
                         scorers
                     )
                     task = execute_with_semaphore(
@@ -342,7 +343,7 @@ async def a_execute_scoring(
                 if len(scorers) == 0:
                     continue
 
-                cloned_scorers: List[CustomScorer] = clone_scorers(
+                cloned_scorers: List[JudgevalScorer] = clone_scorers(
                     scorers
                 )
                 task = execute_with_semaphore(
@@ -364,7 +365,7 @@ async def a_execute_scoring(
 
 
 async def a_eval_examples_helper(
-    scorers: List[CustomScorer],
+    scorers: List[JudgevalScorer],
     example: Example,
     scoring_results: List[ScoringResult],
     score_index: int,
@@ -413,7 +414,6 @@ async def a_eval_examples_helper(
         # At this point, the scorer has been executed and already contains data.
         if getattr(scorer, 'skipped', False):
             continue
-        
         scorer_data = create_scorer_data(scorer)  # Fetch scorer data from completed scorer evaluation
         process_example.update_scorer_data(scorer_data)  # Update process example with the same scorer data
           

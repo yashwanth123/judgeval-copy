@@ -1,5 +1,5 @@
 import pytest
-from judgeval.judges.base_judge import judgevalJudge
+from judgeval.judges.base_judge import JudgevalJudge
 from judgeval.judges.litellm_judge import LiteLLMJudge
 from pydantic import BaseModel
 import pytest_asyncio
@@ -8,13 +8,13 @@ import pytest_asyncio
 def test_cannot_instantiate_abstract_class():
     """Test that the abstract class cannot be instantiated directly"""
     with pytest.raises(TypeError):
-        judgevalJudge()
+        JudgevalJudge()
 
 def test_concrete_implementation():
     """Test that a concrete implementation works as expected"""
     
     # Create a concrete implementation for testing
-    class ConcreteJudge(judgevalJudge):
+    class ConcreteJudge(JudgevalJudge):
         def load_model(self, *args, **kwargs):
             return "mock_model"
             

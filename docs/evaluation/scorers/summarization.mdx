@@ -40,10 +40,9 @@ $$
 ## Sample Implementation
 
 ```python summarization.py
-from judgeval.judgment_client import JudgmentClient
+from judgeval import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import JudgmentScorer
-from judgeval.constants import APIScorer
+from judgeval.scorers import SummarizationScorer
 
 client = JudgmentClient()
 example = Example(
@@ -52,7 +51,7 @@ example = Example(
     actual_output="...",
 )
 # supply your own threshold
-scorer = JudgmentScorer(threshold=0.8, score_type=APIScorer.SUMMARIZATION)
+scorer = SummarizationScorer(threshold=0.8)
 
 results = client.run_evaluation(
     examples=[example],

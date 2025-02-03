@@ -9,11 +9,11 @@ TODO add link to docs page for this scorer
 # External imports
 from pydantic import BaseModel, Field
 # Internal imports
-from judgeval.scorers.base_scorer import JudgmentScorer
+from judgeval.judgeval.scorers.api_scorer import APIJudgmentScorer
 from judgeval.constants import APIScorer
 
 
-class JSONCorrectnessScorer(JudgmentScorer):
+class JSONCorrectnessScorer(APIJudgmentScorer):
     json_schema: BaseModel = Field(None, exclude=True)
     
     def __init__(self, threshold: float, json_schema: BaseModel):

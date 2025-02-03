@@ -6,14 +6,14 @@ from pydantic import BaseModel
 from typing import List, Union, Mapping
 from judgeval.common.logger import debug, error
 
-from judgeval.judges import judgevalJudge
+from judgeval.judges import JudgevalJudge
 from judgeval.common.utils import fetch_together_api_response, afetch_together_api_response
 
 BASE_CONVERSATION = [
     {"role": "system", "content": "You are a helpful assistant."},
 ]
 
-class TogetherJudge(judgevalJudge):
+class TogetherJudge(JudgevalJudge):
     def __init__(self, model: str = "QWEN", **kwargs):
         debug(f"Initializing TogetherJudge with model={model}")
         self.model = model
