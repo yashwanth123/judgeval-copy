@@ -76,16 +76,44 @@ class TraceEntry:
         elif self.type == "evaluation":
             print(f"{indent}Evaluation: {self.evaluation_result} ({self.duration:.3f}s)")
     
+    def _serialize_inputs(self) -> dict:
+        """Helper method to serialize input data safely.
+        
+        Returns a dict with serializable versions of inputs, converting non-serializable
+        objects to None with a warning.
+        """
+        serialized_inputs = {}
+        for key, value in self.inputs.items():
+            if isinstance(value, BaseModel):
+                serialized_inputs[key] = value.model_dump()
+            elif isinstance(value, (list, tuple)):
+                # Handle lists/tuples of arguments
+                serialized_inputs[key] = [
+                    item.model_dump() if isinstance(item, BaseModel)
+                    else None if not self._is_json_serializable(item)
+                    else item
+                    for item in value
+                ]
+            else:
+                try:
+                    # Verify JSON compatibility
+                    json.dumps(value)
+                    serialized_inputs[key] = value
+                except (TypeError, OverflowError, ValueError):
+                    warnings.warn(f"Input '{key}' for function {self.function} is not JSON serializable. Setting to None.")
+                    serialized_inputs[key] = None
+        return serialized_inputs
+
+    def _is_json_serializable(self, obj: Any) -> bool:
+        """Helper method to check if an object is JSON serializable."""
+        try:
+            json.dumps(obj)
+            return True
+        except (TypeError, OverflowError, ValueError):
+            return False
+
     def to_dict(self) -> dict:
         """Convert the trace entry to a dictionary format for storage/transmission."""
-        try:
-            output = self._serialize_output()
-        except (TypeError, OverflowError, ValueError):
-            # Handle cases where output cannot be serialized
-            warnings.warn(f"Output for function {self.function} is not JSON serializable. Setting to None.")
-            output = None
-
-        # Build a complete dictionary representation of the trace entry
         return {
             "type": self.type,
             "function": self.function,
@@ -93,8 +121,8 @@ class TraceEntry:
             "message": self.message,
             "timestamp": self.timestamp,
             "duration": self.duration,
-            "output": output,
-            "inputs": self.inputs or None,  # Convert empty dict to None
+            "output": self._serialize_output(),
+            "inputs": self._serialize_inputs(),
             "evaluation_result": [result.to_dict() for result in self.evaluation_result] if self.evaluation_result else None,
             "span_type": self.span_type
         }
@@ -104,14 +132,18 @@ class TraceEntry:
         
         Handles special cases:
         - Pydantic models are converted using model_dump()
-        - Other objects must be JSON serializable
+        - Non-serializable objects return None with a warning
         """
         if isinstance(self.output, BaseModel):
             return self.output.model_dump()
         
-        # Verify JSON serialization is possible
-        json.dumps(self.output)
-        return self.output
+        try:
+            # Try to serialize the output to verify it's JSON compatible
+            json.dumps(self.output)
+            return self.output
+        except (TypeError, OverflowError, ValueError):
+            warnings.warn(f"Output for function {self.function} is not JSON serializable. Setting to None.")
+            return None
 
 class TraceClient:
     """Client for managing a single trace context"""
