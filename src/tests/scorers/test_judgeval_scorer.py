@@ -82,7 +82,7 @@ class TestCustomScorer:
         assert scorer.async_mode is False
         assert scorer.additional_metadata == additional_metadata
 
-    @patch('judgeval.scorers.custom_scorer.create_judge')
+    @patch('judgeval.scorers.judgeval_scorer.create_judge')
     def test_add_model_success(self, mock_create_judge, mock_judge, basic_scorer):
         """Test successful model addition"""
         mock_create_judge.return_value = (mock_judge, True)
