@@ -104,7 +104,6 @@ def initialize_vector_db():
         embedding_function=embedding_fn
     )
     populate_vector_db(res, destinations_data)
-    print(f"res: {res}")
     return res
 
 @judgment.observe(span_type="Retriever")
