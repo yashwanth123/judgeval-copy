@@ -7,6 +7,12 @@ import chromadb
 from chromadb.utils import embedding_functions
 import json
 
+from judgeval.common.tracer import Tracer, wrap
+
+
+judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
+
+
 def populate_vector_db(collection, destinations_data):
     """
     Populate the vector DB with travel information.
@@ -19,6 +25,7 @@ def populate_vector_db(collection, destinations_data):
             ids=[f"destination_{data['destination'].lower().replace(' ', '_')}"]
         )
 
+@judgment.observe(span_type="tool")
 def search_tavily(query):
     """Fetch travel data using Tavily API."""
     API_KEY = os.getenv("TAVILY_API_KEY")
@@ -26,22 +33,27 @@ def search_tavily(query):
     results = client.search(query, num_results=3)
     return results
 
+@judgment.observe(span_type="tool")
 def get_attractions(destination):
     """Search for top attractions in the destination."""
     return search_tavily(f"Best tourist attractions in {destination}")
 
+@judgment.observe(span_type="tool")
 def get_hotels(destination):
     """Search for hotels in the destination."""
     return search_tavily(f"Best hotels in {destination}")
 
+@judgment.observe(span_type="tool")
 def get_flights(destination):
     """Search for flights to the destination."""
     return search_tavily(f"Flights to {destination} from major cities")
 
+@judgment.observe(span_type="tool")
 def get_weather(destination, start_date, end_date):
     """Search for weather information."""
     return search_tavily(f"Weather forecast for {destination} from {start_date} to {end_date}")
 
+@judgment.observe(span_type="tool")
 def initialize_vector_db():
     """Initialize ChromaDB with OpenAI embeddings."""
     client = chromadb.Client()
@@ -54,6 +66,7 @@ def initialize_vector_db():
         embedding_function=embedding_fn
     )
 
+@judgment.observe(span_type="tool")
 def query_vector_db(collection, destination, k=3):
     """Query the vector database for existing travel information."""
     try:
@@ -65,6 +78,7 @@ def query_vector_db(collection, destination, k=3):
     except Exception:
         return []
 
+@judgment.observe(span_type="tool")
 def research_destination(destination, start_date, end_date):
     """Gather all necessary travel information for a destination."""
     # First, check the vector database
@@ -84,6 +98,7 @@ def research_destination(destination, start_date, end_date):
         **tavily_data
     }
 
+@judgment.observe(span_type="tool")
 def create_travel_plan(destination, start_date, end_date, research_data):
     """Generate a travel itinerary using the researched data."""
     vector_db_context = "\n".join(research_data['vector_db_results']) if research_data['vector_db_results'] else "No pre-stored information available."
@@ -101,7 +116,7 @@ def create_travel_plan(destination, start_date, end_date, research_data):
     - Weather: {research_data['weather']}
     """
     
-    client = openai.Client(api_key=os.getenv("OPENAI_API_KEY"))
+    client = wrap(openai.Client(api_key=os.getenv("OPENAI_API_KEY")))
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
@@ -112,13 +127,20 @@ def create_travel_plan(destination, start_date, end_date, research_data):
     
     return response.choices[0].message.content
 
+
 def generate_itinerary(destination, start_date, end_date):
     """Main function to generate a travel itinerary."""
-    research_data = research_destination(destination, start_date, end_date)
-    return create_travel_plan(destination, start_date, end_date, research_data)
+    with judgment.trace("generate_itinerary", project_name="travel_agent") as trace:    
+        research_data = research_destination(destination, start_date, end_date)
+        res = create_travel_plan(destination, start_date, end_date, research_data)
+
+        trace.save()
+        trace.print()
+        return res
+
 
 if __name__ == "__main__":
-    load_dotenv()
+    load_dotenv(dotenv_path="/Users/alexshan/Desktop/judgment_labs/judgeval/.env")
     destination = input("Enter your travel destination: ")
     start_date = input("Enter start date (YYYY-MM-DD): ")
     end_date = input("Enter end date (YYYY-MM-DD): ")
