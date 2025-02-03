@@ -111,12 +111,10 @@ def initialize_vector_db():
 def query_vector_db(collection, destination, k=3):
     """Query the vector database for existing travel information."""
     try:
-        print(f"collection: {collection}, destination: {destination}, k: {k}")
         results = collection.query(
             query_texts=[destination],
             n_results=k
         )
-        print(f"query results: {results}")
         return results['documents'][0] if results['documents'] else []
     except Exception:
         return []
