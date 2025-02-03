@@ -16,6 +16,7 @@ openai = "*"
 together = "*"
 anthropic = "*"
 patronus = "*"
+asyncio = "*"
 
 [dev-packages]
 pytest = "*"
