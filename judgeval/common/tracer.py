@@ -219,7 +219,11 @@ class TraceClient:
             metadata={},
             log_results=log_results,
             project_name=self.project_name,
-            eval_run_name=f"{self.name.capitalize()}-{self._current_span}-[{','.join(scorer.score_type.capitalize() for scorer in scorers)}]",
+            eval_run_name=(
+                f"{self.name.capitalize()}-"
+                f"{self._current_span}-"
+                f"[{','.join(scorer.load_implementation().score_type.capitalize() for scorer in scorers)}]"
+            ),
         )
         
         self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation
