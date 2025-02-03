@@ -1,6 +1,7 @@
 import openai
 import requests
 import os
+import asyncio
 from tavily import TavilyClient
 from dotenv import load_dotenv
 import chromadb
@@ -8,6 +9,7 @@ from chromadb.utils import embedding_functions
 import json
 
 from judgeval.common.tracer import Tracer, wrap
+from judgeval.scorers import FaithfulnessScorer
 from demo.cookbooks.openai_travel_agent.populate_db import destinations_data
 
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
@@ -104,7 +106,7 @@ def research_destination(destination, start_date, end_date):
     }
 
 @judgment.observe(span_type="function")
-def create_travel_plan(destination, start_date, end_date, research_data):
+async def create_travel_plan(destination, start_date, end_date, research_data):
     """Generate a travel itinerary using the researched data."""
     vector_db_context = "\n".join(research_data['vector_db_results']) if research_data['vector_db_results'] else "No pre-stored information available."
     
@@ -128,16 +130,33 @@ def create_travel_plan(destination, start_date, end_date, research_data):
             {"role": "system", "content": "You are an expert travel planner. Combine both historical and current information to create the best possible itinerary."},
             {"role": "user", "content": prompt}
         ]
-    )
+    ).choices[0].message.content
     
-    return response.choices[0].message.content
+
+    await judgment.get_current_trace().async_evaluate(
+        scorers=[
+            FaithfulnessScorer(threshold=0.5)
+        ],
+        input="",
+        actual_output=response,
+        retrieval_context=[
+            vector_db_context, 
+            str(research_data['attractions']), 
+            str(research_data['hotels']), 
+            str(research_data['flights']), 
+            str(research_data['weather'])
+        ],
+        model="gpt-4o-mini",
+        log_results=True
+    )
+    return response
 
 
-def generate_itinerary(destination, start_date, end_date):
+async def generate_itinerary(destination, start_date, end_date):
     """Main function to generate a travel itinerary."""
     with judgment.trace("generate_itinerary", project_name="travel_agent") as trace:    
         research_data = research_destination(destination, start_date, end_date)
-        res = create_travel_plan(destination, start_date, end_date, research_data)
+        res = await create_travel_plan(destination, start_date, end_date, research_data)
 
         trace.save()
         trace.print()
@@ -149,5 +168,5 @@ if __name__ == "__main__":
     destination = input("Enter your travel destination: ")
     start_date = input("Enter start date (YYYY-MM-DD): ")
     end_date = input("Enter end date (YYYY-MM-DD): ")
-    itinerary = generate_itinerary(destination, start_date, end_date)
+    itinerary = asyncio.run(generate_itinerary(destination, start_date, end_date))
     print("\nGenerated Itinerary:\n", itinerary)
