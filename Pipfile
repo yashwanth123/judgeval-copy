@@ -17,6 +17,7 @@ openai = "*"
 together = "*"
 anthropic = "*"
 patronus = "*"
+tavily-python = "*"
 
 [dev-packages]
 pytest = "*"
