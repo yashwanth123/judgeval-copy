@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from judgeval.judgeval.scorers.api_scorer import APIJudgmentScorer
+from judgeval.scorers.api_scorer import APIJudgmentScorer
 from judgeval.constants import APIScorer
 
 @pytest.fixture
