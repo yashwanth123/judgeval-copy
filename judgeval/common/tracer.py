@@ -7,16 +7,7 @@ import functools
 import requests
 import uuid
 from contextlib import contextmanager
-from typing import (
-    Optional, 
-    Any, 
-    List, 
-    Literal, 
-    Tuple, 
-    Generator, 
-    TypeAlias, 
-    Union
-)
+from typing import Optional, Any, List, Literal, Tuple, Generator, TypeAlias, Union
 from dataclasses import dataclass, field
 from datetime import datetime 
 from openai import OpenAI
@@ -195,9 +186,8 @@ class TraceClient:
             model=model,
             metadata={},
             log_results=log_results,
-            project_name="TestSpanLevel1",  # TODO this should be dynamic
-            eval_run_name="TestSpanLevel1",
-            override=True,
+            project_name=self.project_name,
+            eval_run_name=f"{self.name.capitalize()}-{self._current_span}-{scorer.score_type.capitalize()}",
         )
         
         self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation
