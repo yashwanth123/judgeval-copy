@@ -40,13 +40,13 @@ async def get_attractions(destination):
     """Search for top attractions in the destination."""
     prompt = f"Best tourist attractions in {destination}"
     attractions_search = search_tavily(prompt)
-    # await judgment.get_current_trace().async_evaluate(
-    #     scorers=[AnswerRelevancyScorer(threshold=0.5)],
-    #     input=prompt,
-    #     actual_output=str(attractions_search),
-    #     model="gpt-4o-mini",
-    #     log_results=True
-    # )
+    await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerRelevancyScorer(threshold=0.5)],
+        input=prompt,
+        actual_output=str(attractions_search),
+        model="gpt-4o-mini",
+        log_results=True
+    )
     return attractions_search
 
 @judgment.observe(span_type="tool")
@@ -54,13 +54,13 @@ async def get_hotels(destination):
     """Search for hotels in the destination."""
     prompt = f"Best hotels in {destination}"
     hotels_search = search_tavily(prompt)
-    # await judgment.get_current_trace().async_evaluate(
-    #     scorers=[AnswerRelevancyScorer(threshold=0.5)],
-    #     input=prompt,
-    #     actual_output=str(hotels_search),
-    #     model="gpt-4o-mini",
-    #     log_results=True
-    # )
+    await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerRelevancyScorer(threshold=0.5)],
+        input=prompt,
+        actual_output=str(hotels_search),
+        model="gpt-4o-mini",
+        log_results=True
+    )
     return hotels_search
 
 @judgment.observe(span_type="tool")
@@ -187,7 +187,11 @@ async def create_travel_plan(destination, start_date, end_date, research_data):
 
 async def generate_itinerary(destination, start_date, end_date):
     """Main function to generate a travel itinerary."""
-    with judgment.trace("generate_itinerary", project_name="travel_agent") as trace:    
+    with judgment.trace(
+        "generate_itinerary",
+        project_name="travel_agent",
+        overwrite=True,
+        ) as trace:    
         research_data = await research_destination(destination, start_date, end_date)
         res = await create_travel_plan(destination, start_date, end_date, research_data)
 
