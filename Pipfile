@@ -17,6 +17,7 @@ together = "*"
 anthropic = "*"
 patronus = "*"
 asyncio = "*"
+nest-asyncio = "*"
 
 [dev-packages]
 pytest = "*"
