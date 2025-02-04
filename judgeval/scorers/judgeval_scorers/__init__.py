@@ -23,7 +23,8 @@ from judgeval.scorers.judgeval_scorers.local_implementations import (
     JsonCorrectnessScorer as LocalJsonCorrectnessScorer,
     ToolCorrectnessScorer as LocalToolCorrectnessScorer,
     HallucinationScorer as LocalHallucinationScorer,
-    SummarizationScorer as LocalSummarizationScorer
+    SummarizationScorer as LocalSummarizationScorer,
+    AnswerCorrectnessScorer as LocalAnswerCorrectnessScorer
 )
 
 class ScorerWrapper:
@@ -78,6 +79,12 @@ class ScorerWrapper:
         return getattr(self._instance, name)
 
 # Create wrapped versions of all scorers
+
+AnswerCorrectnessScorer = ScorerWrapper(
+    # api_implementation=APIAnswerCorrectnessScorer,
+    local_implementation=LocalAnswerCorrectnessScorer
+)
+
 AnswerRelevancyScorer = ScorerWrapper(
     api_implementation=APIAnswerRelevancyScorer,
     local_implementation=LocalAnswerRelevancyScorer
