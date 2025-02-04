@@ -138,7 +138,7 @@ class TraceEntry:
 
 class TraceClient:
     """Client for managing a single trace context"""
-    def __init__(self, tracer, trace_id: str, name: str, project_name: str = "default_project"):
+    def __init__(self, tracer, trace_id: str, name: str, project_name: str = "default_project", overwrite: bool = False):
         self.tracer = tracer
         self.trace_id = trace_id
         self.name = name
@@ -148,6 +148,7 @@ class TraceClient:
         self.start_time = time.time()
         self.span_type = None
         self._current_span: Optional[TraceEntry] = None
+        self.overwrite = overwrite
         
     @contextmanager
     def span(self, name: str, span_type: SpanType = "span"):
@@ -198,7 +199,7 @@ class TraceClient:
         expected_tools: Optional[List[str]] = None,
         additional_metadata: Optional[Dict[str, Any]] = None,
         model: Optional[str] = None,
-        log_results: Optional[bool] = False,
+        log_results: Optional[bool] = True,
     ):
         start_time = time.time()  # Record start time
         example = Example(
@@ -224,6 +225,7 @@ class TraceClient:
                 f"{self._current_span}-"
                 f"[{','.join(scorer.load_implementation().score_type.capitalize() for scorer in scorers)}]"
             ),
+            override=self.overwrite
         )
         
         self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation
@@ -419,7 +421,7 @@ class Tracer:
     def trace(self, name: str, project_name: str = "default_project", overwrite: bool = False) -> Generator[TraceClient, None, None]:
         """Start a new trace context using a context manager"""
         trace_id = str(uuid.uuid4())
-        trace = TraceClient(self, trace_id, name, project_name=project_name)
+        trace = TraceClient(self, trace_id, name, project_name=project_name, overwrite=overwrite)
         prev_trace = self._current_trace
         self._current_trace = trace
         
