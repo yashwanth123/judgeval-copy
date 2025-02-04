@@ -190,6 +190,7 @@ async def generate_itinerary(destination, start_date, end_date):
     with judgment.trace(
         "generate_itinerary_demo",
         project_name="travel_agent_demo",
+        overwrite=True
     ) as trace:    
         research_data = await research_destination(destination, start_date, end_date)
         res = await create_travel_plan(destination, start_date, end_date, research_data)
@@ -199,7 +200,7 @@ async def generate_itinerary(destination, start_date, end_date):
 
 
 if __name__ == "__main__":
-    load_dotenv(dotenv_path="/Users/alexshan/Desktop/judgment_labs/judgeval/.env")
+    load_dotenv()
     destination = input("Enter your travel destination: ")
     start_date = input("Enter start date (YYYY-MM-DD): ")
     end_date = input("Enter end date (YYYY-MM-DD): ")
