@@ -68,13 +68,13 @@ async def get_flights(destination):
     """Search for flights to the destination."""
     prompt = f"Flights to {destination} from major cities"
     flights_search = search_tavily(prompt)
-    # await judgment.get_current_trace().async_evaluate(
-    #     scorers=[AnswerRelevancyScorer(threshold=0.5)],
-    #     input=prompt,
-    #     actual_output=str(flights_search),
-    #     model="gpt-4o-mini",
-    #     log_results=True
-    # )
+    await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerRelevancyScorer(threshold=0.5)],
+        input=prompt,
+        actual_output=str(flights_search),
+        model="gpt-4o-mini",
+        log_results=True
+    )
     return flights_search
 
 @judgment.observe(span_type="tool")
@@ -188,13 +188,11 @@ async def create_travel_plan(destination, start_date, end_date, research_data):
 async def generate_itinerary(destination, start_date, end_date):
     """Main function to generate a travel itinerary."""
     with judgment.trace(
-        "generate_itinerary",
-        project_name="travel_agent",
-        overwrite=True,
-        ) as trace:    
+        "generate_itinerary_demo",
+        project_name="travel_agent_demo",
+    ) as trace:    
         research_data = await research_destination(destination, start_date, end_date)
         res = await create_travel_plan(destination, start_date, end_date, research_data)
-
         trace.save()
         trace.print()
         return res
