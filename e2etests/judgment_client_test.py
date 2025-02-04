@@ -30,7 +30,7 @@ def get_client():
 
 
 def get_ui_client():
-    return JudgmentClient(judgment_api_key=os.getenv("UI_JUDGMENT_API_KEY"))
+    return JudgmentClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
 
 
 def test_dataset(client: JudgmentClient):
