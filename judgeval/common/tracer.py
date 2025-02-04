@@ -86,11 +86,9 @@ class TraceEntry:
                     for item in value
                 ]
             else:
-                try:
-                    # Verify JSON compatibility
-                    json.dumps(value)
+                if self._is_json_serializable(value):
                     serialized_inputs[key] = value
-                except (TypeError, OverflowError, ValueError):
+                else:
                     warnings.warn(f"Input '{key}' for function {self.function} is not JSON serializable. Setting to None.")
                     serialized_inputs[key] = None
         return serialized_inputs
