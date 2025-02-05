@@ -38,7 +38,6 @@ def test_ac_scorer():
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
-        use_judgment=False,
         override=True,
     )
 

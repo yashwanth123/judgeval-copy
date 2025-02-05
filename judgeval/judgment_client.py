@@ -53,9 +53,9 @@ class JudgmentClient:
         model: Union[str, List[str], JudgevalJudge],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        log_results: bool = False,
-        project_name: str = "",
-        eval_run_name: str = "",
+        log_results: bool = True,
+        project_name: str = "default_project",
+        eval_run_name: str = "default_eval_run",
         override: bool = False,
         use_judgment: bool = True
     ) -> List[ScoringResult]:
