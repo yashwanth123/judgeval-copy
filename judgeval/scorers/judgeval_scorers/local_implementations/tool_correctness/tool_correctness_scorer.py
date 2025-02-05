@@ -138,7 +138,7 @@ class ToolCorrectnessScorer(JudgevalScorer):
             score = len(used_expected_tools) / len(self.expected_tools)
         return 0 if self.strict_mode and score < self.threshold else score
 
-    def success_check(self) -> bool:
+    def _success_check(self) -> bool:
         try:
             self.success = self.score >= self.threshold
         except:

@@ -525,7 +525,7 @@ class SummarizationScorer(JudgevalScorer):
                 data = parse_response_json(res, self)
                 return data["claims"]
 
-    def success_check(self) -> bool:
+    def _success_check(self) -> bool:
         if self.error is not None:
             self.success = False
         else:

@@ -234,7 +234,7 @@ class ContextualRecallScorer(JudgevalScorer):
                 ]
                 return verdicts
 
-    def success_check(self) -> bool:
+    def _success_check(self) -> bool:
         if self.error is not None:
             self.success = False
         else:

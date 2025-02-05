@@ -244,7 +244,7 @@ class ContextualPrecisionScorer(JudgevalScorer):
         score = sum_weighted_precision_at_k / relevant_nodes_count
         return 0 if self.strict_mode and score < self.threshold else score
 
-    def success_check(self) -> bool:
+    def _success_check(self) -> bool:
         if self.error is not None:
             self.success = False
         else:

@@ -111,7 +111,7 @@ class JsonCorrectnessScorer(JudgevalScorer):
             )
             return self.score
 
-    def success_check(self):
+    def _success_check(self):
         if self.error is not None:
             self.success = False
         else:
