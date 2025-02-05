@@ -14,6 +14,7 @@ class APIScorer(str, Enum):
     """
     FAITHFULNESS = "faithfulness"
     ANSWER_RELEVANCY = "answer_relevancy"
+    ANSWER_CORRECTNESS = "answer_correctness"
     HALLUCINATION = "hallucination"
     SUMMARIZATION = "summarization"
     CONTEXTUAL_RECALL = "contextual_recall"
