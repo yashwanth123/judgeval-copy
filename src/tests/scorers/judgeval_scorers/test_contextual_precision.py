@@ -1,5 +1,5 @@
 import pytest
-from judgeval.scorers.judgeval_scorers.contextual_precision import ContextualPrecisionScorer
+from judgeval.scorers.judgeval_scorers.local_implementations.contextual_precision import ContextualPrecisionScorer
 from judgeval.constants import APIScorer
 
 
