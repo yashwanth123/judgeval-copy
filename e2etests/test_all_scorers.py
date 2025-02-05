@@ -287,11 +287,11 @@ def test_summarization_scorer():
 
 if __name__ == "__main__":
     test_ac_scorer()
-    # test_ar_scorer()
-    # test_cp_scorer()
-    # test_cr_scorer()
-    # test_crelevancy_scorer()
-    # test_faithfulness_scorer()
-    # test_hallucination_scorer()
-    # test_summarization_scorer()
+    test_ar_scorer()
+    test_cp_scorer()
+    test_cr_scorer()
+    test_crelevancy_scorer()
+    test_faithfulness_scorer()
+    test_hallucination_scorer()
+    test_summarization_scorer()
     
