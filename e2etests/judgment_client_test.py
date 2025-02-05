@@ -139,8 +139,8 @@ def test_json_scorer(client: JudgmentClient):
         tool: str
 
     scorer = JSONCorrectnessScorer(threshold=0.5, json_schema=SampleSchema)
-    PROJECT_NAME = "test_project_JOSEPH"
-    EVAL_RUN_NAME = "yomadude"
+    PROJECT_NAME = "test_project"
+    EVAL_RUN_NAME = "test_json_scorer"
     
     res = client.run_evaluation(
         examples=[example1, example2],
