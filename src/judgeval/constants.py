@@ -4,6 +4,7 @@ Constant variables used throughout source code
 
 from enum import Enum
 import litellm
+import os
 
 class APIScorer(str, Enum):  
     """
@@ -30,14 +31,16 @@ class APIScorer(str, Enum):
             if member.value == value.lower():
                 return member
 
-ROOT_API = "http://127.0.0.1:8000"
-# ROOT_API = "https://api.judgmentlabs.ai"  # TODO replace this with the actual API root
+ROOT_API = os.getenv("JUDGMENT_API_URL", "https://api.judgmentlabs.ai")
+## API URLs
 JUDGMENT_EVAL_API_URL = f"{ROOT_API}/evaluate/"
 JUDGMENT_DATASETS_PUSH_API_URL = f"{ROOT_API}/datasets/push/"
 JUDGMENT_DATASETS_PULL_API_URL = f"{ROOT_API}/datasets/pull/"
 JUDGMENT_EVAL_LOG_API_URL = f"{ROOT_API}/log_eval_results/"
 JUDGMENT_EVAL_FETCH_API_URL = f"{ROOT_API}/fetch_eval_results/"
 JUDGMENT_TRACES_SAVE_API_URL = f"{ROOT_API}/traces/save/"
+
+## Models
 TOGETHER_SUPPORTED_MODELS = {
     "QWEN": "Qwen/Qwen2-72B-Instruct",
     "LLAMA3_70B_INSTRUCT_TURBO": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
@@ -49,4 +52,5 @@ TOGETHER_SUPPORTED_MODELS = {
 
 ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys())
 
+## System settings
 MAX_WORKER_THREADS = 10
