@@ -40,11 +40,38 @@ class AnswerCorrectnessScorer(JudgevalScorer):
         self.strict_mode = strict_mode
         self.verbose_mode = verbose_mode
 
-    def score_example(self, example: Example) -> float:
-        return
+    def score_example(
+        self,
+        example: Example,
+        _show_indicator: bool = True,
+    ) -> float:
+        check_example_params(example, required_params, self)
+
+        with scorer_progress_meter(self, display_meter=_show_indicator):
+            try:
+                if self.async_mode:
+                    loop = get_or_create_event_loop()
+                    loop.run_until_complete(
+                        self.a_score_example(example, _show_indicator=False)
+                    )
+                else:
+                    self.score = self._compute_score()  # TODO: replace this with the actual implementation
+            except Exception:
+                raise
     
-    async def a_score_example(self, example: Example) -> float:
-        return
+    async def a_score_example(
+        self, 
+        example: Example,
+        _show_indicator: bool = True,
+    ) -> float:
+        check_example_params(example, required_params, self)
+
+        with scorer_progress_meter(self, async_mode=True, display_meter=_show_indicator):
+            try:
+                self.score = self._compute_score()  # TODO: replace this with the actual implementation
+            except Exception as e:
+                print(f"Error in a_score_example for AnswerCorrectnessScorer: {e}")
+                raise
 
     def success_check(self) -> bool:
         if self.error is not None:
