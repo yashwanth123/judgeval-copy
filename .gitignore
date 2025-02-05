@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Testing files for competitor packages
+demo/test_competitors.py
+src/e2etests/customer_usecases/
+
 # Packages
 *.egg
 *.egg-info/

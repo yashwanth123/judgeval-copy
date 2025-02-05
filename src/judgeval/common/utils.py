@@ -17,7 +17,7 @@ import pprint
 import os
 from dotenv import load_dotenv 
 
-from judgeval import async_together_client, together_client
+from judgeval.clients import async_together_client, together_client
 from judgeval.constants import *
 from judgeval.common.logger import debug, error
 

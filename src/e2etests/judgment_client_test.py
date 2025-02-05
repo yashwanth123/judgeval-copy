@@ -15,7 +15,7 @@ from judgeval.scorers import (
     JSONCorrectnessScorer
 )
 from judgeval.judges import TogetherJudge, JudgevalJudge
-from judgeval.playground import CustomFaithfulnessMetric
+from playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
 from dotenv import load_dotenv
 import random
@@ -26,10 +26,6 @@ from judgeval.scorers.prompt_scorer import ClassifierScorer
 load_dotenv()
 
 def get_client():
-    return JudgmentClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
-
-
-def get_ui_client():
     return JudgmentClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
 
 
@@ -63,7 +59,7 @@ def test_run_eval(client: JudgmentClient):
 
     scorer = FaithfulnessScorer(threshold=0.5)
     scorer2 = HallucinationScorer(threshold=0.5)
-    c_scorer = CustomFaithfulnessMetric(threshold=0.6)
+    # c_scorer = CustomFaithfulnessMetric(threshold=0.6)
 
     PROJECT_NAME = "OutreachWorkflow"
     EVAL_RUN_NAME = "ColdEmailGenerator-Improve-BasePrompt"
@@ -402,17 +398,16 @@ def test_custom_judge_vertexai(client: JudgmentClient):
 if __name__ == "__main__":
     # Test client functionality
     client = get_client()
-    ui_client = get_ui_client()
     print("Client initialized successfully")
     print("*" * 40)
 
     print("Testing dataset creation, pushing, and pulling")
-    test_dataset(ui_client)
+    test_dataset(client)
     print("Dataset creation, pushing, and pulling successful")
     print("*" * 40)
     
     print("Testing evaluation run")
-    test_run_eval(ui_client)
+    test_run_eval(client)
     print("Evaluation run successful")
     print("*" * 40)
 
@@ -422,7 +417,7 @@ if __name__ == "__main__":
     print("*" * 40)
 
     print("Testing JSON scorer")
-    test_json_scorer(ui_client)
+    test_json_scorer(client)
     print("JSON scorer test successful")
     print("*" * 40)
     
@@ -432,17 +427,17 @@ if __name__ == "__main__":
     print("*" * 40)
     
     print("Testing dataset evaluation")
-    test_evaluate_dataset(ui_client)
+    test_evaluate_dataset(client)
     print("Dataset evaluation successful")
     print("*" * 40)
     
     print("Testing classifier scorer")
-    test_classifier_scorer(ui_client)
+    test_classifier_scorer(client)
     print("Classifier scorer test successful")
     print("*" * 40)
 
     print("Testing custom judge")
-    test_custom_judge_vertexai(ui_client)
+    test_custom_judge_vertexai(client)
     print("Custom judge test successful")
     print("*" * 40)
 

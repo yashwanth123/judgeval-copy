@@ -2,7 +2,6 @@ import asyncio
 import requests
 from typing import List, Dict
 from datetime import datetime
-from fastapi import HTTPException
 from rich import print as rprint
 
 from judgeval.data import (

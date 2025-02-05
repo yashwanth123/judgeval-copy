@@ -1,7 +1,5 @@
 """
 Util functions for Scorer objects
-
-TODO add logging
 """
 
 import asyncio
@@ -53,7 +51,8 @@ def scorer_console_msg(
     else:
         run_async = async_mode
 
-    return f"🔨 Executing Judgment's [rgb(106,0,255)]{scorer.__name__} Scorer[/rgb(106,0,255)]! [rgb(55,65,81)](using {scorer.evaluation_model}, async_mode={run_async})...[/rgb(55,65,81)]"
+    return f"🔨 Executing Judgment's [rgb(106,0,255)]{scorer.__name__} Scorer[/rgb(106,0,255)]! \
+        [rgb(55,65,81)](using {scorer.evaluation_model}, async_mode={run_async})...[/rgb(55,65,81)]"
 
 
 @contextmanager
@@ -65,7 +64,7 @@ def scorer_progress_meter(
     transient: bool = True,
 ):
     """
-    Context manager to display a progress indicator while a scorer is being run.
+    Context manager to display a progress indicator (spinner) while a scorer is being run.
     """
     console = Console(file=sys.stderr)
     if display_meter:
@@ -92,22 +91,22 @@ def parse_response_json(llm_response: str, scorer: Optional[JudgevalScorer] = No
 
     Args:
         llm_response (str): The response from an LLM.
-        scorer (CustomScorer, optional): The scorer object to forward errors to.
+        scorer (CustomScorer, optional): The scorer object to forward errors to (if any).
     """
-    start = llm_response.find("{")
-    end = llm_response.rfind("}") + 1
+    start = llm_response.find("{")  # opening bracket
+    end = llm_response.rfind("}") + 1  # closing bracket
 
-    if end == 0 and start != -1:
+    if end == 0 and start != -1:  # add the closing bracket if it's missing
         llm_response = llm_response + "}"
         end = len(llm_response)
 
-    json_str = llm_response[start:end] if start != -1 and end != 0 else ""
+    json_str = llm_response[start:end] if start != -1 and end != 0 else ""  # extract the JSON string
     json_str = re.sub(r",\s*([\]}])", r"\1", json_str)  # Remove trailing comma if present
 
     try:
         return json.loads(json_str)
     except json.JSONDecodeError:
-        error_str = "Evaluation LLM outputted an invalid JSON. Please use a better evaluation model."
+        error_str = "Evaluation LLM outputted an invalid JSON. Please use a stronger evaluation model."
         if scorer is not None:
             scorer.error = error_str
         raise ValueError(error_str)

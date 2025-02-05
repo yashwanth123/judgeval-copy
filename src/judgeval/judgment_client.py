@@ -43,7 +43,6 @@ class JudgmentClient:
             # May be bad to output their invalid API key...
             raise JudgmentAPIError(f"Issue with passed in Judgment API key: {response}")
         else:
-            # TODO: Add logging
             print(f"Successfully initialized JudgmentClient, welcome back {response.get('detail', {}).get('user_name', 'user')}!")
             
     def run_evaluation(
@@ -248,7 +247,7 @@ class JudgmentClient:
         """
         request_body = {
             "name": scorer.name,
-            "conversation": [m.model_dump() for m in scorer.conversation],
+            "conversation": scorer.conversation,
             "options": scorer.options,
             "judgment_api_key": self.judgment_api_key,
             "slug": slug
@@ -260,11 +259,14 @@ class JudgmentClient:
         )
         
         if response.status_code == 500:
-            raise JudgmentAPIError(f"The server is temporarily unavailable. Please try your request again in a few moments. Error details: {response.json().get('detail', '')}")
+            raise JudgmentAPIError(f"The server is temporarily unavailable. \
+                                   Please try your request again in a few moments. \
+                                   Error details: {response.json().get('detail', '')}")
         elif response.status_code != 200:
             raise JudgmentAPIError(f"Failed to save classifier scorer: {response.json().get('detail', '')}")
             
         return response.json()["slug"]
+    
     
     def assert_test(
         self, 
