@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Tuple
 from pydantic import BaseModel
 
 from judgeval.judges import JudgevalJudge

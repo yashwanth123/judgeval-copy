@@ -81,7 +81,7 @@ class ScorerWrapper:
 # Create wrapped versions of all scorers
 
 AnswerCorrectnessScorer = ScorerWrapper(
-    # api_implementation=APIAnswerCorrectnessScorer,
+    api_implementation=None,  # TODO: Implement API scorer
     local_implementation=LocalAnswerCorrectnessScorer
 )
 
