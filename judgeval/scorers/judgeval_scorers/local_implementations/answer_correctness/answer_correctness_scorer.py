@@ -1,4 +1,5 @@
 from typing import Optional, List, Union
+from pydantic import BaseModel
 
 from judgeval.judges import JudgevalJudge
 from judgeval.judges.utils import create_judge
@@ -11,6 +12,7 @@ from judgeval.scorers.utils import (
     create_verbose_logs,
     check_example_params,
 )
+from .prompts import ACVerdict, AnswerCorrectnessTemplate
 
 
 required_params = [
@@ -40,6 +42,18 @@ class AnswerCorrectnessScorer(JudgevalScorer):
         self.strict_mode = strict_mode
         self.verbose_mode = verbose_mode
 
+    def _a_get_statements(self, expected_output: str) -> List[str]:
+        pass
+
+    def _a_get_verdicts(self, actual_output: str) -> List[ACVerdict]:
+        pass
+
+    def _a_get_reason(self) -> str:
+        pass
+
+    def _compute_score(self) -> float:
+        pass
+
     def score_example(
         self,
         example: Example,
@@ -68,7 +82,19 @@ class AnswerCorrectnessScorer(JudgevalScorer):
 
         with scorer_progress_meter(self, async_mode=True, display_meter=_show_indicator):
             try:
-                self.score = self._compute_score()  # TODO: replace this with the actual implementation
+                self.statements: List[str] = await self._a_get_statements(example.expected_output)
+                self.verdicts: List[ACVerdict] = await self._a_get_verdicts(example.actual_output)
+                self.score = self._compute_score()
+                self.reason = await self._a_get_reason()
+                self.success = self.score >= self.threshold
+                self.verbose_logs = create_verbose_logs(
+                    self,
+                    steps=[
+                        f"Statements:\n{self.statements}",
+                        f"Verdicts:\n{[v.model_dump() for v in self.verdicts]}",
+                        f"Score: {self.score}\nReason: {self.reason}",
+                    ],
+                )
             except Exception as e:
                 print(f"Error in a_score_example for AnswerCorrectnessScorer: {e}")
                 raise
