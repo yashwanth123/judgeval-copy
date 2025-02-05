@@ -106,8 +106,5 @@ test-results.xml
 # Encrypted files
 *.key
 
-# Custom
-Pipfile.lock
-
 # Logs
 ./logs
