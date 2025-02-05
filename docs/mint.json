@@ -56,6 +56,7 @@
           "group": "Scorers",
           "pages": [
             "evaluation/scorers/introduction",
+            "evaluation/scorers/answer_correctness",
             "evaluation/scorers/answer_relevancy",
             "evaluation/scorers/contextual_precision",
             "evaluation/scorers/contextual_recall",
