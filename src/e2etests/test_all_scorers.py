@@ -4,15 +4,44 @@ base e2e tests for all default judgeval scorers
 
 
 from judgeval.judgment_client import JudgmentClient
-from judgeval.scorers import (AnswerRelevancyScorer, 
-                              ContextualPrecisionScorer,
-                              ContextualRecallScorer,
-                              ContextualRelevancyScorer,
-                              FaithfulnessScorer,
-                              HallucinationScorer,
-                              SummarizationScorer,)
+from judgeval.scorers import (
+    AnswerCorrectnessScorer,
+    AnswerRelevancyScorer, 
+    ContextualPrecisionScorer,
+    ContextualRecallScorer,
+    ContextualRelevancyScorer,
+    FaithfulnessScorer,
+    HallucinationScorer,
+    SummarizationScorer,
+)
 
 from judgeval.data import Example
+
+
+def test_ac_scorer():
+    
+    example = Example(
+        input="What's the capital of France?",
+        actual_output="The capital of France is Paris.",
+        expected_output="France's capital is Paris. It used to be called the city of lights until 1968.",
+    )
+
+    scorer = AnswerCorrectnessScorer(threshold=0.5)
+
+    client = JudgmentClient()
+    PROJECT_NAME = "test-project"
+    EVAL_RUN_NAME = "test-run-ac"
+    res = client.run_evaluation(
+        examples=[example],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        override=True,
+    )
+
+    print(res)
 
 
 def test_ar_scorer():
@@ -256,6 +285,7 @@ def test_summarization_scorer():
     assert res[0].success == True  # example_1 should pass
 
 if __name__ == "__main__":
+    test_ac_scorer()
     test_ar_scorer()
     test_cp_scorer()
     test_cr_scorer()

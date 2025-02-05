@@ -7,6 +7,7 @@ from judgeval.scorers.judgeval_scorers.api_scorers.contextual_relevancy import C
 from judgeval.scorers.judgeval_scorers.api_scorers.contextual_precision import ContextualPrecisionScorer
 from judgeval.scorers.judgeval_scorers.api_scorers.contextual_recall import ContextualRecallScorer
 from judgeval.scorers.judgeval_scorers.api_scorers.answer_relevancy import AnswerRelevancyScorer
+from judgeval.scorers.judgeval_scorers.api_scorers.answer_correctness import AnswerCorrectnessScorer
 
 __all__ = [
     "ToolCorrectnessScorer",
@@ -18,4 +19,5 @@ __all__ = [
     "ContextualPrecisionScorer",
     "ContextualRecallScorer",
     "AnswerRelevancyScorer",
+    "AnswerCorrectnessScorer",
 ]

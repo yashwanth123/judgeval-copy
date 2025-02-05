@@ -224,7 +224,7 @@ class ContextualRelevancyScorer(JudgevalScorer):
                 data = parse_response_json(res, self)
                 return ContextualRelevancyVerdicts(**data)
 
-    def success_check(self) -> bool:
+    def _success_check(self) -> bool:
         if self.error is not None:
             self.success = False
         else:
