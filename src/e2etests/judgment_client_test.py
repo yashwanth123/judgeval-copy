@@ -261,12 +261,13 @@ def test_evaluate_dataset(client: JudgmentClient):
 def test_classifier_scorer(client: JudgmentClient):
     # Modifying a classifier scorer
     # Make some methods private
-    classifier_scorer = client.fetch_classifier_scorer("tonescorer-72gl")
+    classifier_scorer = client.fetch_classifier_scorer("tonescorer-pt0z")
     faithfulness_scorer = FaithfulnessScorer(threshold=0.5)
     
     # Creating a classifier scorer from SDK
     classifier_scorer_custom = ClassifierScorer(
         name="Test Classifier Scorer",
+        slug="testslug",
         threshold=0.5,
         conversation=[],
         options={}
@@ -287,11 +288,12 @@ def test_classifier_scorer(client: JudgmentClient):
 
     res = client.run_evaluation(
         examples=[example1],
-        scorers=[classifier_scorer, faithfulness_scorer],
+        scorers=[classifier_scorer, faithfulness_scorer, classifier_scorer_custom],
         model="QWEN",
         log_results=True,
         eval_run_name="ToneScorerTest",
         project_name="ToneScorerTest",
+        override=True,
     )
 
 

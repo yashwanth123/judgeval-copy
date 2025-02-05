@@ -19,6 +19,13 @@ class JSONCorrectnessScorer(APIJudgmentScorer):
     def __init__(self, threshold: float, json_schema: BaseModel):
         super().__init__(threshold=threshold, score_type=APIScorer.JSON_CORRECTNESS)
         object.__setattr__(self, 'json_schema', json_schema)
+    
+    def to_dict(self):
+        base_dict = super().to_dict()  # Get the parent class's dictionary
+        base_dict["kwargs"] = {
+            "json_schema": self.json_schema.model_json_schema()
+        }
+        return base_dict
 
     @property
     def __name__(self):

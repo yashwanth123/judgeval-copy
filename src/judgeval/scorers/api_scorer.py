@@ -50,3 +50,15 @@ class APIJudgmentScorer(BaseModel):
     def __str__(self):
         return f"JudgmentScorer(score_type={self.score_type}, threshold={self.threshold})"
     
+    def to_dict(self) -> dict:
+        """
+        Converts the scorer configuration to a dictionary format.
+        
+        Returns:
+            dict: A dictionary containing the scorer's configuration
+        """
+        return {
+            "score_type": self.score_type,
+            "threshold": self.threshold
+        }
+    

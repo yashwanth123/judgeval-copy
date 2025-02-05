@@ -38,8 +38,9 @@ class EvaluationRun(BaseModel):
         data = super().model_dump(**kwargs)
 
         data["scorers"] = [
-            scorer.to_dict() \
-            if hasattr(scorer, "to_dict") else {"score_type": scorer.score_type, "threshold": scorer.threshold}
+            scorer.to_dict() if hasattr(scorer, "to_dict")
+            else scorer.model_dump() if hasattr(scorer, "model_dump")
+            else {"score_type": scorer.score_type, "threshold": scorer.threshold}
             for scorer in self.scorers
         ]
         return data
