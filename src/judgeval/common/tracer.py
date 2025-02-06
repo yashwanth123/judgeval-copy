@@ -23,7 +23,7 @@ from http import HTTPStatus
 import pika
 import os
 
-from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
+from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL, RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_QUEUE
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer, ScorerWrapper
@@ -408,24 +408,20 @@ class TraceClient:
         
         # TODO:
         # Set up connection to RabbitMQ globally
-        # How to store the environment vars, or we can just hard code URL to the RabbitMQ ALB.
         if not empty_save:
-            # Send information to queue!
-            print(f"{os.getenv('RABBITMQ_HOST')=}")
             connection = pika.BlockingConnection(
-                pika.ConnectionParameters(host=os.getenv('RABBITMQ_HOST'), port=os.getenv('RABBITMQ_PORT')))
+                pika.ConnectionParameters(host=RABBITMQ_HOST, port=RABBITMQ_PORT))
             channel = connection.channel()
             
-            channel.queue_declare(queue='task_queue', durable=True)
-            print(f"{trace_data=}, {type(trace_data)=}, {json.dumps(trace_data)=}")
+            channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
+            
             channel.basic_publish(
                 exchange='',
-                routing_key='task_queue',
+                routing_key=RABBITMQ_QUEUE,
                 body=json.dumps(trace_data),
                 properties=pika.BasicProperties(
                     delivery_mode=pika.DeliveryMode.Transient  # Changed from Persistent to Transient
                 ))
-            print(" [x] Sent trace to be evaluated!")
             connection.close()
         
         return self.trace_id, trace_data
