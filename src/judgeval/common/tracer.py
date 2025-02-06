@@ -20,6 +20,8 @@ import json
 import warnings
 from pydantic import BaseModel
 from http import HTTPStatus
+import pika
+import os
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
@@ -403,6 +405,25 @@ class TraceClient:
             raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
         elif response.status_code != HTTPStatus.OK:
             raise ValueError(f"Failed to save trace data: {response.text}")
+        
+        if not empty_save:
+            # Send information to queue!
+            print(f"{os.getenv('RABBITMQ_HOST')=}")
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(host=os.getenv('RABBITMQ_HOST'), port=os.getenv('RABBITMQ_PORT')))
+            channel = connection.channel()
+            
+            channel.queue_declare(queue='task_queue', durable=True)
+            print(f"{trace_data=}, {type(trace_data)=}, {json.dumps(trace_data)=}")
+            channel.basic_publish(
+                exchange='',
+                routing_key='task_queue',
+                body=json.dumps(trace_data),
+                properties=pika.BasicProperties(
+                    delivery_mode=pika.DeliveryMode.Transient  # Changed from Persistent to Transient
+                ))
+            print(" [x] Sent trace to be evaluated!")
+            connection.close()
         
         return self.trace_id, trace_data
 
