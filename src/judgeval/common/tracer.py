@@ -114,7 +114,7 @@ class TraceEntry:
             "duration": self.duration,
             "output": self._serialize_output(),
             "inputs": self._serialize_inputs(),
-            "evaluation_result": [result.to_dict() for result in self.evaluation_result] if self.evaluation_result else None,
+            "evaluation_runs": [evaluation_run.model_dump() for evaluation_run in self.evaluation_runs] if self.evaluation_runs else [],
             "span_type": self.span_type
         }
 
@@ -213,24 +213,33 @@ class TraceClient:
             additional_metadata=additional_metadata,
             trace_id=self.trace_id
         )
-        scoring_results = self.client.run_evaluation(
-            examples=[example],
-            scorers=scorers,
-            model=model,
-            metadata={},
+        
+        try:
+            # Load appropriate implementations for all scorers
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
+                scorer.load_implementation(use_judgment=True) if isinstance(scorer, ScorerWrapper) else scorer
+                for scorer in scorers
+            ]
+        except Exception as e:
+            raise ValueError(f"Failed to load scorers: {str(e)}")
+        
+        eval_run = EvaluationRun(
             log_results=log_results,
             project_name=self.project_name,
-            eval_run_name=(
-                f"{self.name.capitalize()}-"
+            eval_name=f"{self.name.capitalize()}-"
                 f"{self._current_span}-"
-                f"[{','.join(scorer.load_implementation().score_type.capitalize() for scorer in scorers)}]"
-            ),
+                f"[{','.join(scorer.load_implementation().score_type.capitalize() for scorer in scorers)}]",
+            examples=[example],
+            scorers=loaded_scorers,
+            model=model,
+            metadata={},
+            judgment_api_key=self.tracer.api_key,
             override=self.overwrite
         )
         
-        self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation
+        self.record_evaluation(eval_run, start_time)  # Pass start_time to record_evaluation
             
-    def record_evaluation(self, results: List[ScoringResult], start_time: float):
+    def record_evaluation(self, eval_run: EvaluationRun, start_time: float):
         """Record evaluation results for the current span"""
         if self._current_span:
             duration = time.time() - start_time  # Calculate duration from start_time
