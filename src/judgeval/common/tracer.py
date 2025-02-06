@@ -406,6 +406,9 @@ class TraceClient:
         elif response.status_code != HTTPStatus.OK:
             raise ValueError(f"Failed to save trace data: {response.text}")
         
+        # TODO:
+        # Set up connection to RabbitMQ globally
+        # How to store the environment vars, or we can just hard code URL to the RabbitMQ ALB.
         if not empty_save:
             # Send information to queue!
             print(f"{os.getenv('RABBITMQ_HOST')=}")
