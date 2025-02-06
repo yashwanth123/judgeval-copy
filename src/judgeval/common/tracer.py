@@ -24,8 +24,9 @@ from http import HTTPStatus
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
+from judgeval.scorers import APIJudgmentScorer, JudgevalScorer, ScorerWrapper
 from judgeval.data.result import ScoringResult
+from judgeval.evaluation_run import EvaluationRun
 
 # Define type aliases for better code readability and maintainability
 ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic]  # Supported API clients
@@ -52,7 +53,7 @@ class TraceEntry:
     # Use field() for mutable defaults to avoid shared state issues
     inputs: dict = field(default_factory=dict)
     span_type: SpanType = "span"
-    evaluation_result: Optional[List[ScoringResult]] = field(default=None)
+    evaluation_runs: List[Optional[EvaluationRun]] = field(default=None)
     
     def print_entry(self):
         indent = "  " * self.depth
@@ -65,7 +66,8 @@ class TraceEntry:
         elif self.type == "input":
             print(f"{indent}Input: {self.inputs}")
         elif self.type == "evaluation":
-            print(f"{indent}Evaluation: {self.evaluation_result} ({self.duration:.3f}s)")
+            for evaluation_run in self.evaluation_runs:
+                print(f"{indent}Evaluation: {evaluation_run.model_dump()}")
     
     def _serialize_inputs(self) -> dict:
         """Helper method to serialize input data safely.
