@@ -99,10 +99,9 @@ async def make_poem(input: str) -> str:
         anthropic_result = anthropic_response.content[0].text
         
         await judgment.get_current_trace().async_evaluate(
+            scorers=[AnswerRelevancyScorer(threshold=0.5)],
             input=input,
             actual_output=anthropic_result,
-            score_type=APIScorer.ANSWER_RELEVANCY,
-            threshold=0.5,
             model="gpt-4o-mini",
             log_results=True
         )
