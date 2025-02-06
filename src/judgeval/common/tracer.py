@@ -250,7 +250,7 @@ class TraceClient:
                 depth=self.tracer.depth,
                 message=f"Evaluation results for {self._current_span}",
                 timestamp=time.time(),
-                evaluation_result=results,
+                evaluation_runs=[eval_run],
                 duration=duration,
                 span_type="evaluation"
             ))
@@ -331,7 +331,7 @@ class TraceClient:
                     "timestamp": entry["timestamp"],
                     "inputs": None,
                     "output": None,
-                    "evaluation_result": None,
+                    "evaluation_runs": [],
                     "span_type": entry.get("span_type", "span")
                 }
                 active_functions.append(function)
@@ -354,8 +354,8 @@ class TraceClient:
                 if entry["type"] == "output" and entry["output"]:
                     current_entry["output"] = entry["output"]
                     
-                if entry["type"] == "evaluation" and entry["evaluation_result"]:
-                    current_entry["evaluation_result"] = entry["evaluation_result"]
+                if entry["type"] == "evaluation" and entry["evaluation_runs"]:
+                    current_entry["evaluation_runs"] = entry["evaluation_runs"]
 
         # Sort by timestamp
         condensed.sort(key=lambda x: x["timestamp"])
