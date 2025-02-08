@@ -259,9 +259,8 @@ def test_evaluate_dataset(client: JudgmentClient):
     
 
 def test_classifier_scorer(client: JudgmentClient):
-    # Modifying a classifier scorer
-    # Make some methods private
-    classifier_scorer = client.fetch_classifier_scorer("tonescorer-pt0z")
+    # Comment out the fetching of non-existent classifier scorer
+    # classifier_scorer = client.fetch_classifier_scorer("tonescorer-pt0z")
     faithfulness_scorer = FaithfulnessScorer(threshold=0.5)
     
     # Creating a classifier scorer from SDK
@@ -288,7 +287,7 @@ def test_classifier_scorer(client: JudgmentClient):
 
     res = client.run_evaluation(
         examples=[example1],
-        scorers=[classifier_scorer, faithfulness_scorer, classifier_scorer_custom],
+        scorers=[faithfulness_scorer, classifier_scorer_custom],  # Removed classifier_scorer from list
         model="QWEN",
         log_results=True,
         eval_run_name="ToneScorerTest",
@@ -343,6 +342,9 @@ def test_custom_judge_vertexai(client: JudgmentClient):
         examples=[example],
         scorers=[CustomFaithfulnessMetric()],
         model=judge,
+        eval_run_name="custom_judge_test",
+        project_name="custom_judge_test",
+        override=True
     )
     print(res)
 
@@ -393,6 +395,9 @@ def test_custom_judge_vertexai(client: JudgmentClient):
         examples=[example],
         scorers=[CustomFaithfulnessMetric()],
         model=judge,
+        eval_run_name="custom_judge_test",
+        project_name="custom_judge_test",
+        override=True
     )
     print(res)
 
