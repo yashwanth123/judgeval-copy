@@ -123,8 +123,8 @@ async def make_poem(input: str) -> str:
         return ""
 
 async def test_evaluation_mixed(input):
-    PROJECT_NAME = "NewPoemBot"
-    with judgment.trace("Use-claude", project_name=PROJECT_NAME, overwrite=True) as trace:
+    PROJECT_NAME = "TestingPoemBot"
+    with judgment.trace("Use-claude-hehexd123", project_name=PROJECT_NAME, overwrite=True) as trace:
         upper = await make_upper(input)
         result = await make_poem(upper)
         await answer_user_question("What if these shoes don't fit?")

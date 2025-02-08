@@ -406,8 +406,6 @@ class TraceClient:
         elif response.status_code != HTTPStatus.OK:
             raise ValueError(f"Failed to save trace data: {response.text}")
         
-        # TODO:
-        # Set up connection to RabbitMQ globally
         if not empty_save:
             connection = pika.BlockingConnection(
                 pika.ConnectionParameters(host=RABBITMQ_HOST, port=RABBITMQ_PORT))
