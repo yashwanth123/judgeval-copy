@@ -1,5 +1,5 @@
 import pytest
-from judgeval.scorers.judgeval_scorers.summarization import SummarizationScorer
+from judgeval.scorers.judgeval_scorers.local_implementations.summarization import SummarizationScorer
 from judgeval.constants import APIScorer
 
 
