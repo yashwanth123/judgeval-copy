@@ -31,6 +31,8 @@ def test_ac_scorer():
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
     EVAL_RUN_NAME = "test-run-ac"
+    
+    # Test with use_judgment=True
     res = client.run_evaluation(
         examples=[example],
         scorers=[scorer],
@@ -38,10 +40,23 @@ def test_ac_scorer():
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
+        use_judgment=True,
         override=True,
     )
+    print_debug_on_failure(res[0])
 
-    print(res)
+    # Test with use_judgment=False 
+    res = client.run_evaluation(
+        examples=[example],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=False,
+        override=True,
+    )
+    print_debug_on_failure(res[0])
 
 
 def test_ar_scorer():
@@ -61,6 +76,8 @@ def test_ar_scorer():
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
     EVAL_RUN_NAME = "test-run"
+
+    # Test with use_judgment=True
     res = client.run_evaluation(
         examples=[example_1, example_2],
         scorers=[scorer],
@@ -72,7 +89,24 @@ def test_ar_scorer():
         override=True,
     )
 
-    # Replace debug printing with failure-only debug
+    print_debug_on_failure(res[0])
+    print_debug_on_failure(res[1])
+    
+    assert res[0].success == True
+    assert res[1].success == False
+
+    # Test with use_judgment=False
+    res = client.run_evaluation(
+        examples=[example_1, example_2],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=False,
+        override=True,
+    )
+
     print_debug_on_failure(res[0])
     print_debug_on_failure(res[1])
     
@@ -109,6 +143,8 @@ def test_cp_scorer():
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
     EVAL_RUN_NAME = "test-run-cp"
+
+    # Test with use_judgment=True
     res = client.run_evaluation(
         examples=[example_1, example_2],
         scorers=[scorer],
@@ -120,24 +156,26 @@ def test_cp_scorer():
         override=True,
     )
 
-    # Add debug printing
-    print("\n=== Contextual Precision Test Results ===")
-    for i, result in enumerate(res):
-        print(f"\nExample {i+1}:")
-        print(f"Input: {result.input}")
-        print(f"Output: {result.actual_output}")
-        print(f"Success: {result.success}")
-        print(f"Retrieval Context: {result.retrieval_context}")
-        print("\nScorer Details:")
-        for scorer_data in result.scorers_data:
-            print(f"- Name: {scorer_data.name}")
-            print(f"- Score: {scorer_data.score}")
-            print(f"- Threshold: {scorer_data.threshold}")
-            print(f"- Success: {scorer_data.success}")
-            print(f"- Reason: {scorer_data.reason}")
-            print(f"- Error: {scorer_data.error}")
-            if scorer_data.verbose_logs:
-                print(f"- Verbose Logs: {scorer_data.verbose_logs}")
+    print_debug_on_failure(res[0])
+    print_debug_on_failure(res[1])
+
+    assert res[0].success == True  # example_1 should pass
+    assert res[1].success == False  # example_2 should fail
+
+    # Test with use_judgment=False
+    res = client.run_evaluation(
+        examples=[example_1, example_2],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=False,
+        override=True,
+    )
+
+    print_debug_on_failure(res[0])
+    print_debug_on_failure(res[1])
 
     assert res[0].success == True  # example_1 should pass
     assert res[1].success == False  # example_2 should fail
@@ -161,6 +199,8 @@ def test_cr_scorer():
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
     EVAL_RUN_NAME = "test-run-cr"
+
+    # Test with use_judgment=True
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
@@ -172,24 +212,23 @@ def test_cr_scorer():
         override=True,
     )
 
-    # Add debug printing
-    print("\n=== Contextual Recall Test Results ===")
-    for i, result in enumerate(res):
-        print(f"\nExample {i+1}:")
-        print(f"Input: {result.input}")
-        print(f"Output: {result.actual_output}")
-        print(f"Success: {result.success}")
-        print(f"Retrieval Context: {result.retrieval_context}")
-        print("\nScorer Details:")
-        for scorer_data in result.scorers_data:
-            print(f"- Name: {scorer_data.name}")
-            print(f"- Score: {scorer_data.score}")
-            print(f"- Threshold: {scorer_data.threshold}")
-            print(f"- Success: {scorer_data.success}")
-            print(f"- Reason: {scorer_data.reason}")
-            print(f"- Error: {scorer_data.error}")
-            if scorer_data.verbose_logs:
-                print(f"- Verbose Logs: {scorer_data.verbose_logs}")
+    print_debug_on_failure(res[0])
+
+    assert res[0].success == True  # example_1 should pass
+
+    # Test with use_judgment=False
+    res = client.run_evaluation(
+        examples=[example_1],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=False,
+        override=True,
+    )
+
+    print_debug_on_failure(res[0])
 
     assert res[0].success == True  # example_1 should pass
 
@@ -212,6 +251,8 @@ def test_crelevancy_scorer():
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
     EVAL_RUN_NAME = "test-run-crelevancy"
+
+    # Test with use_judgment=True
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
@@ -223,24 +264,23 @@ def test_crelevancy_scorer():
         override=True,
     )
 
-    # Add debug printing
-    print("\n=== Contextual Relevancy Test Results ===")
-    for i, result in enumerate(res):
-        print(f"\nExample {i+1}:")
-        print(f"Input: {result.input}")
-        print(f"Output: {result.actual_output}")
-        print(f"Success: {result.success}")
-        print(f"Retrieval Context: {result.retrieval_context}")
-        print("\nScorer Details:")
-        for scorer_data in result.scorers_data:
-            print(f"- Name: {scorer_data.name}")
-            print(f"- Score: {scorer_data.score}")
-            print(f"- Threshold: {scorer_data.threshold}")
-            print(f"- Success: {scorer_data.success}")
-            print(f"- Reason: {scorer_data.reason}")
-            print(f"- Error: {scorer_data.error}")
-            if scorer_data.verbose_logs:
-                print(f"- Verbose Logs: {scorer_data.verbose_logs}")
+    print_debug_on_failure(res[0])
+
+    assert res[0].success == True  # example_1 should pass
+
+    # Test with use_judgment=False
+    res = client.run_evaluation(
+        examples=[example_1],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=False,
+        override=True,
+    )
+
+    print_debug_on_failure(res[0])
 
     assert res[0].success == True  # example_1 should pass
 
@@ -274,6 +314,8 @@ def test_faithfulness_scorer():
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
     EVAL_RUN_NAME = "test-run-faithfulness"
+
+    # Test with use_judgment=True
     res = client.run_evaluation(
         examples=[faithful_example, contradictory_example],
         scorers=[scorer],
@@ -285,24 +327,26 @@ def test_faithfulness_scorer():
         override=True,
     )
 
-    # Add debug printing
-    print("\n=== Faithfulness Test Results ===")
-    for i, result in enumerate(res):
-        print(f"\nExample {i+1}:")
-        print(f"Input: {result.input}")
-        print(f"Output: {result.actual_output}")
-        print(f"Success: {result.success}")
-        print(f"Retrieval Context: {result.retrieval_context}")
-        print("\nScorer Details:")
-        for scorer_data in result.scorers_data:
-            print(f"- Name: {scorer_data.name}")
-            print(f"- Score: {scorer_data.score}")
-            print(f"- Threshold: {scorer_data.threshold}")
-            print(f"- Success: {scorer_data.success}")
-            print(f"- Reason: {scorer_data.reason}")
-            print(f"- Error: {scorer_data.error}")
-            if scorer_data.verbose_logs:
-                print(f"- Verbose Logs: {scorer_data.verbose_logs}")
+    print_debug_on_failure(res[0])
+    print_debug_on_failure(res[1])
+
+    assert res[0].success == True  # faithful_example should pass
+    assert res[1].success == False, res[1]  # contradictory_example should fail
+
+    # Test with use_judgment=False
+    res = client.run_evaluation(
+        examples=[faithful_example, contradictory_example],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=False,
+        override=True,
+    )
+
+    print_debug_on_failure(res[0])
+    print_debug_on_failure(res[1])
 
     assert res[0].success == True  # faithful_example should pass
     assert res[1].success == False, res[1]  # contradictory_example should fail
@@ -331,6 +375,8 @@ def test_hallucination_scorer():
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
     EVAL_RUN_NAME = "test-run-hallucination"
+
+    # Test with use_judgment=True
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
@@ -342,24 +388,24 @@ def test_hallucination_scorer():
         override=True,
     )
 
-    # Add debug printing
-    print("\n=== Hallucination Test Results ===")
-    for i, result in enumerate(res):
-        print(f"\nExample {i+1}:")
-        print(f"Input: {result.input}")
-        print(f"Output: {result.actual_output}")
-        print(f"Success: {result.success}")
-        print(f"Retrieval Context: {result.retrieval_context}")
-        print("\nScorer Details:")
-        for scorer_data in result.scorers_data:
-            print(f"- Name: {scorer_data.name}")
-            print(f"- Score: {scorer_data.score}")
-            print(f"- Threshold: {scorer_data.threshold}")
-            print(f"- Success: {scorer_data.success}")
-            print(f"- Reason: {scorer_data.reason}")
-            print(f"- Error: {scorer_data.error}")
-            if scorer_data.verbose_logs:
-                print(f"- Verbose Logs: {scorer_data.verbose_logs}")
+    print_debug_on_failure(res[0])
+
+    # Add more detailed assertion error message
+    assert res[0].success == True, f"Hallucination test failed: score={res[0].scorers_data[0].score}, threshold={res[0].scorers_data[0].threshold}, reason={res[0].scorers_data[0].reason}"
+
+    # Test with use_judgment=False
+    res = client.run_evaluation(
+        examples=[example_1],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=False,
+        override=True,
+    )
+
+    print_debug_on_failure(res[0])
 
     # Add more detailed assertion error message
     assert res[0].success == True, f"Hallucination test failed: score={res[0].scorers_data[0].score}, threshold={res[0].scorers_data[0].threshold}, reason={res[0].scorers_data[0].reason}"
@@ -396,6 +442,8 @@ def test_summarization_scorer():
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
     EVAL_RUN_NAME = "test-run-summarization"
+
+    # Test with use_judgment=True
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
@@ -407,7 +455,23 @@ def test_summarization_scorer():
         override=True,
     )
 
-    # Print debug only on failure
+    print_debug_on_failure(res[0])
+    
+    # Add detailed assertion error message
+    assert res[0].success == True, f"Summarization test failed: score={res[0].scorers_data[0].score}, threshold={res[0].scorers_data[0].threshold}, reason={res[0].scorers_data[0].reason}"
+
+    # Test with use_judgment=False
+    res = client.run_evaluation(
+        examples=[example_1],
+        scorers=[scorer],
+        model="QWEN",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=False,
+        override=True,
+    )
+
     print_debug_on_failure(res[0])
     
     # Add detailed assertion error message
