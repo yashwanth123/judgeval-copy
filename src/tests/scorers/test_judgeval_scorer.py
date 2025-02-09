@@ -94,7 +94,7 @@ class TestCustomScorer:
         assert scorer.using_native_model is True
         mock_create_judge.assert_called_once_with("mock-model")
 
-    @patch('judgeval.scorers.custom_scorer.create_judge')
+    @patch('judgeval.scorers.judgeval_scorer.create_judge')
     def test_add_model_error(self, mock_create_judge, basic_scorer):
         """Test model addition with invalid model"""
         mock_create_judge.side_effect = InvalidJudgeModelError("Invalid model")
