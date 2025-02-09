@@ -3,7 +3,7 @@ Code for the local implementation of the Faithfulness metric.
 """
 from typing import List, Optional, Union
 
-
+from judgeval.constants import APIScorer
 from judgeval.data import (
     Example, 
     ExampleParams
@@ -47,14 +47,19 @@ class FaithfulnessScorer(JudgevalScorer):
         verbose_mode: bool = False,
         user: Optional[str] = None
     ):
-        self.threshold = 1 if strict_mode else threshold
+        super().__init__(
+            score_type=APIScorer.FAITHFULNESS,
+            threshold=1 if strict_mode else threshold,
+            evaluation_model=None,
+            include_reason=include_reason,
+            async_mode=async_mode,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode
+        )
+        self.user = user
         self.model, self.using_native_model = create_judge(model)
         self.using_native_model = True  # NOTE: SETTING THIS FOR LITELLM and TOGETHER usage
         self.evaluation_model = self.model.get_model_name()
-        self.include_reason = include_reason
-        self.async_mode = async_mode
-        self.strict_mode = strict_mode
-        self.verbose_mode = verbose_mode
 
     def score_example(
         self,

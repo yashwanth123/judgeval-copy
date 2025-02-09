@@ -1,5 +1,6 @@
 from typing import List, Union
 
+from judgeval.constants import APIScorer
 from judgeval.scorers.utils import (
     scorer_progress_meter,
     create_verbose_logs,
@@ -55,10 +56,15 @@ class ToolCorrectnessScorer(JudgevalScorer):
         should_exact_match: bool = False,
         should_consider_ordering: bool = False,
     ):
-        self.threshold = 1 if strict_mode else threshold
-        self.include_reason = include_reason
-        self.strict_mode = strict_mode
-        self.verbose_mode = verbose_mode
+        super().__init__(
+            score_type=APIScorer.TOOL_CORRECTNESS,
+            threshold=1 if strict_mode else threshold,
+            evaluation_model=None,
+            include_reason=include_reason,
+            async_mode=False,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode
+        )
         self.should_exact_match = should_exact_match
         self.should_consider_ordering = should_consider_ordering
 
