@@ -1,6 +1,6 @@
 import pytest
 from pydantic import BaseModel, Field
-from judgeval.scorers.judgeval_scorers.local_implementations.json_correctness.json_correctness_scorer import JsonCorrectnessScorer
+from judgeval.scorers.judgeval_scorers.local_implementations.json_correctness import JsonCorrectnessScorer
 from judgeval.constants import APIScorer
 
 

@@ -1,5 +1,6 @@
 from typing import Optional, List, Union
 
+from judgeval.constants import APIScorer
 from judgeval.scorers.utils import (
     get_or_create_event_loop, 
     parse_response_json, 
@@ -32,14 +33,18 @@ class ContextualRecallScorer(JudgevalScorer):
         verbose_mode: bool = False,
         user: Optional[str] = None
     ):
+        super().__init__(
+            score_type=APIScorer.CONTEXTUAL_RECALL,
+            threshold=1 if strict_mode else threshold,
+            evaluation_model=None,
+            include_reason=include_reason,
+            async_mode=async_mode,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode
+        )
         self.user = user
-        self.threshold = 1 if strict_mode else threshold
         self.model, self.using_native_model = create_judge(model)
         self.evaluation_model = self.model.get_model_name()
-        self.include_reason = include_reason
-        self.async_mode = async_mode
-        self.strict_mode = strict_mode
-        self.verbose_mode = verbose_mode
 
     def score_example(
         self,

@@ -58,6 +58,8 @@ class JudgevalScorer:
         additional_metadata: Optional[Dict] = None
         ):
             debug(f"Initializing CustomScorer with score_type={score_type}, threshold={threshold}")
+            if not 0 <= threshold <= 1:
+                raise ValueError("Threshold must be between 0 and 1")
             if strict_mode:
                 warning("Strict mode enabled - scoring will be more rigorous")
             info(f"CustomScorer initialized with evaluation_model: {evaluation_model}")
