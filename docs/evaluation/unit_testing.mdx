@@ -15,19 +15,20 @@ from judgeval import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import FaithfulnessScorer
 
-client = JudgmentClient()
-
-example = Example(
-    input="What is the capital of France?",
-    actual_output="The capital of France is Lyon.",
-    retrieval_context=["Come tour Paris' museums in the capital of France!"],
-)
-with pytest.raises(AssertionError):
-    client.assert_test(
-        eval_run_name="test_eval",
-        examples=[example],
-        scorers=[FaithfulnessScorer(threshold=1.0)],
+def test_faithfulness():
+    client = JudgmentClient()
+    
+    example = Example(
+        input="What is the capital of France?",
+        actual_output="The capital of France is Lyon.",
+        retrieval_context=["Come tour Paris' museums in the capital of France!"],
     )
+    with pytest.raises(AssertionError):
+        client.assert_test(
+            eval_run_name="test_eval",
+            examples=[example],
+            scorers=[FaithfulnessScorer(threshold=1.0)],
+        )
 ```
 
 `judgeval` naturally integrates into your CI pipelines, allowing you to execute robust unit tests across your entire codebase. 
