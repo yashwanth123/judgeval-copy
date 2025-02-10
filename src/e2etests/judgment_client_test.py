@@ -386,14 +386,14 @@ def pytest_collection_modifyitems(items):
         elif "TestCustomJudges" in item.nodeid:
             item.add_marker(pytest.mark.custom)
 
-def run_selected_tests(test_names: list[str]):
+def run_selected_tests(client, test_names: list[str]):
     """
     Run only the specified tests by name.
     
     Args:
         test_names (list[str]): List of test function names to run (without 'test_' prefix)
     """
-    judgeval_client = client()
+    judgeval_client = client
     print("Client initialized successfully")
     print("*" * 40)
     
