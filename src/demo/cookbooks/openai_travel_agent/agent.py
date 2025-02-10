@@ -1,12 +1,10 @@
 import openai
-import requests
 import os
 import asyncio
 from tavily import TavilyClient
 from dotenv import load_dotenv
 import chromadb
 from chromadb.utils import embedding_functions
-import json
 
 from judgeval.common.tracer import Tracer, wrap
 from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer
