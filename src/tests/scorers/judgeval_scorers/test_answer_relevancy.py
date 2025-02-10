@@ -1,5 +1,5 @@
 import pytest
-from judgeval.scorers.judgeval_scorers.answer_relevancy import AnswerRelevancyScorer
+from judgeval.scorers.judgeval_scorers.local_implementations.answer_relevancy import AnswerRelevancyScorer
 from judgeval.constants import APIScorer
 
 

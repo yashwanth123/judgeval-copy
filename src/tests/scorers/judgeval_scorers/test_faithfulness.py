@@ -1,5 +1,5 @@
 import pytest
-from judgeval.scorers.judgeval_scorers.faithfulness import FaithfulnessScorer
+from judgeval.scorers.judgeval_scorers.local_implementations.faithfulness import FaithfulnessScorer
 from judgeval.constants import APIScorer
 
 

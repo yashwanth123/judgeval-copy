@@ -1,5 +1,5 @@
 import pytest
-from judgeval.scorers.judgeval_scorers.tool_correctness import ToolCorrectnessScorer
+from judgeval.scorers.judgeval_scorers.local_implementations.tool_correctness import ToolCorrectnessScorer
 from judgeval.constants import APIScorer
 
 

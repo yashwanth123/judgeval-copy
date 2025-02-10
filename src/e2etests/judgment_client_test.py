@@ -107,6 +107,7 @@ def test_assert_test(client: JudgmentClient):
             examples=[example, example1, example2],
             scorers=[scorer, scorer1],
             model="QWEN",
+            override=True,
         )
 
 

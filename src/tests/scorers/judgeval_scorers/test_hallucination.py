@@ -1,5 +1,5 @@
 import pytest
-from judgeval.scorers.judgeval_scorers.hallucination import HallucinationScorer
+from judgeval.scorers.judgeval_scorers.local_implementations.hallucination import HallucinationScorer
 from judgeval.constants import APIScorer
 
 

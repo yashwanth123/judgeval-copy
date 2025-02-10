@@ -1,5 +1,5 @@
 import pytest
-from judgeval.scorers.judgeval_scorers.contextual_recall import ContextualRecallScorer
+from judgeval.scorers.judgeval_scorers.local_implementations.contextual_recall import ContextualRecallScorer
 from judgeval.constants import APIScorer
 
 
