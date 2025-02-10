@@ -70,7 +70,8 @@
             "evaluation/scorers/classifier_scorer"
           ]
         },
-        "evaluation/judges"
+        "evaluation/judges",
+        "evaluation/unit_testing"
       ]
     },
     {
