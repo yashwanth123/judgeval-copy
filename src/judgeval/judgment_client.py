@@ -267,7 +267,6 @@ class JudgmentClient:
             
         return response.json()["slug"]
     
-    
     def assert_test(
         self, 
         examples: List[Example],
