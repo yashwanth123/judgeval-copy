@@ -426,8 +426,12 @@ def run_selected_tests(client, test_names: list[str]):
     
     print("Selected tests completed")
 
+# Can either run as a script or a pytest module
+# Script makes it easier to specify which tests to run
 if __name__ == "__main__":
-    run_selected_tests([
+    client = JudgmentClient(judgment_api_key=API_KEY)
+    
+    run_selected_tests(client, [
         'dataset',
         'run_eval', 
         'assert_test',
