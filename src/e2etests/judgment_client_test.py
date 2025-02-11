@@ -126,9 +126,11 @@ class TestBasicOperations:
         with pytest.raises(AssertionError):
             client.assert_test(
                 eval_run_name="test_eval",
+                project_name="test_project",
                 examples=[example, example1, example2],
                 scorers=[scorer, scorer1],
                 model="QWEN",
+                override=True
             )
 
 class TestAdvancedFeatures:
@@ -397,15 +399,19 @@ def run_selected_tests(client, test_names: list[str]):
     print("Client initialized successfully")
     print("*" * 40)
     
+    test_basic_operations = TestBasicOperations()
+    test_advanced_features = TestAdvancedFeatures()
+    test_custom_judges = TestCustomJudges()
+    
     test_map = {
-        'dataset': test_dataset,
-        'run_eval': test_run_eval,
-        'assert_test': test_assert_test,
-        'json_scorer': test_json_scorer,
-        'override_eval': test_override_eval,
-        'evaluate_dataset': test_evaluate_dataset,
-        'classifier_scorer': test_classifier_scorer,
-        'custom_judge_vertexai': test_custom_judge_vertexai
+        'dataset': test_basic_operations.test_dataset,
+        'run_eval': test_basic_operations.test_run_eval,
+        'assert_test': test_basic_operations.test_assert_test,
+        'json_scorer': test_advanced_features.test_json_scorer,
+        'override_eval': test_advanced_features.test_override_eval,
+        'evaluate_dataset': test_advanced_features.test_evaluate_dataset,
+        'classifier_scorer': test_advanced_features.test_classifier_scorer,
+        'custom_judge_vertexai': test_custom_judges.test_custom_judge_vertexai
     }
     
     for test_name in test_names:
@@ -420,8 +426,12 @@ def run_selected_tests(client, test_names: list[str]):
     
     print("Selected tests completed")
 
+# Can either run as a script or a pytest module
+# Script makes it easier to specify which tests to run
 if __name__ == "__main__":
-    run_selected_tests([
+    client = JudgmentClient(judgment_api_key=API_KEY)
+    
+    run_selected_tests(client, [
         'dataset',
         'run_eval', 
         'assert_test',
