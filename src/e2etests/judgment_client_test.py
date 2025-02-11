@@ -399,15 +399,19 @@ def run_selected_tests(client, test_names: list[str]):
     print("Client initialized successfully")
     print("*" * 40)
     
+    test_basic_operations = TestBasicOperations()
+    test_advanced_features = TestAdvancedFeatures()
+    test_custom_judges = TestCustomJudges()
+    
     test_map = {
-        'dataset': test_dataset,
-        'run_eval': test_run_eval,
-        'assert_test': test_assert_test,
-        'json_scorer': test_json_scorer,
-        'override_eval': test_override_eval,
-        'evaluate_dataset': test_evaluate_dataset,
-        'classifier_scorer': test_classifier_scorer,
-        'custom_judge_vertexai': test_custom_judge_vertexai
+        'dataset': test_basic_operations.test_dataset,
+        'run_eval': test_basic_operations.test_run_eval,
+        'assert_test': test_basic_operations.test_assert_test,
+        'json_scorer': test_advanced_features.test_json_scorer,
+        'override_eval': test_advanced_features.test_override_eval,
+        'evaluate_dataset': test_advanced_features.test_evaluate_dataset,
+        'classifier_scorer': test_advanced_features.test_classifier_scorer,
+        'custom_judge_vertexai': test_custom_judges.test_custom_judge_vertexai
     }
     
     for test_name in test_names:
