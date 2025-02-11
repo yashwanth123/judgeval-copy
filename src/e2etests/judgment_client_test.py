@@ -126,9 +126,11 @@ class TestBasicOperations:
         with pytest.raises(AssertionError):
             client.assert_test(
                 eval_run_name="test_eval",
+                project_name="test_project",
                 examples=[example, example1, example2],
                 scorers=[scorer, scorer1],
                 model="QWEN",
+                override=True
             )
 
 class TestAdvancedFeatures:
