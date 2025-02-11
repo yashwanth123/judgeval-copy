@@ -1,8 +1,8 @@
 """
-**WARNING**: This script relies on creating a Text2SQL Classifier Scorer on the Judgment platform. 
-If you haven't created one yet, you can do so by following the instructions in this YouTube guide: TODO
+This script is a cookbook of how to create a custom scorer using a ClassifierScorer.
 
-
+Simply use a natural language prompt and guide the LLM to output a score based on the input by 
+choosing from a set of options.
 """
 
 from judgeval import JudgmentClient
