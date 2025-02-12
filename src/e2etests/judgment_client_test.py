@@ -62,6 +62,16 @@ class TestBasicOperations:
         dataset = client.pull_dataset(alias="test_dataset_5")
         assert dataset, "Failed to pull dataset"
 
+    def test_pull_all_datasets(self, client: JudgmentClient):
+        dataset: EvalDataset = client.create_dataset()
+        dataset.add_example(Example(input="input 1", actual_output="output 1"))
+
+        client.push_dataset(alias="test_dataset_5", dataset=dataset, overwrite=False)
+        
+        dataset = client.pull_all_datasets()
+        print(dataset)
+        assert dataset, "Failed to pull dataset"
+
     def test_run_eval(self, client: JudgmentClient):
         """Test basic evaluation workflow."""
         # Single step in our workflow, an outreach Sales Agent
@@ -405,6 +415,7 @@ def run_selected_tests(client, test_names: list[str]):
     
     test_map = {
         'dataset': test_basic_operations.test_dataset,
+        'pull_all_datasets': test_basic_operations.test_pull_all_datasets,
         'run_eval': test_basic_operations.test_run_eval,
         'assert_test': test_basic_operations.test_assert_test,
         'json_scorer': test_advanced_features.test_json_scorer,
@@ -432,12 +443,13 @@ if __name__ == "__main__":
     client = JudgmentClient(judgment_api_key=API_KEY)
     
     run_selected_tests(client, [
-        'dataset',
-        'run_eval', 
-        'assert_test',
-        'json_scorer',
-        'override_eval',
-        'evaluate_dataset',
-        'classifier_scorer',
-        'custom_judge_vertexai'
+        # 'dataset',
+        'pull_all_datasets',
+        # 'run_eval', 
+        # 'assert_test',
+        # 'json_scorer',
+        # 'override_eval',
+        # 'evaluate_dataset',
+        # 'classifier_scorer',
+        # 'custom_judge_vertexai'
     ])

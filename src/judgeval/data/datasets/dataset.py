@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 import os
 from typing import List, Optional, Union, Literal
 
-from judgeval.constants import JUDGMENT_DATASETS_PUSH_API_URL, JUDGMENT_DATASETS_PULL_API_URL
+from judgeval.constants import JUDGMENT_DATASETS_PUSH_API_URL, JUDGMENT_DATASETS_PULL_API_URL, JUDGMENT_DATASETS_PULL_ALL_API_URL
 from judgeval.data.datasets.ground_truth import GroundTruthExample
 from judgeval.data.datasets.utils import ground_truths_to_examples, examples_to_ground_truths
 from judgeval.data import Example
@@ -151,6 +151,58 @@ class EvalDataset:
                     task_id,
                     description=f"{progress.tasks[task_id].description} [rgb(25,227,160)]Done!)",
                 )
+
+    def pull_all(self) -> dict:
+        debug(f"Pulling datasets for user_id: {self.judgment_api_key}'")
+        """
+        Pulls the datasets from Judgment platform
+
+        Mock request:
+        {
+            "user_id": user_id
+        } 
+        ==>
+        {
+            "ground_truths": [...],
+            "examples": [...],
+            "_alias": alias,
+            "_id": "..."  # ID of the dataset
+        }
+        """
+        # Make a POST request to the Judgment API to get the dataset
+
+        with Progress(
+                SpinnerColumn(style="rgb(106,0,255)"),
+                TextColumn("[progress.description]{task.description}"),
+                transient=False,
+            ) as progress:
+                task_id = progress.add_task(
+                    f"Pulling [rgb(106,0,255)]' datasets'[/rgb(106,0,255)] from Judgment...",
+                    total=100,
+                )
+                request_body = {
+                    "judgment_api_key": self.judgment_api_key
+                }
+
+                try:
+                    response = requests.post(
+                        JUDGMENT_DATASETS_PULL_ALL_API_URL, 
+                        json=request_body
+                    )
+                    response.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    error(f"Error pulling dataset: {str(e)}")
+                    raise
+
+                info(f"Successfully pulled datasets for userid: {self.judgment_api_key}'")
+                payload = response.json()
+
+                progress.update(
+                    task_id,
+                    description=f"{progress.tasks[task_id].description} [rgb(25,227,160)]Done!)",
+                )
+
+                return payload
 
     def add_from_json(self, file_path: str) -> None:
         debug(f"Loading dataset from JSON file: {file_path}")
@@ -404,4 +456,8 @@ class EvalDataset:
             f")"
         )
     
-    
+@dataclass
+class DatasetSummary:
+    alias: str
+    number_of_examples: int
+    number_of_ground_truths: int
