@@ -152,8 +152,8 @@ class EvalDataset:
                     description=f"{progress.tasks[task_id].description} [rgb(25,227,160)]Done!)",
                 )
 
-    def pull_all(self) -> dict:
-        debug(f"Pulling datasets for user_id: {self.judgment_api_key}'")
+    def pull_all(judgment_api_key: str) -> dict:
+        debug(f"Pulling datasets for user_id: {judgment_api_key}'")
         """
         Pulls the datasets from Judgment platform
 
@@ -163,10 +163,9 @@ class EvalDataset:
         } 
         ==>
         {
-            "ground_truths": [...],
-            "examples": [...],
-            "_alias": alias,
-            "_id": "..."  # ID of the dataset
+            "test_dataset_1": {"length": len(dataset1.examples), other future stats},
+            "test_dataset_2": {"length": len(dataset2.examples), other future stats}
+            ...
         }
         """
         # Make a POST request to the Judgment API to get the dataset
@@ -181,7 +180,7 @@ class EvalDataset:
                     total=100,
                 )
                 request_body = {
-                    "judgment_api_key": self.judgment_api_key
+                    "judgment_api_key": judgment_api_key
                 }
 
                 try:
@@ -194,7 +193,7 @@ class EvalDataset:
                     error(f"Error pulling dataset: {str(e)}")
                     raise
 
-                info(f"Successfully pulled datasets for userid: {self.judgment_api_key}'")
+                info(f"Successfully pulled datasets for userid: {judgment_api_key}'")
                 payload = response.json()
 
                 progress.update(
@@ -455,9 +454,3 @@ class EvalDataset:
             f"_id={self._id}"
             f")"
         )
-    
-@dataclass
-class DatasetSummary:
-    alias: str
-    number_of_examples: int
-    number_of_ground_truths: int

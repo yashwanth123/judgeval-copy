@@ -66,7 +66,7 @@ class TestBasicOperations:
         dataset: EvalDataset = client.create_dataset()
         dataset.add_example(Example(input="input 1", actual_output="output 1"))
 
-        client.push_dataset(alias="test_dataset_5", dataset=dataset, overwrite=False)
+        client.push_dataset(alias="test_dataset_7", dataset=dataset, overwrite=False)
         
         dataset = client.pull_all_datasets()
         print(dataset)
@@ -443,13 +443,13 @@ if __name__ == "__main__":
     client = JudgmentClient(judgment_api_key=API_KEY)
     
     run_selected_tests(client, [
-        # 'dataset',
+        'dataset',
         'pull_all_datasets',
-        # 'run_eval', 
-        # 'assert_test',
-        # 'json_scorer',
-        # 'override_eval',
-        # 'evaluate_dataset',
-        # 'classifier_scorer',
-        # 'custom_judge_vertexai'
+        'run_eval', 
+        'assert_test',
+        'json_scorer',
+        'override_eval',
+        'evaluate_dataset',
+        'classifier_scorer',
+        'custom_judge_vertexai'
     ])
