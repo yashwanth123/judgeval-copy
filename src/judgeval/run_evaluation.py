@@ -97,6 +97,13 @@ def merge_results(api_results: List[ScoringResult], local_results: List[ScoringR
             raise ValueError("The API and local results are not aligned.")
         if api_result.retrieval_context != local_result.retrieval_context:
             raise ValueError("The API and local results are not aligned.")
+        if api_result.additional_metadata != local_result.additional_metadata:
+            raise ValueError("The API and local results are not aligned.")
+        if api_result.tools_called != local_result.tools_called:
+            raise ValueError("The API and local results are not aligned.")
+        if api_result.expected_tools != local_result.expected_tools:
+            raise ValueError("The API and local results are not aligned.")
+        
         
         # Merge ScorerData from the API and local scorers together
         api_scorer_data = api_result.scorers_data
@@ -254,6 +261,12 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 debug(f"Context: {example.context}")
             if example.retrieval_context:
                 debug(f"Retrieval context: {example.retrieval_context}")
+            if example.additional_metadata:
+                debug(f"Additional metadata: {example.additional_metadata}")
+            if example.tools_called:
+                debug(f"Tools called: {example.tools_called}")
+            if example.expected_tools:
+                debug(f"Expected tools: {example.expected_tools}")
     
     debug(f"Starting evaluation run with {len(evaluation_run.examples)} examples")
     
@@ -379,6 +392,9 @@ def assert_test(scoring_results: List[ScoringResult]) -> None:
                 'expected_output': result.expected_output,
                 'context': result.context,
                 'retrieval_context': result.retrieval_context,
+                'additional_metadata': result.additional_metadata,
+                'tools_called': result.tools_called,
+                'expected_tools': result.expected_tools,
                 'eval_run_name': result.eval_run_name,
                 'failed_scorers': []
             }
@@ -397,6 +413,9 @@ def assert_test(scoring_results: List[ScoringResult]) -> None:
             error_msg += f"Expected Output: {fail_case['expected_output']}\n"
             error_msg += f"Context: {fail_case['context']}\n"
             error_msg += f"Retrieval Context: {fail_case['retrieval_context']}\n"
+            error_msg += f"Additional Metadata: {fail_case['additional_metadata']}\n"
+            error_msg += f"Tools Called: {fail_case['tools_called']}\n"
+            error_msg += f"Expected Tools: {fail_case['expected_tools']}\n"
             error_msg += f"Eval Run Name: {fail_case['eval_run_name']}\n"
     
             for fail_scorer in fail_case['failed_scorers']:

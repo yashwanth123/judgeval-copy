@@ -18,6 +18,9 @@ class ScoringResult:
         expected_output (Optional[str]): The expected output of the example
         context (Optional[List[str]]): The context of the example
         retrieval_context (Optional[List[str]]): The retrieval context of the example
+        additional_metadata (Optional[Dict[str, Any]]): The additional metadata of the example
+        tools_called (Optional[List[str]]): The tools called by the example
+        expected_tools (Optional[List[str]]): The expected tools of the example
         trace_id (Optional[str]): The trace id of the example
         
     """
@@ -65,6 +68,9 @@ class ScoringResult:
             expected_output={self.expected_output}, \
             context={self.context}, \
             retrieval_context={self.retrieval_context}, \
+            additional_metadata={self.additional_metadata}, \
+            tools_called={self.tools_called}, \
+            expected_tools={self.expected_tools}, \
             trace_id={self.trace_id})"
 
 
