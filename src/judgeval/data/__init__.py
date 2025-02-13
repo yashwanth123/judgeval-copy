@@ -7,7 +7,6 @@ from judgeval.data.eval_dataset_client import EvalDatasetClient
 __all__ = [
     "Example",
     "ExampleParams",
-    "EvalDataset",
     "EvalDatasetClient",
     "ProcessExample",
     "create_process_example",
