@@ -68,22 +68,24 @@ class TestBasicOperations:
         dataset.add_example(Example(input="input 1", actual_output="output 1"))
         dataset.add_example(Example(input="input 2", actual_output="output 2"))
         dataset.add_example(Example(input="input 3", actual_output="output 3"))
-        client.push_dataset(alias="dataset_stats_test_1", dataset=dataset, overwrite=False)
+        random_name1 = ''.join(random.choices(string.ascii_letters + string.digits, k=20))
+        client.push_dataset(alias=random_name1, dataset=dataset, overwrite=False)
 
         dataset: EvalDataset = client.create_dataset()
         dataset.add_example(Example(input="input 1", actual_output="output 1"))
         dataset.add_example(Example(input="input 2", actual_output="output 2"))
         dataset.add_ground_truth(GroundTruthExample(input="input 1", actual_output="output 1"))
         dataset.add_ground_truth(GroundTruthExample(input="input 2", actual_output="output 2"))
-        client.push_dataset(alias="dataset_stats_test_2", dataset=dataset, overwrite=False)
+        random_name2 = ''.join(random.choices(string.ascii_letters + string.digits, k=20))
+        client.push_dataset(alias=random_name2, dataset=dataset, overwrite=False)
         
         all_datasets_stats = client.pull_all_user_dataset_stats()
         print(all_datasets_stats)
         assert all_datasets_stats, "Failed to pull dataset"
-        assert all_datasets_stats["dataset_stats_test_1"]["example_count"] > 0, "dataset_stats_test_1 should be more than 0 examples"
-        assert all_datasets_stats["dataset_stats_test_2"]["example_count"] > 0, "dataset_stats_test_2 should be more than 0 examples"
-        assert all_datasets_stats["dataset_stats_test_2"]["ground_truth_count"] > 0, "dataset_stats_test_2 should be more than 0 ground truths"
-        assert all_datasets_stats["dataset_stats_test_1"]["ground_truth_count"] == 0, "dataset_stats_test_1 should have 0 ground truths"
+        assert all_datasets_stats[random_name1]["example_count"] == 3, f"{random_name1} should have 3 examples"
+        assert all_datasets_stats[random_name1]["ground_truth_count"] == 0, f"{random_name1} should have 0 ground truths"
+        assert all_datasets_stats[random_name2]["example_count"] == 2, f"{random_name2} should have 2 examples"
+        assert all_datasets_stats[random_name2]["ground_truth_count"] == 2, f"{random_name2} should have 2 ground truths"
 
     def test_run_eval(self, client: JudgmentClient):
         """Test basic evaluation workflow."""
