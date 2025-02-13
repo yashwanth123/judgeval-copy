@@ -10,7 +10,7 @@ class TestAnswerCorrectnessScorer:
         scorer = AnswerCorrectnessScorer(threshold=threshold)
         
         assert scorer.threshold == threshold
-        assert scorer.score_type == APIScorer.ANSWER_RELEVANCY
+        assert scorer.score_type == APIScorer.ANSWER_CORRECTNESS
 
     def test_init_invalid_threshold(self):
         # Test initialization with invalid threshold values
