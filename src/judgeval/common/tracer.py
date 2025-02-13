@@ -2,6 +2,7 @@
 Tracing system for judgeval that allows for function tracing using decorators.
 """
 
+import os
 import time
 import functools
 import requests
@@ -403,7 +404,7 @@ class Tracer:
             cls._instance = super(Tracer, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str = os.getenv("JUDGMENT_API_KEY")):
         if not hasattr(self, 'initialized'):
 
             if not api_key:
