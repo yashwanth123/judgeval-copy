@@ -152,6 +152,7 @@ class EvalDataset:
                     description=f"{progress.tasks[task_id].description} [rgb(25,227,160)]Done!)",
                 )
 
+    @staticmethod
     def pull_all(judgment_api_key: str) -> dict:
         debug(f"Pulling datasets for user_id: {judgment_api_key}'")
         """

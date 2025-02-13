@@ -64,13 +64,16 @@ class TestBasicOperations:
 
     def test_pull_all_datasets(self, client: JudgmentClient):
         dataset: EvalDataset = client.create_dataset()
-        dataset.add_example(Example(input="input 1", actual_output="output 1"))
-
-        client.push_dataset(alias="test_dataset_7", dataset=dataset, overwrite=False)
+        # dataset.add_example(Example(input="input 1", actual_output="output 1"))
+        # client.push_dataset(alias="test_dataset_5", dataset=dataset, overwrite=False)
         
         dataset = client.pull_all_datasets()
         print(dataset)
         assert dataset, "Failed to pull dataset"
+        assert dataset["test_dataset_6"]["example_count"] == 5, "test_dataset_6 should contain 5 examples"
+        assert dataset["test_dataset_7"]["example_count"] == 3, "test_dataset_7 should contain 3 examples"
+        assert dataset["test_dataset_7"]["ground_truth_count"] == 2, "test_dataset_7 should contain 3 ground truths"
+        assert dataset["test_dataset_5"]["ground_truth_count"] == 3, "test_dataset_5 should contain 3 ground truths"
 
     def test_run_eval(self, client: JudgmentClient):
         """Test basic evaluation workflow."""
