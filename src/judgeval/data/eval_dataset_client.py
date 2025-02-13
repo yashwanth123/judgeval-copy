@@ -152,8 +152,8 @@ class EvalDatasetClient:
         } 
         ==>
         {
-            "test_dataset_1": {"length": len(dataset1.examples), other future stats},
-            "test_dataset_2": {"length": len(dataset2.examples), other future stats}
+            "test_dataset_1": {"examples_count": len(dataset1.examples), "ground_truths_count": len(dataset1.ground_truths)},
+            "test_dataset_2": {"examples_count": len(dataset2.examples), "ground_truths_count": len(dataset2.ground_truths)},
             ...
         }
         """
