@@ -153,9 +153,9 @@ class JudgmentClient:
         """
         return self.eval_dataset_client.pull(alias)
     
-    def pull_all_datasets(self) -> EvalDataset:
+    def pull_all_user_dataset_stats(self) -> dict:
         """
-        Retrieves all `EvalDataset` from the Judgment platform.
+        Retrieves all dataset stats from the Judgment platform for the user.
 
         Args:
             alias (str): The name of the dataset to retrieve
@@ -163,8 +163,7 @@ class JudgmentClient:
         Returns:
             EvalDataset: The retrieved dataset
         """
-        client = EvalDatasetClient(self.judgment_api_key)
-        return client.pull_all()
+        return self.eval_dataset_client.pull_all_user_dataset_stats()
     
     
     # Maybe add option where you can pass in the EvaluationRun object and it will pull the eval results from the backend

@@ -83,7 +83,7 @@ class EvalDatasetClient:
                 )
             return True
         
-    def pull(self, alias: str):
+    def pull(self, alias: str) -> EvalDataset:
         debug(f"Pulling dataset with alias '{alias}'")
         """
         Pulls the dataset from Judgment platform
@@ -141,10 +141,10 @@ class EvalDatasetClient:
 
                 return dataset
 
-    def pull_all(self) -> dict:
-        debug(f"Pulling datasets for user_id: {self.judgment_api_key}'")
+    def pull_all_user_dataset_stats(self) -> dict:
+        debug(f"Pulling user datasets stats for user_id: {self.judgment_api_key}'")
         """
-        Pulls the datasets from Judgment platform
+        Pulls the user datasets stats from Judgment platform
 
         Mock request:
         {
