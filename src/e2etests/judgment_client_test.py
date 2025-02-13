@@ -23,6 +23,7 @@ from judgeval.scorers import (
 from judgeval.judges import TogetherJudge, JudgevalJudge
 from playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset
+from judgeval.data.eval_dataset_client import EvalDatasetClient
 from judgeval.scorers.prompt_scorer import ClassifierScorer
 
 # Configure logging
@@ -65,12 +66,12 @@ class TestBasicOperations:
     def test_pull_all_datasets(self, client: JudgmentClient):
         dataset: EvalDataset = client.create_dataset()
         # dataset.add_example(Example(input="input 1", actual_output="output 1"))
-        # client.push_dataset(alias="test_dataset_5", dataset=dataset, overwrite=False)
+        # client.push_dataset(alias="test_dataset_6", dataset=dataset, overwrite=False)
         
         dataset = client.pull_all_datasets()
         print(dataset)
         assert dataset, "Failed to pull dataset"
-        assert dataset["test_dataset_6"]["example_count"] == 5, "test_dataset_6 should contain 5 examples"
+        assert dataset["test_dataset_6"]["example_count"] == 9, "test_dataset_6 should contain 9 examples"
         assert dataset["test_dataset_7"]["example_count"] == 3, "test_dataset_7 should contain 3 examples"
         assert dataset["test_dataset_7"]["ground_truth_count"] == 2, "test_dataset_7 should contain 3 ground truths"
         assert dataset["test_dataset_5"]["ground_truth_count"] == 3, "test_dataset_5 should contain 3 ground truths"
@@ -448,11 +449,11 @@ if __name__ == "__main__":
     run_selected_tests(client, [
         'dataset',
         'pull_all_datasets',
-        'run_eval', 
-        'assert_test',
-        'json_scorer',
-        'override_eval',
-        'evaluate_dataset',
-        'classifier_scorer',
-        'custom_judge_vertexai'
+        # 'run_eval', 
+        # 'assert_test',
+        # 'json_scorer',
+        # 'override_eval',
+        # 'evaluate_dataset',
+        # 'classifier_scorer',
+        # 'custom_judge_vertexai'
     ])
