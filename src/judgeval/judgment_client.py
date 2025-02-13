@@ -6,9 +6,8 @@ from typing import Optional, List, Dict, Any, Union
 import requests
 
 from judgeval.constants import ROOT_API
-from judgeval.data.datasets import EvalDataset
+from judgeval.data.datasets import EvalDataset, EvalDatasetClient
 from judgeval.data import (
-    EvalDatasetClient,
     ScoringResult, 
     Example
 )

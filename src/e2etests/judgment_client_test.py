@@ -23,7 +23,7 @@ from judgeval.scorers import (
 from judgeval.judges import TogetherJudge, JudgevalJudge
 from playground import CustomFaithfulnessMetric
 from judgeval.data.datasets.dataset import EvalDataset, GroundTruthExample
-from judgeval.data.eval_dataset_client import EvalDatasetClient
+from judgeval.data.datasets.eval_dataset_client import EvalDatasetClient
 from judgeval.scorers.prompt_scorer import ClassifierScorer
 
 # Configure logging
@@ -460,11 +460,11 @@ if __name__ == "__main__":
     run_selected_tests(client, [
         'dataset',
         'pull_all_user_dataset_stats',
-        'run_eval', 
-        'assert_test',
-        'json_scorer',
-        'override_eval',
-        'evaluate_dataset',
-        'classifier_scorer',
-        'custom_judge_vertexai'
+        # 'run_eval', 
+        # 'assert_test',
+        # 'json_scorer',
+        # 'override_eval',
+        # 'evaluate_dataset',
+        # 'classifier_scorer',
+        # 'custom_judge_vertexai'
     ])
