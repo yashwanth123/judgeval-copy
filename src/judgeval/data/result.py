@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict, Any
 
 from judgeval.data import ScorerData, ProcessExample
 
@@ -18,6 +18,9 @@ class ScoringResult:
         expected_output (Optional[str]): The expected output of the example
         context (Optional[List[str]]): The context of the example
         retrieval_context (Optional[List[str]]): The retrieval context of the example
+        additional_metadata (Optional[Dict[str, Any]]): The additional metadata of the example
+        tools_called (Optional[List[str]]): The tools called by the example
+        expected_tools (Optional[List[str]]): The expected tools of the example
         trace_id (Optional[str]): The trace id of the example
         
     """
@@ -31,6 +34,9 @@ class ScoringResult:
     expected_output: Optional[str] = None
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
+    additional_metadata: Optional[Dict[str, Any]] = None
+    tools_called: Optional[List[str]] = None
+    expected_tools: Optional[List[str]] = None
     trace_id: Optional[str] = None
     
     example_id: Optional[str] = None
@@ -46,6 +52,9 @@ class ScoringResult:
             "expected_output": self.expected_output,
             "context": self.context,
             "retrieval_context": self.retrieval_context,
+            "additional_metadata": self.additional_metadata,
+            "tools_called": self.tools_called,
+            "expected_tools": self.expected_tools,
             "trace_id": self.trace_id,
             "example_id": self.example_id
         }
@@ -59,6 +68,9 @@ class ScoringResult:
             expected_output={self.expected_output}, \
             context={self.context}, \
             retrieval_context={self.retrieval_context}, \
+            additional_metadata={self.additional_metadata}, \
+            tools_called={self.tools_called}, \
+            expected_tools={self.expected_tools}, \
             trace_id={self.trace_id})"
 
 
@@ -79,5 +91,8 @@ def generate_scoring_result(
         expected_output=process_example.expected_output,
         context=process_example.context,
         retrieval_context=process_example.retrieval_context,
+        additional_metadata=process_example.additional_metadata,
+        tools_called=process_example.tools_called,
+        expected_tools=process_example.expected_tools,
         trace_id=process_example.trace_id
     )
