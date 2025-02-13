@@ -449,11 +449,11 @@ if __name__ == "__main__":
     run_selected_tests(client, [
         'dataset',
         'pull_all_datasets',
-        # 'run_eval', 
-        # 'assert_test',
-        # 'json_scorer',
-        # 'override_eval',
-        # 'evaluate_dataset',
-        # 'classifier_scorer',
-        # 'custom_judge_vertexai'
+        'run_eval', 
+        'assert_test',
+        'json_scorer',
+        'override_eval',
+        'evaluate_dataset',
+        'classifier_scorer',
+        'custom_judge_vertexai'
     ])
