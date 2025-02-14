@@ -132,8 +132,16 @@ class TraceEntry:
             json.dumps(self.output)
             return self.output
         except (TypeError, OverflowError, ValueError):
-            warnings.warn(f"Output for function {self.function} is not JSON serializable. Setting to None.")
-            return None
+            try:
+                str_output = str(self.output)
+                return str_output
+            except:
+                try:
+                    repr_output = repr(self.output)
+                    return repr_output
+                except:
+                    warnings.warn(f"Output for function {self.function} is not JSON serializable and could not be converted to string. Setting to None.")
+                    return None
 
 class TraceClient:
     """Client for managing a single trace context"""
