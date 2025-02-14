@@ -3,6 +3,7 @@ import json
 import pandas as pd
 from unittest.mock import Mock, patch, mock_open
 from judgeval.data.datasets.dataset import EvalDataset
+from judgeval.data.datasets.eval_dataset_client import EvalDatasetClient
 from judgeval.data import Example
 from judgeval.data.datasets.ground_truth import GroundTruthExample
 
@@ -38,6 +39,10 @@ def sample_ground_truth():
 def dataset():
     return EvalDataset(judgment_api_key="test_key")
 
+@pytest.fixture
+def eval_dataset_client():
+    return EvalDatasetClient(judgment_api_key="test_key")
+
 def test_init():
     dataset = EvalDataset(judgment_api_key="test_key")
     assert dataset.judgment_api_key == "test_key"
@@ -57,7 +62,7 @@ def test_add_ground_truth(dataset, sample_ground_truth):
     assert dataset.ground_truths[0] == sample_ground_truth
 
 @patch('requests.post')
-def test_push_success(mock_post, dataset, sample_example):
+def test_push_success(mock_post, dataset, sample_example, eval_dataset_client):
     # Setup mock response
     mock_response = Mock()
     mock_response.status_code = 200
@@ -66,7 +71,7 @@ def test_push_success(mock_post, dataset, sample_example):
 
     # Add example and push
     dataset.add_example(sample_example)
-    result = dataset.push("test_alias")
+    result = eval_dataset_client.push(dataset, "test_alias")
 
     assert result is True
     assert dataset._alias == "test_alias"
@@ -74,18 +79,18 @@ def test_push_success(mock_post, dataset, sample_example):
     mock_post.assert_called_once()
 
 @patch('requests.post')
-def test_push_server_error(mock_post, dataset):
+def test_push_server_error(mock_post, dataset, eval_dataset_client):
     mock_response = Mock()
     mock_response.status_code = 500
     mock_post.return_value = mock_response
 
-    result = dataset.push("test_alias")
+    result = eval_dataset_client.push(dataset, "test_alias")
     assert result is False
 
     mock_post.assert_called_once()
 
 @patch('requests.post')
-def test_pull_success(mock_post, dataset):
+def test_pull_success(mock_post, eval_dataset_client):
     mock_response = Mock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
@@ -96,11 +101,11 @@ def test_pull_success(mock_post, dataset):
     }
     mock_post.return_value = mock_response
 
-    dataset.pull("test_alias")
-    assert len(dataset.ground_truths) == 1
-    assert len(dataset.examples) == 1
-    assert dataset._alias == "test_alias"
-    assert dataset._id == "test_id"
+    pulled_dataset = eval_dataset_client.pull("test_alias")
+    assert len(pulled_dataset.ground_truths) == 1
+    assert len(pulled_dataset.examples) == 1
+    assert pulled_dataset._alias == "test_alias"
+    assert pulled_dataset._id == "test_id"
 
 @patch('builtins.open', new_callable=mock_open)
 def test_add_from_json(mock_file, dataset):
