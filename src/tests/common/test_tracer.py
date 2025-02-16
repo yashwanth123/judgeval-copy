@@ -102,19 +102,19 @@ def test_trace_entry_to_dict():
     # Test with non-serializable output
     class NonSerializable:
         pass
-    
+
+    non_serializable = NonSerializable()
     entry = TraceEntry(
         type="output",
         function="test_func",
         depth=1,
         message="test",
         timestamp=0,
-        output=NonSerializable()
+        output=non_serializable
     )
     
-    with pytest.warns(UserWarning):
-        data = entry.to_dict()
-        assert data["output"] is None
+    data = entry.to_dict()
+    assert data["output"] == non_serializable.__str__()
 
 def test_trace_client_span(trace_client):
     """Test span context manager"""
@@ -175,6 +175,7 @@ def test_save_trace(mock_post, trace_client):
     mock_response = Mock()
     mock_response.status_code = 200
     mock_response.text = '{"message": "success"}'
+    mock_response.json.return_value = {"ui_results_url": "http://example.com/results"}
     mock_response.raise_for_status.return_value = None
     mock_post.return_value = mock_response
     
