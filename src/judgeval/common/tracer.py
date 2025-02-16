@@ -21,6 +21,7 @@ import json
 import warnings
 from pydantic import BaseModel
 from http import HTTPStatus
+from rich import print as rprint
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
@@ -413,6 +414,9 @@ class TraceClient:
             raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
         elif response.status_code != HTTPStatus.OK:
             raise ValueError(f"Failed to save trace data: {response.text}")
+        
+        if not empty_save and "ui_results_url" in response.json():
+            rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
         
         return self.trace_id, trace_data
 
