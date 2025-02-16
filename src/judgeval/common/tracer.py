@@ -28,6 +28,15 @@ from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
 from judgeval.data.result import ScoringResult
+from langchain_core.language_models import BaseChatModel
+from langchain_huggingface import ChatHuggingFace
+from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
+from langchain_core.utils.function_calling import convert_to_openai_tool
+
+from langchain_core.messages.ai import AIMessage
+from langchain_core.messages.tool import ToolMessage
+
 
 # Define type aliases for better code readability and maintainability
 ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic]  # Supported API clients
@@ -581,6 +590,131 @@ def wrap(client: Any) -> Any:
     elif isinstance(client, Anthropic):
         client.messages.create = traced_create
         
+    return client
+
+
+
+def wrap_langchain_graph(graph: Any) -> Any:
+    """
+    Wraps an API client to add tracing capabilities.
+    Supports OpenAI, Together, and Anthropic clients.
+    """
+    tracer = Tracer._instance
+    
+    # Get the appropriate configuration for this client type
+    span_name, original_invoke = _get_langchain_client_config(graph)
+    # print(span_name, original_invoke)
+    
+    def traced_invoke(*args, **kwargs):
+        # Skip tracing if no active trace
+        if not (tracer and tracer._current_trace):
+            return original_invoke(*args, **kwargs)
+
+        with tracer._current_trace.span(span_name, span_type="llm") as span:
+            # Format and record the input parameters
+            # input_data = _format_input_data(graph, **kwargs)
+            # span.record_input(input_data)
+            
+            # # Make the actual API call
+            response = original_invoke(*args, **kwargs)
+
+            for event in response["messages"]:
+                if isinstance(event, AIMessage):
+                    print(f"AIMessage: {event.pretty_repr()}")
+                elif isinstance(event, ToolMessage):
+                    print(f"ToolMessage: {event.pretty_repr()}")
+            
+            # # Format and record the output
+            # output_data = _format_output_data(graph, response)
+            # span.record_output(output_data)
+            
+            return response
+            
+    if callable(original_invoke):
+        print("invoke is callable")
+        graph.invoke = traced_invoke
+    else:
+        raise ValueError(f"{type(graph).__name__} object's 'invoke' method is not callable.")
+
+    return graph
+
+def wrap_langchain_tool(tools: Any) -> Any:
+    """
+    Wraps tools to add tracing capabilities.
+    """
+
+    tools = [convert_to_openai_tool(tool) for tool in tools]
+    for tool in tools:
+        try:
+            tool["function"]["reasoning"] = {
+            "type": "string",
+                "description": "Explanation for why this tool was chosen"
+            }
+        except:
+            pass
+    return tools
+
+def _get_langchain_client_config(client: BaseChatModel) -> tuple[str, callable]:
+    """Returns configuration tuple for the given API client.
+    
+    Args:
+        client: An instance of OpenAI, Together, or Anthropic client
+        
+    Returns:
+        tuple: (span_name, create_method)
+            - span_name: String identifier for tracing
+            - create_method: Reference to the client's creation method
+            
+    Raises:
+        ValueError: If client type is not supported
+    """
+    if isinstance(client, ChatOpenAI):
+        return "OPENAI_API_CALL", client.invoke
+    elif True:
+        return "ANTHROPIC_API_CALL", client.invoke
+    elif isinstance(client, ChatHuggingFace):
+        return "HUGGINGFACE_API_CALL", client.invoke
+    raise ValueError(f"Unsupported client type: {type(client)}")
+    
+def wrap_langchain(client: BaseChatModel) -> Any:
+    """
+    Wraps an API client to add tracing capabilities.
+    Supports OpenAI, Together, and Anthropic clients.
+    """
+    tracer = Tracer._instance  # Get the global tracer instance
+    
+    # Get the appropriate configuration for this client type
+    span_name, original_invoke = _get_langchain_client_config(client)
+    # print(span_name, original_invoke)
+    
+    def traced_invoke(*args, **kwargs):
+        # Skip tracing if no active trace
+        if not (tracer and tracer._current_trace):
+            return original_invoke(*args, **kwargs)
+
+        with tracer._current_trace.span(span_name, span_type="llm") as span:
+            # Format and record the input parameters
+            input_data = _format_input_data(client, **kwargs)
+            span.record_input(input_data)
+            
+            # Make the actual API call
+            response = original_invoke(*args, **kwargs)
+            
+            # Format and record the output
+            output_data = _format_output_data(client, response)
+            span.record_output(output_data)
+            
+            return response
+            
+    # Replace the original method with our traced version
+    if isinstance(client, (ChatOpenAI, ChatAnthropic, ChatHuggingFace)):
+        # Debugging: Check if the invoke method is callable
+        if callable(original_invoke):
+            print("invoke is callable")
+            setattr(client, "invoke", traced_invoke)
+        else:
+            raise ValueError(f"{type(client).__name__} object's 'invoke' method is not callable.")
+
     return client
 
 # Helper functions for client-specific operations
