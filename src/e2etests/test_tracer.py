@@ -151,7 +151,7 @@ def test_delete_trace_batch(client: TraceManagerClient, trace_ids: List[str]):
 if __name__ == "__main__":
     # Use a more meaningful test input
     test_input = "Write a poem about Nissan R32 GTR"
-    asyncio.run(test_evaluation_mixed(test_input, delete_trace=True))
+    asyncio.run(test_evaluation_mixed(test_input))
 
     # trace_manager_client = TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
     # test_delete_trace_batch(trace_manager_client, ["21528a97-36ce-45ab-934b-e83bf7d8dd8f", "2712afbd-f355-4abe-8b76-d2555fd797af"])
