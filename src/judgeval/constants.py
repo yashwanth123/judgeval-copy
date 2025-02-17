@@ -40,6 +40,7 @@ JUDGMENT_DATASETS_PULL_ALL_API_URL = f"{ROOT_API}/datasets/get_all_stats/"
 JUDGMENT_EVAL_LOG_API_URL = f"{ROOT_API}/log_eval_results/"
 JUDGMENT_EVAL_FETCH_API_URL = f"{ROOT_API}/fetch_eval_results/"
 JUDGMENT_TRACES_SAVE_API_URL = f"{ROOT_API}/traces/save/"
+JUDGMENT_TRACES_DELETE_API_URL = f"{ROOT_API}/traces/delete/"
 
 ## Models
 TOGETHER_SUPPORTED_MODELS = {

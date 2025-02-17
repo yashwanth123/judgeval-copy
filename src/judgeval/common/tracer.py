@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from http import HTTPStatus
 from rich import print as rprint
 
-from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
+from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL, JUDGMENT_TRACES_DELETE_API_URL
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
@@ -419,7 +419,27 @@ class TraceClient:
             rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
         
         return self.trace_id, trace_data
+    
+    def delete(self, trace_id):
+        """
+        Delete a trace from the database.
+        """
+        response = requests.delete(
+            JUDGMENT_TRACES_DELETE_API_URL,
+            json={
+                "trace_id": trace_id,
+                "judgment_api_key": self.tracer.api_key
+            },
+            headers={
+                "Content-Type": "application/json",
+            }
+        )
 
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to delete trace: {response.text}")
+        
+        return response.json()
+    
 class Tracer:
     _instance = None
 

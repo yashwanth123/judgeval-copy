@@ -9,7 +9,7 @@ from together import Together
 from anthropic import Anthropic
 
 # Local imports
-from judgeval.common.tracer import Tracer, wrap
+from judgeval.common.tracer import Tracer, wrap, TraceClient
 from judgeval.constants import APIScorer
 from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer
 
@@ -122,20 +122,30 @@ async def make_poem(input: str) -> str:
         print(f"Error generating poem: {e}")
         return ""
 
-async def test_evaluation_mixed(input):
+async def test_evaluation_mixed(input, delete_trace=False):
     PROJECT_NAME = "TestingPoemBot"
     with judgment.trace("Use-claude-hehexd123", project_name=PROJECT_NAME, overwrite=True) as trace:
         upper = await make_upper(input)
         result = await make_poem(upper)
         await answer_user_question("What if these shoes don't fit?")
 
-    trace.save()
+    id, data = trace.save()
+    print(f"Trace ID: {id}")
         
     trace.print()
+
+    if delete_trace:
+        response = trace.delete(id)
+        print(f"Delete response: {response}")
     
     return result
+
+
+def test_delete_trace(client: TraceClient, trace_id: str):
+    response = client.delete(trace_id)
+    print(f"Delete response: {response}")
 
 if __name__ == "__main__":
     # Use a more meaningful test input
     test_input = "Write a poem about Nissan R32 GTR"
-    asyncio.run(test_evaluation_mixed(test_input))
+    asyncio.run(test_evaluation_mixed(test_input, delete_trace=True))
