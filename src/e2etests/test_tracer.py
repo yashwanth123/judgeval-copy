@@ -2,6 +2,7 @@
 import os
 import time
 import asyncio
+from typing import List
 
 # Third-party imports
 from openai import OpenAI
@@ -9,7 +10,7 @@ from together import Together
 from anthropic import Anthropic
 
 # Local imports
-from judgeval.common.tracer import Tracer, wrap, TraceClient
+from judgeval.common.tracer import Tracer, wrap, TraceClient, TraceManagerClient
 from judgeval.constants import APIScorer
 from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer
 
@@ -129,23 +130,28 @@ async def test_evaluation_mixed(input, delete_trace=False):
         result = await make_poem(upper)
         await answer_user_question("What if these shoes don't fit?")
 
-    id, data = trace.save()
-    print(f"Trace ID: {id}")
-        
+    trace.save()
     trace.print()
 
     if delete_trace:
-        response = trace.delete(id)
+        response = trace.delete()
         print(f"Delete response: {response}")
     
     return result
 
 
-def test_delete_trace(client: TraceClient, trace_id: str):
+def test_delete_trace(client: TraceManagerClient, trace_id: str):
     response = client.delete(trace_id)
+    print(f"Delete response: {response}")
+
+def test_delete_trace_batch(client: TraceManagerClient, trace_ids: List[str]):
+    response = client.delete_batch(trace_ids)
     print(f"Delete response: {response}")
 
 if __name__ == "__main__":
     # Use a more meaningful test input
     test_input = "Write a poem about Nissan R32 GTR"
     asyncio.run(test_evaluation_mixed(test_input, delete_trace=True))
+
+    # trace_manager_client = TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
+    # test_delete_trace_batch(trace_manager_client, ["21528a97-36ce-45ab-934b-e83bf7d8dd8f", "2712afbd-f355-4abe-8b76-d2555fd797af"])
