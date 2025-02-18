@@ -490,15 +490,15 @@ if __name__ == "__main__":
     client = JudgmentClient(judgment_api_key=API_KEY)
     
     run_selected_tests(client, [
-        # 'dataset',
-        # 'pull_all_user_dataset_stats',
-        # 'run_eval', 
-        # 'delete_eval_by_project_and_run_name',
+        'dataset',
+        'pull_all_user_dataset_stats',
+        'run_eval', 
+        'delete_eval_by_project_and_run_name',
         'delete_eval_by_project',
-        # 'assert_test',
-        # 'json_scorer',
-        # 'override_eval',
-        # 'evaluate_dataset',
-        # 'classifier_scorer',
-        # 'custom_judge_vertexai'
+        'assert_test',
+        'json_scorer',
+        'override_eval',
+        'evaluate_dataset',
+        'classifier_scorer',
+        'custom_judge_vertexai'
     ])
