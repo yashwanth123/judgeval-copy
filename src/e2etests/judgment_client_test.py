@@ -23,7 +23,8 @@ from judgeval.scorers import (
 )
 from judgeval.judges import TogetherJudge, JudgevalJudge
 from playground import CustomFaithfulnessMetric
-from judgeval.data.datasets.dataset import EvalDataset
+from judgeval.data.datasets.dataset import EvalDataset, GroundTruthExample
+from judgeval.data.datasets.eval_dataset_client import EvalDatasetClient
 from judgeval.scorers.prompt_scorer import ClassifierScorer
 
 # Configure logging
@@ -62,6 +63,30 @@ class TestBasicOperations:
         
         dataset = client.pull_dataset(alias="test_dataset_5")
         assert dataset, "Failed to pull dataset"
+
+    def test_pull_all_user_dataset_stats(self, client: JudgmentClient):
+        dataset: EvalDataset = client.create_dataset()
+        dataset.add_example(Example(input="input 1", actual_output="output 1"))
+        dataset.add_example(Example(input="input 2", actual_output="output 2"))
+        dataset.add_example(Example(input="input 3", actual_output="output 3"))
+        random_name1 = ''.join(random.choices(string.ascii_letters + string.digits, k=20))
+        client.push_dataset(alias=random_name1, dataset=dataset, overwrite=False)
+
+        dataset: EvalDataset = client.create_dataset()
+        dataset.add_example(Example(input="input 1", actual_output="output 1"))
+        dataset.add_example(Example(input="input 2", actual_output="output 2"))
+        dataset.add_ground_truth(GroundTruthExample(input="input 1", actual_output="output 1"))
+        dataset.add_ground_truth(GroundTruthExample(input="input 2", actual_output="output 2"))
+        random_name2 = ''.join(random.choices(string.ascii_letters + string.digits, k=20))
+        client.push_dataset(alias=random_name2, dataset=dataset, overwrite=False)
+        
+        all_datasets_stats = client.pull_all_user_dataset_stats()
+        print(all_datasets_stats)
+        assert all_datasets_stats, "Failed to pull dataset"
+        assert all_datasets_stats[random_name1]["example_count"] == 3, f"{random_name1} should have 3 examples"
+        assert all_datasets_stats[random_name1]["ground_truth_count"] == 0, f"{random_name1} should have 0 ground truths"
+        assert all_datasets_stats[random_name2]["example_count"] == 2, f"{random_name2} should have 2 examples"
+        assert all_datasets_stats[random_name2]["ground_truth_count"] == 2, f"{random_name2} should have 2 ground truths"
 
     def test_run_eval(self, client: JudgmentClient):
         """Test basic evaluation workflow."""
@@ -442,6 +467,7 @@ def run_selected_tests(client, test_names: list[str]):
     
     test_map = {
         'dataset': test_basic_operations.test_dataset,
+        'pull_all_user_dataset_stats': test_basic_operations.test_pull_all_user_dataset_stats,
         'run_eval': test_basic_operations.test_run_eval,
         'assert_test': test_basic_operations.test_assert_test,
         'json_scorer': test_advanced_features.test_json_scorer,
@@ -483,4 +509,5 @@ if __name__ == "__main__":
         'fetch_traces',
         'fetch_traces_invalid',
         'fetch_traces_missing_key'
+        'pull_all_user_dataset_stats',
     ])

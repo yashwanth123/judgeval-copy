@@ -21,6 +21,7 @@ import json
 import warnings
 from pydantic import BaseModel
 from http import HTTPStatus
+from rich import print as rprint
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
@@ -122,8 +123,29 @@ class TraceEntry:
         
         Handles special cases:
         - Pydantic models are converted using model_dump()
+        - We try to serialize into JSON, then string, then the base representation (__repr__)
         - Non-serializable objects return None with a warning
         """
+
+        def safe_stringify(output, function_name):
+            """
+            Safely converts an object to a string or repr, handling serialization issues gracefully.
+            """
+            try:
+                return str(output)
+            except (TypeError, OverflowError, ValueError):
+                pass
+        
+            try:
+                return repr(output)
+            except (TypeError, OverflowError, ValueError):
+                pass
+        
+            warnings.warn(
+                f"Output for function {function_name} is not JSON serializable and could not be converted to string. Setting to None."
+            )
+            return None
+        
         if isinstance(self.output, BaseModel):
             return self.output.model_dump()
         
@@ -132,8 +154,7 @@ class TraceEntry:
             json.dumps(self.output)
             return self.output
         except (TypeError, OverflowError, ValueError):
-            warnings.warn(f"Output for function {self.function} is not JSON serializable. Setting to None.")
-            return None
+            return safe_stringify(self.output, self.function)
 
 class TraceClient:
     """Client for managing a single trace context"""
@@ -393,6 +414,9 @@ class TraceClient:
             raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
         elif response.status_code != HTTPStatus.OK:
             raise ValueError(f"Failed to save trace data: {response.text}")
+        
+        if not empty_save and "ui_results_url" in response.json():
+            rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
         
         return self.trace_id, trace_data
 

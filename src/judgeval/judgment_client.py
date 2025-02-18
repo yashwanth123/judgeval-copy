@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any, Union
 import requests
 
 from judgeval.constants import ROOT_API
-from judgeval.data.datasets import EvalDataset
+from judgeval.data.datasets import EvalDataset, EvalDatasetClient
 from judgeval.data import (
     ScoringResult, 
     Example
@@ -36,6 +36,7 @@ class EvalRunRequestBody(BaseModel):
 class JudgmentClient:
     def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY")):
         self.judgment_api_key = judgment_api_key
+        self.eval_dataset_client = EvalDatasetClient(judgment_api_key)
         
         # Verify API key is valid
         result, response = self._validate_api_key()
@@ -121,7 +122,7 @@ class JudgmentClient:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
 
     def create_dataset(self) -> EvalDataset:
-        return EvalDataset(judgment_api_key=self.judgment_api_key)
+        return self.eval_dataset_client.create_dataset()
 
     def push_dataset(self, alias: str, dataset: EvalDataset, overwrite: Optional[bool] = False) -> bool:
         """
@@ -137,7 +138,7 @@ class JudgmentClient:
         """
         # Set judgment_api_key just in case it was not set
         dataset.judgment_api_key = self.judgment_api_key
-        return dataset.push(alias, overwrite)
+        return self.eval_dataset_client.push(dataset, alias, overwrite)
     
     def pull_dataset(self, alias: str) -> EvalDataset:
         """
@@ -149,9 +150,20 @@ class JudgmentClient:
         Returns:
             EvalDataset: The retrieved dataset
         """
-        dataset = EvalDataset(judgment_api_key=self.judgment_api_key)
-        dataset.pull(alias)
-        return dataset
+        return self.eval_dataset_client.pull(alias)
+    
+    def pull_all_user_dataset_stats(self) -> dict:
+        """
+        Retrieves all dataset stats from the Judgment platform for the user.
+
+        Args:
+            alias (str): The name of the dataset to retrieve
+
+        Returns:
+            EvalDataset: The retrieved dataset
+        """
+        return self.eval_dataset_client.pull_all_user_dataset_stats()
+    
     
     # Maybe add option where you can pass in the EvaluationRun object and it will pull the eval results from the backend
     def pull_eval(self, project_name: str, eval_run_name: str) -> List[Dict[str, Union[str, List[ScoringResult]]]]:
