@@ -129,9 +129,9 @@ async def test_token_counting(trace_data: dict):
     assert token_counts["prompt_tokens"] > 0, "Prompt tokens should be counted"
     assert token_counts["completion_tokens"] > 0, "Completion tokens should be counted"
     assert token_counts["total_tokens"] > 0, "Total tokens should be counted"
-    assert token_counts["total_tokens"] >= (
+    assert token_counts["total_tokens"] == (
         token_counts["prompt_tokens"] + token_counts["completion_tokens"]
-    ), "Total tokens should be at least the sum of prompt and completion tokens"
+    ), "Total tokens should be equal to the sum of prompt and completion tokens"
     
     # Print token counts for verification
     print("\nToken Count Results:")
