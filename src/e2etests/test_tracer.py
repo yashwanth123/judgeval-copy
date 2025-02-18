@@ -123,7 +123,8 @@ async def make_poem(input: str) -> str:
         print(f"Error generating poem: {e}")
         return ""
 
-async def test_evaluation_mixed(input, delete_trace=False):
+async def test_evaluation_mixed(trace_manager_client: TraceManagerClient):
+    input = "Write a poem about Nissan R32 GTR"
     PROJECT_NAME = "TestingPoemBot"
     with judgment.trace("Use-claude-hehexd123", project_name=PROJECT_NAME, overwrite=True) as trace:
         upper = await make_upper(input)
@@ -132,26 +133,82 @@ async def test_evaluation_mixed(input, delete_trace=False):
 
     trace.save()
     trace.print()
-
-    if delete_trace:
-        response = trace.delete()
-        print(f"Delete response: {response}")
     
     return result
 
 
-def test_delete_trace(client: TraceManagerClient, trace_id: str):
-    response = client.delete(trace_id)
-    print(f"Delete response: {response}")
+def test_trace_delete(trace_manager_client: TraceManagerClient):
+    with judgment.trace("TEST_RUN", project_name="TEST", overwrite=True) as trace:
+        pass
+    trace.save()
 
-def test_delete_trace_batch(client: TraceManagerClient, trace_ids: List[str]):
-    response = client.delete_batch(trace_ids)
-    print(f"Delete response: {response}")
+    response = trace_manager_client.fetch_trace(trace.trace_id)
+    assert response, "No traces found"
+
+    trace_manager_client.delete(trace.trace_id)
+    response = trace_manager_client.fetch_trace(trace.trace_id)
+    assert not response, "Trace should be deleted"
+
+def test_trace_delete_batch(trace_manager_client: TraceManagerClient):
+
+    with judgment.trace("TEST_RUN", project_name="TEST", overwrite=True) as trace:
+        pass
+    trace.save()
+
+    with judgment.trace("TEST_RUN2", project_name="TEST2", overwrite=True) as trace2:
+        pass
+    trace2.save()
+
+
+    response = trace_manager_client.fetch_trace(trace.trace_id)
+    assert response, "No traces found"
+
+    response = trace_manager_client.fetch_trace(trace2.trace_id)
+    assert response, "No traces found"
+
+    trace_ids = [trace.trace_id, trace2.trace_id]
+    response = trace_manager_client.delete_batch(trace_ids)
+    assert response, "Delete batch should be successful"
+
+    response = trace_manager_client.fetch_trace(trace.trace_id)
+    assert not response, "Trace should be deleted"
+
+    response = trace_manager_client.fetch_trace(trace2.trace_id)
+    assert not response, "Trace should be deleted"
+
+
+def run_selected_tests(test_names: list[str]):
+    """
+    Run only the specified tests by name.
+    
+    Args:
+        test_names (list[str]): List of test function names to run (without 'test_' prefix)
+    """
+
+    trace_manager_client = TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
+    print("Client initialized successfully")
+    print("*" * 40)
+    
+    test_map = {
+        'evaluation_mixed': test_evaluation_mixed,
+        'trace_delete': test_trace_delete,
+        'trace_delete_batch': test_trace_delete_batch,
+    }
+
+    for test_name in test_names:
+        if test_name not in test_map:
+            print(f"Warning: Test '{test_name}' not found")
+            continue
+            
+        print(f"Running test: {test_name}")
+        test_map[test_name](trace_manager_client)
+        print(f"{test_name} test successful")
+        print("*" * 40)
 
 if __name__ == "__main__":
     # Use a more meaningful test input
-    test_input = "Write a poem about Nissan R32 GTR"
-    asyncio.run(test_evaluation_mixed(test_input))
-
-    # trace_manager_client = TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
-    # test_delete_trace_batch(trace_manager_client, ["add trace ids here"])
+    run_selected_tests([
+        "evaluation_mixed", 
+        "trace_delete", 
+        "trace_delete_batch"
+        ])

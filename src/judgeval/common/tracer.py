@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from http import HTTPStatus
 from rich import print as rprint
 
-from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL, JUDGMENT_TRACES_DELETE_API_URL, JUDGMENT_TRACES_DELETE_BATCH_API_URL
+from judgeval.constants import JUDGMENT_TRACES_FETCH_API_URL, JUDGMENT_TRACES_SAVE_API_URL, JUDGMENT_TRACES_DELETE_API_URL
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
@@ -161,6 +161,23 @@ class TraceManagerClient:
     def __init__(self, judgment_api_key: str):
         self.judgment_api_key = judgment_api_key
 
+    def fetch_trace(self, trace_id: str):
+        response = requests.post(
+            JUDGMENT_TRACES_FETCH_API_URL,
+            json={
+                "trace_id": trace_id,
+                "judgment_api_key": self.judgment_api_key,
+            },
+            headers={
+                "Content-Type": "application/json",
+            }
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to fetch traces: {response.text}")
+        
+        return response.json()
+
     def save_trace(self, trace_data: dict, empty_save: bool):
         response = requests.post(
             JUDGMENT_TRACES_SAVE_API_URL,
@@ -186,7 +203,7 @@ class TraceManagerClient:
             JUDGMENT_TRACES_DELETE_API_URL,
             json={
                 "judgment_api_key": self.judgment_api_key,
-                "trace_id": trace_id,
+                "trace_ids": [trace_id],
             },
             headers={
                 "Content-Type": "application/json",
@@ -203,7 +220,7 @@ class TraceManagerClient:
         Delete a batch of traces from the database.
         """
         response = requests.delete(
-            JUDGMENT_TRACES_DELETE_BATCH_API_URL,
+            JUDGMENT_TRACES_DELETE_API_URL,
             json={
                 "judgment_api_key": self.judgment_api_key,
                 "trace_ids": trace_ids,
