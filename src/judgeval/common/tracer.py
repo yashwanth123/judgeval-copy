@@ -185,6 +185,7 @@ class TraceManagerClient:
         response = requests.delete(
             JUDGMENT_TRACES_DELETE_API_URL,
             json={
+                "judgment_api_key": self.judgment_api_key,
                 "trace_id": trace_id,
             },
             headers={
@@ -204,6 +205,7 @@ class TraceManagerClient:
         response = requests.delete(
             JUDGMENT_TRACES_DELETE_BATCH_API_URL,
             json={
+                "judgment_api_key": self.judgment_api_key,
                 "trace_ids": trace_ids,
             },
             headers={
