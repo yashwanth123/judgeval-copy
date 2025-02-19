@@ -155,8 +155,6 @@ async def test_evaluation_mixed(trace_manager_client: TraceManagerClient):
         trace.print()
         return result
 
-
-
 async def test_trace_delete(trace_manager_client: TraceManagerClient):
     with judgment.trace("TEST_RUN", project_name="TEST", overwrite=True) as trace:
         pass
