@@ -137,7 +137,7 @@ async def test_evaluation_mixed(trace_manager_client: TraceManagerClient):
     return result
 
 
-def test_trace_delete(trace_manager_client: TraceManagerClient):
+async def test_trace_delete(trace_manager_client: TraceManagerClient):
     with judgment.trace("TEST_RUN", project_name="TEST", overwrite=True) as trace:
         pass
     trace.save()
@@ -149,7 +149,7 @@ def test_trace_delete(trace_manager_client: TraceManagerClient):
     response = trace_manager_client.fetch_trace(trace.trace_id)
     assert not response, "Trace should be deleted"
 
-def test_trace_delete_batch(trace_manager_client: TraceManagerClient):
+async def test_trace_delete_batch(trace_manager_client: TraceManagerClient):
 
     with judgment.trace("TEST_RUN", project_name="TEST", overwrite=True) as trace:
         pass
@@ -177,7 +177,7 @@ def test_trace_delete_batch(trace_manager_client: TraceManagerClient):
     assert not response, "Trace should be deleted"
 
 
-def run_selected_tests(test_names: list[str]):
+async def run_selected_tests(test_names: list[str]):
     """
     Run only the specified tests by name.
     
@@ -201,14 +201,14 @@ def run_selected_tests(test_names: list[str]):
             continue
             
         print(f"Running test: {test_name}")
-        test_map[test_name](trace_manager_client)
+        await test_map[test_name](trace_manager_client)
         print(f"{test_name} test successful")
         print("*" * 40)
 
 if __name__ == "__main__":
     # Use a more meaningful test input
-    run_selected_tests([
+    asyncio.run(run_selected_tests([
         "evaluation_mixed", 
         "trace_delete", 
         "trace_delete_batch"
-        ])
+        ]))
