@@ -123,6 +123,23 @@ async def make_poem(input: str) -> str:
         print(f"Error generating poem: {e}")
         return ""
 
+async def test_token_counting(trace_data: dict):
+    """Test that token counts are properly aggregated from different LLM API calls."""
+    # Verify token counts exist and are properly aggregated
+    token_counts = trace_data["token_counts"]
+    assert token_counts["prompt_tokens"] > 0, "Prompt tokens should be counted"
+    assert token_counts["completion_tokens"] > 0, "Completion tokens should be counted"
+    assert token_counts["total_tokens"] > 0, "Total tokens should be counted"
+    assert token_counts["total_tokens"] == (
+        token_counts["prompt_tokens"] + token_counts["completion_tokens"]
+    ), "Total tokens should be equal to the sum of prompt and completion tokens"
+    
+    # Print token counts for verification
+    print("\nToken Count Results:")
+    print(f"Prompt Tokens: {token_counts['prompt_tokens']}")
+    print(f"Completion Tokens: {token_counts['completion_tokens']}")
+    print(f"Total Tokens: {token_counts['total_tokens']}")
+
 async def test_evaluation_mixed(trace_manager_client: TraceManagerClient):
     input = "Write a poem about Nissan R32 GTR"
     PROJECT_NAME = "TestingPoemBot"
@@ -130,11 +147,14 @@ async def test_evaluation_mixed(trace_manager_client: TraceManagerClient):
         upper = await make_upper(input)
         result = await make_poem(upper)
         await answer_user_question("What if these shoes don't fit?")
+        
+        # Save trace data and test token counting
+        trace_id, trace_data = trace.save()
+        await test_token_counting(trace_data)
+        
+        trace.print()
+        return result
 
-    trace.save()
-    trace.print()
-    
-    return result
 
 
 async def test_trace_delete(trace_manager_client: TraceManagerClient):
