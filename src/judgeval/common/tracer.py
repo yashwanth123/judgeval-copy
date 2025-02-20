@@ -397,6 +397,7 @@ class TraceClient:
         total_duration = self.get_duration()
         
         raw_entries = [entry.to_dict() for entry in self.entries]
+        # print(f"Raw entries: {raw_entries}")
         condensed_entries = self.condense_trace(raw_entries)
 
         # Calculate total token counts from LLM API calls
@@ -520,8 +521,9 @@ class Tracer:
                         span.span_type = span_type
                         
                         # Record inputs
+                        print(f"Args: {args} for {span_name}")
                         span.record_input({
-                            'args': list(args),
+                            'args': str(args),
                             'kwargs': kwargs
                         })
                         
@@ -547,7 +549,7 @@ class Tracer:
                         
                         # Record inputs
                         span.record_input({
-                            'args': list(args),
+                            'args': str(args),
                             'kwargs': kwargs
                         })
                         
@@ -561,6 +563,28 @@ class Tracer:
                 
                 return func(*args, **kwargs)
             return wrapper
+        
+    def score(self, func=None, scorers: List[Union[APIJudgmentScorer, JudgevalScorer]] = None, model: str = None, log_results: bool = True, *, name: str = None, span_type: SpanType = "span"):
+        """
+        Decorator to trace function execution with detailed entry/exit information.
+        """
+        if func is None:
+            return lambda f: self.observe(f, name=name, span_type=span_type)
+        
+        if asyncio.iscoroutinefunction(func):
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                if self._current_trace:
+                    self._current_trace.async_evaluate(scorers=[scorers], input=args, actual_output=kwargs, model=model, log_results=log_results)
+            return async_wrapper
+        else:
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                if self._current_trace:
+                    self._current_trace.async_evaluate(scorers=[scorers], input=args, actual_output=kwargs, model="gpt-4o-mini", log_results=True)
+            return wrapper
+        
+
 
 def wrap(client: Any) -> Any:
     """
@@ -674,6 +698,7 @@ def _format_output_data(client: ApiClient, response: Any) -> dict:
 class JudgevalCallbackHandler(BaseCallbackHandler):
     def __init__(self, trace_client: TraceClient):
         self.trace_client = trace_client
+        self.openai_count = 1
 
     def start_span(self, name: str, span_type: SpanType = "span"):
         start_time = time.time()
@@ -763,23 +788,36 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     #     print(f"Chain started: {serialized}")
     #     print(f"Chain inputs: {inputs}")
     #     print()
-    #     self.start_span("Chain", span_type="chain")
-    #     self.trace_client.record_input({
-    #         'args': inputs,
-    #         'kwargs': kwargs
-    #     })
+    #     # self.start_span("Chain", span_type="chain")
+    #     # self.trace_client.record_input({
+    #     #     'args': inputs,
+    #     #     'kwargs': kwargs
+    #     # })
 
     # def on_chain_end(
     #     self, outputs: Union[str, dict[str, Any]], *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any
     # ) -> Any:
     #     print(f"Chain ended: {outputs}")
     #     print()
-    #     self.trace_client.record_output(outputs)
-    #     self.end_span("Chain", span_type="chain")
+    #     # self.trace_client.record_output(outputs)
+    #     # self.end_span("Chain", span_type="chain")
 
 
-    # def on_agent_action (self, action: AgentAction, **kwargs: Any) -> Any:
-    #     print(f"Agent action: {action}")
+    def on_agent_action (self, action: AgentAction, **kwargs: Any) -> Any:
+        print(f"Agent action: {action}")
+
+    def on_agent_finish(
+            self,
+            finish: AgentFinish,
+            *,
+            run_id: UUID,
+            parent_run_id: Optional[UUID] = None,
+            tags: Optional[list[str]] = None,
+            **kwargs: Any,
+        ) -> None:
+            print(f"Agent action: {finish}")
+
+
 
 
 
@@ -806,7 +844,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         run_id: UUID,
         parent_run_id: Optional[UUID] = None,
         **kwargs: Any,
-    ) -> Any:
+    ) -> Any:    
         name = "LLM call"
         self.start_span(name, span_type="llm")
         self.trace_client.record_input({
@@ -815,5 +853,35 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         })
 
     def on_llm_end(self, response: LLMResult, *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any):
-        self.trace_client.record_output(response)
+        # print(f"LLM end: {response}")
+        self.trace_client.record_output(response.generations[0][0].text)
         self.end_span(self.trace_client._current_span, span_type="tool")
+
+    def on_chat_model_start(
+        self,
+        serialized: Optional[dict[str, Any]],
+        messages: list[list[BaseMessage]],
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        **kwargs: Any,
+    ) -> Any:
+        print(f"Chat model messages: {messages}")
+        print(f"Chat model serialized: {serialized}")
+        # print(f"Chat model kwargs: {kwargs}")
+
+        if "openai" in serialized["id"]:
+            name = f"OPENAI_API_CALL_{self.openai_count}"
+            self.openai_count += 1
+        elif "anthropic" in serialized["id"]:
+            name = "ANTHROPIC_API_CALL"
+        elif "together" in serialized["id"]:
+            name = "TOGETHER_API_CALL"
+        else:
+            name = "LLM call"
+
+        self.start_span(name, span_type="llm")
+        self.trace_client.record_input({
+            'args': str(messages),
+            'kwargs': kwargs
+        })
