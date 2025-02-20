@@ -11,7 +11,7 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 from dotenv import load_dotenv
 from judgeval.common.tracer import Tracer, wrap, JudgevalCallbackHandler
-from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer, AnswerCorrectnessScorer
+from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer, AnswerCorrectnessScorer, ContextualRelevancyScorer
 
 
 import asyncio
@@ -57,7 +57,7 @@ collection = client.get_or_create_collection(
 
 populate_vector_db(collection, incorrect_data)
 
-
+@judgment.observe(name="pnl_retriever", span_type="retriever")
 def pnl_retriever(state: AgentState) -> AgentState:
     query = state["messages"][-1].content
     results = collection.query(
@@ -67,6 +67,7 @@ def pnl_retriever(state: AgentState) -> AgentState:
     )
     return {"messages": state["messages"], "documents": results["documents"][0]}
 
+@judgment.observe(name="balance_sheet_retriever", span_type="retriever")
 def balance_sheet_retriever(state: AgentState) -> AgentState:
     query = state["messages"][-1].content
     results = collection.query(
@@ -74,8 +75,10 @@ def balance_sheet_retriever(state: AgentState) -> AgentState:
         where={"category": "balance_sheets"},
         n_results=3
     )
+    
     return {"messages": state["messages"], "documents": results["documents"][0]}
 
+@judgment.observe(name="stock_retriever", span_type="retriever")
 def stock_retriever(state: AgentState) -> AgentState:
     query = state["messages"][-1].content
     results = collection.query(
