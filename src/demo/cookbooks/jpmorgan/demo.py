@@ -122,13 +122,6 @@ async def main():
                 input=input_msg, judgment=judgment, temp=temp
             )
 
-            # await judgment.get_current_trace().async_evaluate(
-            #     scorers=[AnswerCorrectnessScorer(threshold=0.5)],
-            #     input=str(input_msg),
-            #     actual_output=str(response),
-            #     model="gpt-4o-mini",
-            #     log_results=True
-            # )
             return {"messages": state["messages"], "category": response.content}
 
         # Add classifier node
@@ -165,8 +158,7 @@ async def main():
             
             print(f"{documents=}")
             
-            response = ChatOpenAI(model="gpt-4o-mini").invoke(
-                input=[
+            input_msg = [
                     SystemMessage(content=f"""You are a financial assistant. Use the following context to create a SQL query to retrieve the data from the database:
                                   
                     Use the table schema definition provided in the context to create the SQL query.
@@ -184,36 +176,19 @@ async def main():
                     The only thing you should output is the SQL query itself, nothing else."""),
                     *messages
                 ]
-            )
-            
-            # await judgment.get_current_trace().async_evaluate(
-            #         scorers=[AnswerCorrectnessScorer(threshold=0.5)],
-            #         input=str(input_msg),
-            #         actual_output=str(response),
-            #         model="gpt-4o-mini",
-            #         log_results=True,
-            #     )
+                      
             dict = {
-                "scorers": [AnswerCorrectnessScorer(threshold=0.5)],
+                "scorers": [ContextualRelevancyScorer(threshold=0.5)],
                 "expected_output": "To calculate the Profit and Loss (P&L) on Apple stock, given that you have 100 shares bought at $100 each and the current price is $200, you don't necessarily need a SQL query because this can be calculated directly. However, to illustrate how you might retrieve relevant data from a database and calculate P&L if the information were stored in a database, I'll provide an example SQL query based on a hypothetical table structure.\n\nLet's assume you have a table named `stock_transactions` with the following columns:\n- `stock_symbol` (VARCHAR) for the stock ticker symbol\n- `transaction_type` (VARCHAR) indicating 'buy' or 'sell'\n- `price_per_share` (DECIMAL) for the price of each share at the time of the transaction\n- `shares` (INT) for the number of shares bought or sold\n- `transaction_date` (DATE) for the date of the transaction\n\nAnd another table named `current_stock_prices` with the following columns:\n- `stock_symbol` (VARCHAR) for the stock ticker symbol\n- `current_price` (DECIMAL) for the current price of the stock\n\nGiven this setup, you would first calculate the total cost of your purchase and then calculate the current value of your holdings to find the P&L.\n\nHowever, since you've already provided the purchase price, current price, and the number of shares, the P&L calculation is straightforward:\n\n\\[ \\text{P&L} = (\\text{Current Price} - \\text{Purchase Price}) \\times \\text{Number of Shares} \\]\n\\[ \\text{P&L} = (200 - 100) \\times 100 \\]\n\\[ \\text{P&L} = 100 \\times 100 \\]\n\\[ \\text{P&L} = 10,000 \\]\n\nYour profit on Apple stock, with the given data, is $10,000.\n\nFor completeness, if you were to retrieve and calculate this using SQL based on the assumed tables, the query might look something like this:\n\n```sql\nSELECT \n    (c.current_price - t.price_per_share) * t.shares AS pnl\nFROM \n    stock_transactions t\nJOIN \n    current_stock_prices c ON t.stock_symbol = c.stock_symbol\nWHERE \n    t.stock_symbol = 'AAPL'\n    AND t.transaction_type = 'buy';\n```\n\nThis query assumes you want to calculate the P&L based on a specific buy transaction. In a real-world scenario, you might have multiple buy transactions at different prices, and the calculation would need to be adjusted accordingly.",
+                "retrieval_context": documents,
                 "input": str(input_msg),
-                "model": "gpt-4o-mini",
+                "model": "gpt-4o",
                 "log_results": True,
             }
-            response = await ChatOpenAI(name="generate_response", model="gpt-4-turbo-preview", temperature=0).ainvoke(
+            response = await ChatOpenAI(name="generate_response", model="gpt-4o-mini", temperature=0).ainvoke(
                 input=input_msg, temp=dict, judgment=judgment
             )
-            # print("TEST", input_msg)
 
-
-
-
-            # have an await in the output and it results after?
-            # somehow get the previous span and evaluate it
-
-
-
-            response = ""
             return {"messages": messages + [response], "documents": documents}
 
         # Add edges from retrievers to response generator
@@ -236,7 +211,7 @@ async def main():
         }, config=dict(callbacks=[handler]))
         trace.save()
     
-        print(f"Response: {response['messages'][-1].content}")
+        print(f"Response: {response['messages'][-1]}")
 
 if __name__ == "__main__":
     asyncio.run(main())
