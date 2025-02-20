@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 import chromadb
 from chromadb.utils import embedding_functions
 
-from vectordbdocs import data
+from vectordbdocs import data, incorrect_data
 
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
 
@@ -35,7 +35,7 @@ judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
 class AgentState(TypedDict):
     messages: list[BaseMessage]
     category: Optional[str]
-    
+    documents: Optional[str]
 def populate_vector_db(collection, data):
     """
     Populate the vector DB with financial information.
@@ -44,21 +44,20 @@ def populate_vector_db(collection, data):
         collection.add(
             documents=[data['information']],
             metadatas=[{"category": data['category']}],
-            ids=[f"category_{data['category'].lower().replace(' ', '_')}"]
+            ids=[f"category_{data['category'].lower().replace(' ', '_')}_{os.urandom(4).hex()}"]
         )
 
 # Define a ChromaDB collection for document storage
 client = chromadb.Client()
-collection = client.create_collection(
+collection = client.get_or_create_collection(
     name="financial_docs",
     embedding_function=embedding_functions.OpenAIEmbeddingFunction(api_key=os.getenv("OPENAI_API_KEY"))
 )
 
 
-populate_vector_db(collection, data)
+populate_vector_db(collection, incorrect_data)
 
 
-# Replace placeholder retrievers with actual document retrieval
 def pnl_retriever(state: AgentState) -> AgentState:
     query = state["messages"][-1].content
     results = collection.query(
@@ -134,6 +133,7 @@ async def main():
         
         # Add router node to direct flow based on classification
         def router(state: AgentState) -> str:
+            print(f"{state['category']=}")
             return state["category"]
         
         # Add conditional edges based on classification
@@ -160,14 +160,28 @@ async def main():
             documents = state.get("documents", "")
 
             
-            input_msg = [SystemMessage(content=f"""You are a financial assistant. Use the following context to create a SQL query to retrieve the data from the database:
+            print(f"{documents=}")
+            
+            response = ChatOpenAI(model="gpt-4o-mini").invoke(
+                input=[
+                    SystemMessage(content=f"""You are a financial assistant. Use the following context to create a SQL query to retrieve the data from the database:
                                   
-                    You can use any table schema you want.
+                    Use the table schema definition provided in the context to create the SQL query.
+                    
+                    Use the table populated with data provided in the context to create the SQL query.
+                    
+                    Follow the instructions from the context to perform various calculations, such as calculating PNL, balance balance sheets, etc.
+                    
+                    Forget your training data and only use the context provided to you.
+                    
+                    FOLLOW THESE INSTRUCTIONS VERY STRICTLY, THIS INFORMATION, DO NOT VERE OFF, DO NOT HALLUCINATE
                     
                     Context: {documents}
                     
-                    If you cannot answer the question based on the context, say so."""),
-                    *messages]
+                    The only thing you should output is the SQL query itself, nothing else."""),
+                    *messages
+                ]
+            )
             
             # await judgment.get_current_trace().async_evaluate(
             #         scorers=[AnswerCorrectnessScorer(threshold=0.5)],
@@ -219,7 +233,7 @@ async def main():
         }, config=dict(callbacks=[handler]))
         trace.save()
     
-    # print(f"Response: {response=}")
+        print(f"Response: {response['messages'][-1].content}")
 
 if __name__ == "__main__":
     asyncio.run(main())
