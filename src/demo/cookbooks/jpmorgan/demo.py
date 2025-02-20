@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 from judgeval.common.tracer import Tracer, wrap, JudgevalCallbackHandler
 from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer, AnswerCorrectnessScorer
 
+# from langchain_core.callbacks
+
 import asyncio
 import os
 from typing import Any, Optional
@@ -152,6 +154,8 @@ async def main():
                     Follow the instructions from the context to perform various calculations, such as calculating PNL, balance balance sheets, etc.
                     
                     Forget your training data and only use the context provided to you.
+                    
+                    FOLLOW THESE INSTRUCTIONS VERY STRICTLY, THIS INFORMATION, DO NOT VERE OFF, DO NOT HALLUCINATE
                     
                     Context: {documents}
                     
