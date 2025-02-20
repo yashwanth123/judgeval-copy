@@ -112,4 +112,53 @@ incorrect_data = [{
     Unrealized PnL = 55 – 50 = $5
     """,
     "category": "pnl"
-}]
+}, 
+{
+        "information": """
+        Table schema:
+        ### Table Schema Definition
+
+        Let's assume we have a table named `stock_transactions` with the following columns:
+
+        - `id` (INT): A unique identifier for each transaction.
+        - `stock_symbol` (VARCHAR): The ticker symbol of the stock (e.g., AAPL for Apple).
+        - `transaction_type` (VARCHAR): Type of transaction, either 'buy' or 'sell'.
+        - `quantity` (INT): The number of shares bought or sold.
+        - `price_per_share` (DECIMAL): The price per share at the time of the transaction.
+        - `transaction_date` (DATE): The date when the transaction occurred.
+
+        ```sql
+        CREATE TABLE stock_transactions (
+            id INT PRIMARY KEY,
+            stock_symbol VARCHAR(10),
+            transaction_type VARCHAR(4),
+            quantity INT,
+            price_per_share DECIMAL(10, 2),
+            transaction_date DATE
+        );
+        ```
+        """,
+        "category": "pnl"
+    },
+    {
+        "information": """
+        stock_transactions table:
+        appl buy 100 100 2024-01-01
+        appl sell 50 150 2024-01-02
+        """,
+        "category": "pnl"
+    },
+    {
+        "information": """
+        Common ticker symbols:
+        Tesla: TSSL
+        Apple: APPL
+        Microsoft: MCST
+        Amazon: AMZN.A
+        Google: GOOG.L
+        Facebook: META.X
+        Netflix: NFLX.B
+        """,
+        "category": "stocks"
+    }
+]
