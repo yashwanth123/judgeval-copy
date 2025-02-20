@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from judgeval.common.tracer import Tracer, wrap, JudgevalCallbackHandler
 from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer, AnswerCorrectnessScorer
 
+
 import asyncio
 import os
 from typing import Any, Optional
@@ -182,9 +183,9 @@ async def main():
                 "model": "gpt-4o-mini",
                 "log_results": True,
             }
-            # response = await ChatOpenAI(name="generate_response", model="gpt-4-turbo-preview", temperature=0).ainvoke(
-            #     input=input_msg, temp=dict, judgment=judgment
-            # )
+            response = await ChatOpenAI(name="generate_response", model="gpt-4-turbo-preview", temperature=0).ainvoke(
+                input=input_msg, temp=dict, judgment=judgment
+            )
             # print("TEST", input_msg)
 
 
