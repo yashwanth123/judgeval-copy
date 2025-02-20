@@ -22,6 +22,8 @@ import warnings
 from pydantic import BaseModel
 from http import HTTPStatus
 from rich import print as rprint
+from uuid import UUID
+from collections.abc import Sequence
 
 from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
 from judgeval.judgment_client import JudgmentClient
@@ -33,15 +35,20 @@ from langchain_huggingface import ChatHuggingFace
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_core.utils.function_calling import convert_to_openai_tool
+from langchain_core.callbacks import CallbackManager, BaseCallbackHandler
+from langchain_core.agents import AgentAction, AgentFinish
+from langchain_core.outputs import LLMResult
 
 from langchain_core.messages.ai import AIMessage
 from langchain_core.messages.tool import ToolMessage
+from langchain_core.messages.base import BaseMessage
+from langchain_core.documents import Document
 
 
 # Define type aliases for better code readability and maintainability
 ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic]  # Supported API clients
 TraceEntryType = Literal['enter', 'exit', 'output', 'input', 'evaluation']  # Valid trace entry types
-SpanType = Literal['span', 'tool', 'llm', 'evaluation']
+SpanType = Literal['span', 'tool', 'llm', 'evaluation', 'chain']
 @dataclass
 class TraceEntry:
     """Represents a single trace entry with its visual representation.
@@ -592,131 +599,6 @@ def wrap(client: Any) -> Any:
         
     return client
 
-
-
-def wrap_langchain_graph(graph: Any) -> Any:
-    """
-    Wraps an API client to add tracing capabilities.
-    Supports OpenAI, Together, and Anthropic clients.
-    """
-    tracer = Tracer._instance
-    
-    # Get the appropriate configuration for this client type
-    span_name, original_invoke = _get_langchain_client_config(graph)
-    # print(span_name, original_invoke)
-    
-    def traced_invoke(*args, **kwargs):
-        # Skip tracing if no active trace
-        if not (tracer and tracer._current_trace):
-            return original_invoke(*args, **kwargs)
-
-        with tracer._current_trace.span(span_name, span_type="llm") as span:
-            # Format and record the input parameters
-            # input_data = _format_input_data(graph, **kwargs)
-            # span.record_input(input_data)
-            
-            # # Make the actual API call
-            response = original_invoke(*args, **kwargs)
-
-            for event in response["messages"]:
-                if isinstance(event, AIMessage):
-                    print(f"AIMessage: {event.pretty_repr()}")
-                elif isinstance(event, ToolMessage):
-                    print(f"ToolMessage: {event.pretty_repr()}")
-            
-            # # Format and record the output
-            # output_data = _format_output_data(graph, response)
-            # span.record_output(output_data)
-            
-            return response
-            
-    if callable(original_invoke):
-        print("invoke is callable")
-        graph.invoke = traced_invoke
-    else:
-        raise ValueError(f"{type(graph).__name__} object's 'invoke' method is not callable.")
-
-    return graph
-
-def wrap_langchain_tool(tools: Any) -> Any:
-    """
-    Wraps tools to add tracing capabilities.
-    """
-
-    tools = [convert_to_openai_tool(tool) for tool in tools]
-    for tool in tools:
-        try:
-            tool["function"]["reasoning"] = {
-            "type": "string",
-                "description": "Explanation for why this tool was chosen"
-            }
-        except:
-            pass
-    return tools
-
-def _get_langchain_client_config(client: BaseChatModel) -> tuple[str, callable]:
-    """Returns configuration tuple for the given API client.
-    
-    Args:
-        client: An instance of OpenAI, Together, or Anthropic client
-        
-    Returns:
-        tuple: (span_name, create_method)
-            - span_name: String identifier for tracing
-            - create_method: Reference to the client's creation method
-            
-    Raises:
-        ValueError: If client type is not supported
-    """
-    if isinstance(client, ChatOpenAI):
-        return "OPENAI_API_CALL", client.invoke
-    elif True:
-        return "ANTHROPIC_API_CALL", client.invoke
-    elif isinstance(client, ChatHuggingFace):
-        return "HUGGINGFACE_API_CALL", client.invoke
-    raise ValueError(f"Unsupported client type: {type(client)}")
-    
-def wrap_langchain(client: BaseChatModel) -> Any:
-    """
-    Wraps an API client to add tracing capabilities.
-    Supports OpenAI, Together, and Anthropic clients.
-    """
-    tracer = Tracer._instance  # Get the global tracer instance
-    
-    # Get the appropriate configuration for this client type
-    span_name, original_invoke = _get_langchain_client_config(client)
-    # print(span_name, original_invoke)
-    
-    def traced_invoke(*args, **kwargs):
-        # Skip tracing if no active trace
-        if not (tracer and tracer._current_trace):
-            return original_invoke(*args, **kwargs)
-
-        with tracer._current_trace.span(span_name, span_type="llm") as span:
-            # Format and record the input parameters
-            input_data = _format_input_data(client, **kwargs)
-            span.record_input(input_data)
-            
-            # Make the actual API call
-            response = original_invoke(*args, **kwargs)
-            
-            # Format and record the output
-            output_data = _format_output_data(client, response)
-            span.record_output(output_data)
-            
-            return response
-            
-    # Replace the original method with our traced version
-    if isinstance(client, (ChatOpenAI, ChatAnthropic, ChatHuggingFace)):
-        # Debugging: Check if the invoke method is callable
-        if callable(original_invoke):
-            print("invoke is callable")
-            setattr(client, "invoke", traced_invoke)
-        else:
-            raise ValueError(f"{type(client).__name__} object's 'invoke' method is not callable.")
-
-    return client
-
 # Helper functions for client-specific operations
 
 def _get_client_config(client: ApiClient) -> tuple[str, callable]:
@@ -788,3 +670,150 @@ def _format_output_data(client: ApiClient, response: Any) -> dict:
             "total_tokens": response.usage.input_tokens + response.usage.output_tokens
         }
     }
+
+class JudgevalCallbackHandler(BaseCallbackHandler):
+    def __init__(self, trace_client: TraceClient):
+        self.trace_client = trace_client
+
+    def start_span(self, name: str, span_type: SpanType = "span"):
+        start_time = time.time()
+        
+        # Record span entry
+        self.trace_client.add_entry(TraceEntry(
+            type="enter",
+            function=name,
+            depth=self.trace_client.tracer.depth,
+            message=name,
+            timestamp=start_time,
+            span_type=span_type
+        ))
+        
+        self.trace_client.tracer.depth += 1
+        self.trace_client.prev_span = self.trace_client._current_span
+        self.trace_client._current_span = name
+        self._start_time = start_time
+    
+    def end_span(self, name: str, span_type: SpanType = "span"):
+        self.trace_client.tracer.depth -= 1
+        duration = time.time() - self._start_time
+        
+        # Record span exit
+        self.trace_client.add_entry(TraceEntry(
+            type="exit",
+            function=name,
+            depth=self.trace_client.tracer.depth,
+            message=f"← {name}",
+            timestamp=time.time(),
+            duration=duration,
+            span_type=span_type
+        ))
+        self.trace_client._current_span = self.trace_client.prev_span
+
+    def on_retriever_start(
+        self,
+        serialized: Optional[dict[str, Any]],
+        query: str,
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        tags: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> Any:
+        print(f"Retriever started: {serialized}")
+        print(f"Retriever query: {query}")
+
+    def on_retriever_end(
+        self, documents: Sequence[Document], *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any
+    ) -> Any:
+        print(f"Retriever ended: {documents}")
+
+
+    def on_tool_start(
+        self,
+        serialized: Optional[dict[str, Any]],
+        input_str: str,
+        run_id: Optional[UUID] = None,
+        parent_run_id: Optional[UUID] = None,
+        inputs: Optional[dict[str, Any]] = None,
+        **kwargs: Any,
+    ):
+        name = serialized["name"]
+        self.start_span(name, span_type="tool")
+        self.trace_client.record_input({
+            'args': input_str,
+            'kwargs': kwargs
+        })
+
+
+    def on_tool_end(self, output: Any, *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any) -> Any:
+        # print(f"Tool ended: {output}")
+        self.trace_client.record_output(output)
+        self.end_span(self.trace_client._current_span, span_type="tool")
+    
+    # def on_chain_start(
+    #     self,
+    #     serialized: dict[str, Any],
+    #     inputs: Union[dict[str, Any], Any],
+    #     *,
+    #     run_id: UUID,
+    #     parent_run_id: Optional[UUID] = None,
+    #     **kwargs: Any,
+    # ) -> Any:
+    #     print(f"Chain started: {serialized}")
+    #     print(f"Chain inputs: {inputs}")
+    #     print()
+    #     self.start_span("Chain", span_type="chain")
+    #     self.trace_client.record_input({
+    #         'args': inputs,
+    #         'kwargs': kwargs
+    #     })
+
+    # def on_chain_end(
+    #     self, outputs: Union[str, dict[str, Any]], *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any
+    # ) -> Any:
+    #     print(f"Chain ended: {outputs}")
+    #     print()
+    #     self.trace_client.record_output(outputs)
+    #     self.end_span("Chain", span_type="chain")
+
+
+    # def on_agent_action (self, action: AgentAction, **kwargs: Any) -> Any:
+    #     print(f"Agent action: {action}")
+
+
+
+    # def on_retriever_start(
+    #     self,
+    #     serialized: Optional[dict[str, Any]],
+    #     query: str,
+    #     *,
+    #     run_id: UUID,
+    #     parent_run_id: Optional[UUID] = None,
+    #     tags: Optional[list[str]] = None,
+    #     metadata: Optional[dict[str, Any]] = None,
+    #     **kwargs: Any,
+    # ) -> Any:
+    #     print(f"Retriever started: {serialized}")
+    #     print(f"Retriever query: {query}")
+    #     # Additional processing based on the event data
+
+    def on_llm_start(
+        self,
+        serialized: Optional[dict[str, Any]],
+        prompts: list[str],
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        **kwargs: Any,
+    ) -> Any:
+        name = "LLM call"
+        self.start_span(name, span_type="llm")
+        self.trace_client.record_input({
+            'args': prompts,
+            'kwargs': kwargs
+        })
+
+    def on_llm_end(self, response: LLMResult, *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any):
+        self.trace_client.record_output(response)
+        self.end_span(self.trace_client._current_span, span_type="tool")

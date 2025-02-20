@@ -12,10 +12,14 @@ from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 from dotenv import load_dotenv
-from judgeval.common.tracer import Tracer, wrap_langchain, wrap, wrap_langchain_tool, wrap_langchain_graph
+from judgeval.common.tracer import Tracer, wrap, JudgevalCallbackHandler
+from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer, AnswerCorrectnessScorer
+
 
 import asyncio
 import os
+from typing import Any, Optional
+from uuid import UUID
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
@@ -38,13 +42,21 @@ def tavily_search(query: str) -> str:
     return TavilySearchResults(max_results=2)
 
 
-def multiply(int_list: list[int]) -> int:
+async def multiply(int_list: list[int]) -> int:
     """
     Multiples numbers together
     """
     product = 1
     for i in int_list:
         product *= i
+
+    await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerCorrectnessScorer(threshold=0.5)],
+        input=str(int_list),
+        actual_output=str(product),
+        model="gpt-4o-mini",
+        log_results=True
+    )
     return product
 
 async def main():
@@ -78,15 +90,22 @@ async def main():
         graph_builder.add_edge("tools", "chatbot")
         graph_builder.set_entry_point("chatbot")
         graph = graph_builder.compile()
-        graph = wrap_langchain_graph(graph)
+
+        handler = JudgevalCallbackHandler(trace)
 
 
-        res = graph.invoke({"messages": [{"role": "user", "content": "What is the amount of people in the US times 5 times number of people in China? Make sure to fill out the reasoning for each tool call."}]})
+        res = graph.invoke(
+            {"messages": [{"role": "user", "content": "What is the amount of people in the US times 5 times number of people in China?"}]},
+            config=dict(callbacks=[handler])
+            )
+        
+        print(f"Result: {res}")
+            
 
         # # stream_graph_updates(graph, "What is the amount of people in the US times 5 times number of people in China?")
 
         trace.save()
-        trace.print()
+        # trace.print()
 
 
 
