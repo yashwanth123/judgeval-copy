@@ -1,33 +1,21 @@
-from typing import Annotated
-
 from langchain_openai import ChatOpenAI
-
-from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
-from typing_extensions import TypedDict
-from langchain_core.utils.function_calling import convert_to_openai_tool
-from langgraph.graph import StateGraph
-from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode, tools_condition
-from dotenv import load_dotenv
-from judgeval.common.tracer import Tracer, JudgevalCallbackHandler
-from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer, AnswerCorrectnessScorer, ContextualRelevancyScorer
-
-
 import asyncio
 import os
-from typing import Any, Optional
-from uuid import UUID
 
-import openai
-import os
-import asyncio
-from tavily import TavilyClient
-from dotenv import load_dotenv
 import chromadb
 from chromadb.utils import embedding_functions
 
 from vectordbdocs import financial_data, incorrect_financial_data
+
+from typing import Optional
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from typing_extensions import TypedDict
+from langgraph.graph import StateGraph
+
+from judgeval.common.tracer import Tracer, JudgevalCallbackHandler
+from judgeval.scorers import AnswerCorrectnessScorer
+
+
 
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
 
@@ -36,6 +24,7 @@ class AgentState(TypedDict):
     messages: list[BaseMessage]
     category: Optional[str]
     documents: Optional[str]
+    
 def populate_vector_db(collection, raw_data):
     """
     Populate the vector DB with financial information.
