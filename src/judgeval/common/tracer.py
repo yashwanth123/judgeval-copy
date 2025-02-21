@@ -189,7 +189,7 @@ class TraceClient:
             ))
             self._current_span = prev_span
             
-    async def async_evaluate(
+    def async_evaluate(
         self,
         scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
         input: Optional[str] = None,
