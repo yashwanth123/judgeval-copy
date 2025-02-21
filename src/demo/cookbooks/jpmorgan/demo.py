@@ -10,7 +10,7 @@ from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 from dotenv import load_dotenv
-from judgeval.common.tracer import Tracer, wrap, JudgevalCallbackHandler
+from judgeval.common.tracer import Tracer, JudgevalCallbackHandler
 from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer, AnswerCorrectnessScorer, ContextualRelevancyScorer
 
 
@@ -26,7 +26,6 @@ from tavily import TavilyClient
 from dotenv import load_dotenv
 import chromadb
 from chromadb.utils import embedding_functions
-
 
 from vectordbdocs import financial_data, incorrect_financial_data
 
@@ -111,16 +110,16 @@ async def classify(state: AgentState) -> AgentState:
         *messages
     ]
     
+    response = ChatOpenAI(model="gpt-4o-mini", temperature=0).invoke(
+        input=input_msg
+    )
     
-    span_evaluation = {
-        "scorers": [AnswerCorrectnessScorer(threshold=0.5)],
-        "expected_output": "pnl",
-        "input": str(input_msg),
-        "model": "gpt-4o-mini",
-        "log_results": True
-    }
-    response = await ChatOpenAI(model="gpt-4o-mini", temperature=0).ainvoke(
-        input=input_msg, span_evaluation=span_evaluation, judgment=judgment
+    await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerCorrectnessScorer(threshold=0.5)],
+        input=str(input_msg),
+        actual_output=response.content,
+        expected_output="pnl",
+        model="gpt-4o-mini"
     )
 
     return {"messages": state["messages"], "category": response.content}
@@ -152,17 +151,18 @@ async def generate_response(state: AgentState) -> AgentState:
             The only thing you should output is the SQL query itself, nothing else."""),
             *messages
         ]
-                
-    span_evaluation = {
-        "scorers": [ContextualRelevancyScorer(threshold=0.5), AnswerCorrectnessScorer(threshold=0.5)],
-        "expected_output": "SELECT * FROM pnl WHERE stock_symbol = 'AAPL'", # TODO: UPDATE this with a proper sql query
-        "retrieval_context": documents,
-        "input": str(input_msg),
-        "model": "gpt-4o",
-        "log_results": True,
-    }
-    response = await ChatOpenAI(name="generate_response", model="gpt-4o-mini", temperature=0).ainvoke(
-        input=input_msg, span_evaluation=span_evaluation, judgment=judgment
+
+    chatClient = ChatOpenAI(name="generate_response", model="gpt-4o-mini", temperature=0)
+    response = chatClient.invoke(
+        input=input_msg
+    )
+    
+    await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerCorrectnessScorer(threshold=0.5)],
+        input=str(input_msg),
+        actual_output=response.content,
+        expected_output="SELECT * FROM pnl WHERE stock_symbol = 'AAPL'",
+        model="gpt-4o-mini"
     )
 
     return {"messages": messages + [response], "documents": documents}
