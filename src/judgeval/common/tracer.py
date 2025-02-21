@@ -537,7 +537,6 @@ class Tracer:
                         span.span_type = span_type
                         
                         # Record inputs
-                        print(f"Args: {args} for {span_name}")
                         span.record_input({
                             'args': str(args),
                             'kwargs': kwargs
@@ -761,13 +760,12 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         metadata: Optional[dict[str, Any]] = None,
         **kwargs: Any,
     ) -> Any:
-        print(f"Retriever started: {serialized}")
-        print(f"Retriever query: {query}")
+        pass
 
     def on_retriever_end(
         self, documents: Sequence[Document], *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any
     ) -> Any:
-        print(f"Retriever ended: {documents}")
+        pass
 
 
     def on_tool_start(
@@ -882,9 +880,9 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         parent_run_id: Optional[UUID] = None,
         **kwargs: Any,
     ) -> Any:
-        print(f"Chat model messages: {messages}")
-        print(f"Chat model serialized: {serialized}")
-        # print(f"Chat model kwargs: {kwargs}")
+        # print(f"Chat model messages: {messages}")
+        # print(f"Chat model serialized: {serialized}")
+        # # print(f"Chat model kwargs: {kwargs}")
 
         if "openai" in serialized["id"]:
             name = f"OPENAI_API_CALL_{self.openai_count}"
