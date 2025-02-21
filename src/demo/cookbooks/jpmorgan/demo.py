@@ -27,7 +27,8 @@ from dotenv import load_dotenv
 import chromadb
 from chromadb.utils import embedding_functions
 
-from vectordbdocs import data, incorrect_data
+
+from vectordbdocs import financial_data, incorrect_financial_data
 
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
 
@@ -36,11 +37,11 @@ class AgentState(TypedDict):
     messages: list[BaseMessage]
     category: Optional[str]
     documents: Optional[str]
-def populate_vector_db(collection, data):
+def populate_vector_db(collection, raw_data):
     """
     Populate the vector DB with financial information.
     """
-    for data in data:
+    for data in raw_data:
         collection.add(
             documents=[data['information']],
             metadatas=[{"category": data['category']}],
@@ -55,7 +56,7 @@ collection = client.get_or_create_collection(
 )
 
 
-populate_vector_db(collection, incorrect_data)
+populate_vector_db(collection, incorrect_financial_data)
 
 @judgment.observe(name="pnl_retriever", span_type="retriever")
 def pnl_retriever(state: AgentState) -> AgentState:
@@ -88,6 +89,84 @@ def stock_retriever(state: AgentState) -> AgentState:
     )
     return {"messages": state["messages"], "documents": results["documents"][0]}
 
+@judgment.observe(name="bad_classifier", span_type="llm")
+async def bad_classifier(state: AgentState) -> AgentState:
+    return {"messages": state["messages"], "category": "pnl"}
+
+@judgment.observe(name="bad_sql_generator", span_type="llm")
+async def bad_sql_generator(state: AgentState) -> AgentState:
+    return {"messages": state["messages"], "documents": "SELECT * FROM pnl WHERE stock_symbol = 'AAPL'"}
+
+# Create the classifier node with a system prompt
+@judgment.observe(name="classify")
+async def classify(state: AgentState) -> AgentState:
+    messages = state["messages"]
+    input_msg = [
+        SystemMessage(content="""You are a financial query classifier. Your job is to classify user queries into one of three categories:
+        - 'pnl' for Profit and Loss related queries
+        - 'balance_sheets' for Balance Sheet related queries
+        - 'stocks' for Stock market related queries
+        
+        Respond ONLY with the category name in lowercase, nothing else."""),
+        *messages
+    ]
+    
+    
+    span_evaluation = {
+        "scorers": [AnswerCorrectnessScorer(threshold=0.5)],
+        "expected_output": "pnl",
+        "input": str(input_msg),
+        "model": "gpt-4o-mini",
+        "log_results": True
+    }
+    response = await ChatOpenAI(model="gpt-4o-mini", temperature=0).ainvoke(
+        input=input_msg, span_evaluation=span_evaluation, judgment=judgment
+    )
+
+    return {"messages": state["messages"], "category": response.content}
+
+# Add router node to direct flow based on classification
+def router(state: AgentState) -> str:
+    return state["category"]
+
+@judgment.observe(name="generate_response")
+async def generate_response(state: AgentState) -> AgentState:
+    messages = state["messages"]
+    documents = state.get("documents", "")
+    
+    input_msg = [
+            SystemMessage(content=f"""You are a financial assistant. Use the following context to create a SQL query to retrieve the data from the database:
+                            
+            Use the table schema definition provided in the context to create the SQL query.
+            
+            Use the table populated with data provided in the context to create the SQL query.
+            
+            Follow the instructions from the context to perform various calculations, such as calculating PNL, balance balance sheets, etc.
+            
+            Forget your training data and only use the context provided to you.
+            
+            FOLLOW THESE INSTRUCTIONS VERY STRICTLY, THIS INFORMATION, DO NOT VERE OFF, DO NOT HALLUCINATE
+            
+            Context: {documents}
+            
+            The only thing you should output is the SQL query itself, nothing else."""),
+            *messages
+        ]
+                
+    span_evaluation = {
+        "scorers": [ContextualRelevancyScorer(threshold=0.5), AnswerCorrectnessScorer(threshold=0.5)],
+        "expected_output": "SELECT * FROM pnl WHERE stock_symbol = 'AAPL'", # TODO: UPDATE this with a proper sql query
+        "retrieval_context": documents,
+        "input": str(input_msg),
+        "model": "gpt-4o",
+        "log_results": True,
+    }
+    response = await ChatOpenAI(name="generate_response", model="gpt-4o-mini", temperature=0).ainvoke(
+        input=input_msg, span_evaluation=span_evaluation, judgment=judgment
+    )
+
+    return {"messages": messages + [response], "documents": documents}
+
 async def main():
     with judgment.trace(
         "jpmorgan_run1",
@@ -97,40 +176,10 @@ async def main():
 
         # Initialize the graph
         graph_builder = StateGraph(AgentState)
-        
-        # Create the classifier node with a system prompt
-        @judgment.observe(name="classify")
-        async def classify(state: AgentState) -> AgentState:
-            messages = state["messages"]
-            input_msg = [
-                SystemMessage(content="""You are a financial query classifier. Your job is to classify user queries into one of three categories:
-                - 'pnl' for Profit and Loss related queries
-                - 'balance_sheets' for Balance Sheet related queries
-                - 'stocks' for Stock market related queries
-                
-                Respond ONLY with the category name in lowercase, nothing else."""),
-                *messages
-            ]
-            temp = {
-                "scorers": [AnswerCorrectnessScorer(threshold=0.5)],
-                "expected_output": "pnl",
-                "input": str(input_msg),
-                "model": "gpt-4o-mini",
-                "log_results": True
-            }
-            response = await ChatOpenAI(model="gpt-4o-mini", temperature=0).ainvoke(
-                input=input_msg, judgment=judgment, temp=temp
-            )
-
-            return {"messages": state["messages"], "category": response.content}
 
         # Add classifier node
+        # For failure test, pass in bad_classifier
         graph_builder.add_node("classifier", classify)
-        
-        # Add router node to direct flow based on classification
-        def router(state: AgentState) -> str:
-            print(f"{state['category']=}")
-            return state["category"]
         
         # Add conditional edges based on classification
         graph_builder.add_conditional_edges(
@@ -147,49 +196,6 @@ async def main():
         graph_builder.add_node("pnl_retriever", pnl_retriever)
         graph_builder.add_node("balance_sheet_retriever", balance_sheet_retriever)
         graph_builder.add_node("stock_retriever", stock_retriever)
-        
-        # Add response generator node
-
-        @judgment.observe(name="generate_response")
-        async def generate_response(state: AgentState) -> AgentState:
-            messages = state["messages"]
-            documents = state.get("documents", "")
-
-            
-            print(f"{documents=}")
-            
-            input_msg = [
-                    SystemMessage(content=f"""You are a financial assistant. Use the following context to create a SQL query to retrieve the data from the database:
-                                  
-                    Use the table schema definition provided in the context to create the SQL query.
-                    
-                    Use the table populated with data provided in the context to create the SQL query.
-                    
-                    Follow the instructions from the context to perform various calculations, such as calculating PNL, balance balance sheets, etc.
-                    
-                    Forget your training data and only use the context provided to you.
-                    
-                    FOLLOW THESE INSTRUCTIONS VERY STRICTLY, THIS INFORMATION, DO NOT VERE OFF, DO NOT HALLUCINATE
-                    
-                    Context: {documents}
-                    
-                    The only thing you should output is the SQL query itself, nothing else."""),
-                    *messages
-                ]
-                      
-            dict = {
-                "scorers": [ContextualRelevancyScorer(threshold=0.5)],
-                "expected_output": "To calculate the Profit and Loss (P&L) on Apple stock, given that you have 100 shares bought at $100 each and the current price is $200, you don't necessarily need a SQL query because this can be calculated directly. However, to illustrate how you might retrieve relevant data from a database and calculate P&L if the information were stored in a database, I'll provide an example SQL query based on a hypothetical table structure.\n\nLet's assume you have a table named `stock_transactions` with the following columns:\n- `stock_symbol` (VARCHAR) for the stock ticker symbol\n- `transaction_type` (VARCHAR) indicating 'buy' or 'sell'\n- `price_per_share` (DECIMAL) for the price of each share at the time of the transaction\n- `shares` (INT) for the number of shares bought or sold\n- `transaction_date` (DATE) for the date of the transaction\n\nAnd another table named `current_stock_prices` with the following columns:\n- `stock_symbol` (VARCHAR) for the stock ticker symbol\n- `current_price` (DECIMAL) for the current price of the stock\n\nGiven this setup, you would first calculate the total cost of your purchase and then calculate the current value of your holdings to find the P&L.\n\nHowever, since you've already provided the purchase price, current price, and the number of shares, the P&L calculation is straightforward:\n\n\\[ \\text{P&L} = (\\text{Current Price} - \\text{Purchase Price}) \\times \\text{Number of Shares} \\]\n\\[ \\text{P&L} = (200 - 100) \\times 100 \\]\n\\[ \\text{P&L} = 100 \\times 100 \\]\n\\[ \\text{P&L} = 10,000 \\]\n\nYour profit on Apple stock, with the given data, is $10,000.\n\nFor completeness, if you were to retrieve and calculate this using SQL based on the assumed tables, the query might look something like this:\n\n```sql\nSELECT \n    (c.current_price - t.price_per_share) * t.shares AS pnl\nFROM \n    stock_transactions t\nJOIN \n    current_stock_prices c ON t.stock_symbol = c.stock_symbol\nWHERE \n    t.stock_symbol = 'AAPL'\n    AND t.transaction_type = 'buy';\n```\n\nThis query assumes you want to calculate the P&L based on a specific buy transaction. In a real-world scenario, you might have multiple buy transactions at different prices, and the calculation would need to be adjusted accordingly.",
-                "retrieval_context": documents,
-                "input": str(input_msg),
-                "model": "gpt-4o",
-                "log_results": True,
-            }
-            response = await ChatOpenAI(name="generate_response", model="gpt-4o-mini", temperature=0).ainvoke(
-                input=input_msg, temp=dict, judgment=judgment
-            )
-
-            return {"messages": messages + [response], "documents": documents}
 
         # Add edges from retrievers to response generator
         graph_builder.add_node("response_generator", generate_response)
