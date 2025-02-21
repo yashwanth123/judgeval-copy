@@ -6,6 +6,7 @@ from openai import OpenAI
 import anthropic
 import time
 from together import Together
+import concurrent.futures
 
 if __name__ == "__main__":
 
@@ -44,52 +45,74 @@ if __name__ == "__main__":
                     Excerpts: {excerpts},
                     Classification: {LLM_raw_response}
                     
-                    Provide your response in JSON format (just the brackets no other text) with fields contradiction (yes or no) and explanation.
+                    Provide your response in JSON format (just the brackets no other text) with only one field contradiction (yes or no)
                     """
                     # Query the OpenAI API  
 
-                    list_of_4o_responses = []
-                    client = openai.Client(os.getenv("OPENAI_API_KEY"))
-                    for i in range(2):
-                        response_4o = client.chat.completions.create(
-                            model="gpt-4o",
+                    # Function to call OpenAI API
+                    def call_openai(model, prompt):
+                        client = openai.Client()
+                        response = client.chat.completions.create(
+                            model=model,
                             messages=[
                                 {"role": "user", "content": prompt}
                             ]
-                        ).choices[0].message.content
-                        list_of_4o_responses.append(response_4o)
+                        )
+                        return response.choices[0].message.content
 
-                    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-                    list_of_sonnet_responses = []
-                    for i in range(2):
-                        response_anthropic = client.messages.create(
+                    # Function to call Anthropic API
+                    def call_anthropic(prompt):
+                        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+                        response = client.messages.create(
                             model="claude-3-5-sonnet-20241022",
                             max_tokens=1024,
                             messages=[
                                 {"role": "user", "content": prompt}
                             ]
-                        ).content[0].text
-                        list_of_sonnet_responses.append(response_anthropic)
+                        )
+                        return response.content[0].text
 
+                    # Prepare to collect responses
+                    list_of_4o_responses = []
+                    list_of_sonnet_responses = []
                     list_of_o1_responses = []
-                    for i in range(2):
-                        response_01_mini = client.chat.completions.create(
-                        model="o1-mini",
-                        messages=[
-                                {"role": "user", "content": prompt}
-                            ]
-                        ).choices[0].message.content
-                        list_of_o1_responses.append(response_01_mini)
 
+                    # Use ThreadPoolExecutor to perform API calls in parallel
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        # Prepare futures for OpenAI API calls
+                        futures_4o = [executor.submit(call_openai, "gpt-4o", prompt) for _ in range(2)]
+                        
+                        # Prepare futures for Anthropic API calls
+                        futures_sonnet = [executor.submit(call_anthropic, prompt) for _ in range(2)]
+                        
+                        # Prepare futures for O1 API calls
+                        futures_o1 = [executor.submit(call_openai, "o1-mini", prompt) for _ in range(2)]
+
+                        # Collect OpenAI responses
+                        for future in concurrent.futures.as_completed(futures_4o):
+                            list_of_4o_responses.append(future.result())
+
+                        # Collect Anthropic responses
+                        for future in concurrent.futures.as_completed(futures_sonnet):
+                            list_of_sonnet_responses.append(future.result())
+
+                        # Collect O1 responses
+                        for future in concurrent.futures.as_completed(futures_o1):
+                            list_of_o1_responses.append(future.result())
+                    
+                    print(list_of_4o_responses)
+                    print(list_of_o1_responses)
+                    print(list_of_sonnet_responses)
+
+                    total_responses = list_of_4o_responses + list_of_o1_responses + list_of_sonnet_responses
 
                     prompt_o1_preview = f"""
-                    Given the following JSON, if the majority say there is a contradiction, return "yes", otherwise return "no". But also try to factor in the explanation of each JSON when making your decision.
-                    {list_of_4o_responses}
-                    {list_of_o1_responses}
-                    {list_of_sonnet_responses}
+                    Given the following JSONs, if at least 2 of the JSONs say there is a contradiction, return "yes", otherwise return "no". 
+                    {total_responses}
 
-                    Provide your response in JSON format (just the brackets no other text) with fields contradiction (yes or no). Make sure to only have 1.
+                    Provide your response in JSON format (just the brackets no other text) with fields contradiction (yes or no). Make sure to only have 1 field.
                     """
+                    client = openai.Client()
                     response = client.chat.completions.create(
                         model="o1-preview",
                         messages=[
