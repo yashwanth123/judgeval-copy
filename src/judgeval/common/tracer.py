@@ -271,6 +271,9 @@ class TraceClient:
         if self._current_span:
             duration = time.time() - start_time  # Calculate duration from start_time
             
+            print(f"self._current_span: {type(self._current_span)}")
+            print(f"{[(entry.function, entry.type, type(entry)) for entry in self.entries]}")
+            
             self.add_entry(TraceEntry(
                 type="evaluation",
                 function=self._current_span,
