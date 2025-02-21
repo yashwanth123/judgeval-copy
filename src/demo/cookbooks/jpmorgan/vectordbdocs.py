@@ -1,4 +1,4 @@
-data = [{
+financial_data = [{
     "information": """
     Unrealized PnL shows how your position is performing at a snapshot in time, but no transaction has taken place to lock in gains or losses.
     
@@ -94,7 +94,7 @@ data = [{
     }    
 ]
 
-incorrect_data = [{
+incorrect_financial_data = [{
     "information": """
     Unrealized PnL shows how your position is performing at a snapshot in time, but no transaction has taken place to lock in gains or losses.
 
