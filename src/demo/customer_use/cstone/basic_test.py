@@ -19,7 +19,7 @@ if __name__ == "__main__":
             docket_id, excerpts, raw_response, quote, is_class_action, note = row
 
             example = Example(
-                input="",
+                input=str(docket_id),
                 actual_output=raw_response,
                 retrieval_context=[excerpts]
             )
@@ -28,9 +28,9 @@ if __name__ == "__main__":
         res = client.run_evaluation(
             examples=examples,
             scorers=[FaithfulnessScorer(threshold=1.0)],
-            model="gpt-4o",
+            model="o1-preview",
             eval_run_name="cstone-basic-test",
-            project_name="cornerstone_demo",
+            project_name="cornerstone_demo_new_o1",
             override=True,
             use_judgment=False,
         )
