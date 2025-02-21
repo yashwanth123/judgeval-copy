@@ -8,6 +8,7 @@ from typing import List
 from openai import OpenAI
 from together import Together
 from anthropic import Anthropic
+import pytest
 
 # Local imports
 from judgeval.common.tracer import Tracer, wrap, TraceClient, TraceManagerClient
@@ -93,7 +94,7 @@ async def make_poem(input: str) -> str:
     try:
         # Using Anthropic API
         anthropic_response = anthropic_client.messages.create(
-            model="claude-3-sonnet-20240229",
+            model="claude-3-5-sonnet-20241022",
             messages=[{"role": "user", "content": input}],
             max_tokens=30
         )
@@ -123,24 +124,12 @@ async def make_poem(input: str) -> str:
         print(f"Error generating poem: {e}")
         return ""
 
-async def test_token_counting(trace_data: dict):
-    """Test that token counts are properly aggregated from different LLM API calls."""
-    # Verify token counts exist and are properly aggregated
-    token_counts = trace_data["token_counts"]
-    assert token_counts["prompt_tokens"] > 0, "Prompt tokens should be counted"
-    assert token_counts["completion_tokens"] > 0, "Completion tokens should be counted"
-    assert token_counts["total_tokens"] > 0, "Total tokens should be counted"
-    assert token_counts["total_tokens"] == (
-        token_counts["prompt_tokens"] + token_counts["completion_tokens"]
-    ), "Total tokens should be equal to the sum of prompt and completion tokens"
-    
-    # Print token counts for verification
-    print("\nToken Count Results:")
-    print(f"Prompt Tokens: {token_counts['prompt_tokens']}")
-    print(f"Completion Tokens: {token_counts['completion_tokens']}")
-    print(f"Total Tokens: {token_counts['total_tokens']}")
+@pytest.fixture
+def trace_manager_client():
+    """Fixture to initialize TraceManagerClient."""
+    return TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
 
-async def test_evaluation_mixed(trace_manager_client: TraceManagerClient):
+async def test_token_counting(trace_manager_client):
     input = "Write a poem about Nissan R32 GTR"
     PROJECT_NAME = "TestingPoemBot"
     with judgment.trace("Use-claude-hehexd123", project_name=PROJECT_NAME, overwrite=True) as trace:
@@ -150,12 +139,27 @@ async def test_evaluation_mixed(trace_manager_client: TraceManagerClient):
         
         # Save trace data and test token counting
         trace_id, trace_data = trace.save()
-        await test_token_counting(trace_data)
+        
+        """Test that token counts are properly aggregated from different LLM API calls."""
+        # Verify token counts exist and are properly aggregated
+        token_counts = trace_data["token_counts"]
+        assert token_counts["prompt_tokens"] > 0, "Prompt tokens should be counted"
+        assert token_counts["completion_tokens"] > 0, "Completion tokens should be counted"
+        assert token_counts["total_tokens"] > 0, "Total tokens should be counted"
+        assert token_counts["total_tokens"] == (
+            token_counts["prompt_tokens"] + token_counts["completion_tokens"]
+        ), "Total tokens should be equal to the sum of prompt and completion tokens"
+        
+        # Print token counts for verification
+        print("\nToken Count Results:")
+        print(f"Prompt Tokens: {token_counts['prompt_tokens']}")
+        print(f"Completion Tokens: {token_counts['completion_tokens']}")
+        print(f"Total Tokens: {token_counts['total_tokens']}")
         
         trace.print()
         return result
 
-async def test_trace_delete(trace_manager_client: TraceManagerClient):
+async def test_trace_delete(trace_manager_client):
     with judgment.trace("TEST_RUN", project_name="TEST", overwrite=True) as trace:
         pass
     trace.save()
@@ -167,8 +171,7 @@ async def test_trace_delete(trace_manager_client: TraceManagerClient):
     response = trace_manager_client.fetch_trace(trace.trace_id)
     assert not response, "Trace should be deleted"
 
-async def test_trace_delete_batch(trace_manager_client: TraceManagerClient):
-
+async def test_trace_delete_batch(trace_manager_client):
     with judgment.trace("TEST_RUN", project_name="TEST", overwrite=True) as trace:
         pass
     trace.save()
@@ -176,7 +179,6 @@ async def test_trace_delete_batch(trace_manager_client: TraceManagerClient):
     with judgment.trace("TEST_RUN2", project_name="TEST2", overwrite=True) as trace2:
         pass
     trace2.save()
-
 
     response = trace_manager_client.fetch_trace(trace.trace_id)
     assert response, "No traces found"
@@ -194,7 +196,6 @@ async def test_trace_delete_batch(trace_manager_client: TraceManagerClient):
     response = trace_manager_client.fetch_trace(trace2.trace_id)
     assert not response, "Trace should be deleted"
 
-
 async def run_selected_tests(test_names: list[str]):
     """
     Run only the specified tests by name.
@@ -208,7 +209,7 @@ async def run_selected_tests(test_names: list[str]):
     print("*" * 40)
     
     test_map = {
-        'evaluation_mixed': test_evaluation_mixed,
+        'token_counting': test_token_counting,
         'trace_delete': test_trace_delete,
         'trace_delete_batch': test_trace_delete_batch,
     }
@@ -226,7 +227,7 @@ async def run_selected_tests(test_names: list[str]):
 if __name__ == "__main__":
     # Use a more meaningful test input
     asyncio.run(run_selected_tests([
-        "evaluation_mixed", 
+        "token_counting", 
         "trace_delete", 
         "trace_delete_batch"
         ]))
