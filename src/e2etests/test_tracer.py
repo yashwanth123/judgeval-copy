@@ -21,6 +21,7 @@ openai_client = wrap(OpenAI())
 anthropic_client = wrap(Anthropic())
 
 @judgment.observe(span_type="tool")
+@pytest.mark.asyncio
 async def make_upper(input: str) -> str:
     """Convert input to uppercase and evaluate using judgment API.
     
@@ -45,6 +46,7 @@ async def make_upper(input: str) -> str:
     return output
 
 @judgment.observe(span_type="tool")
+@pytest.mark.asyncio
 async def make_lower(input):
     output = input.lower()
     
@@ -69,6 +71,7 @@ def llm_call(input):
     return "We have a 30 day full refund policy on shoes."
 
 @judgment.observe(span_type="tool")
+@pytest.mark.asyncio
 async def answer_user_question(input):
     output = llm_call(input)
     await judgment.get_current_trace().async_evaluate(
@@ -83,6 +86,7 @@ async def answer_user_question(input):
     return output
 
 @judgment.observe(span_type="tool")
+@pytest.mark.asyncio
 async def make_poem(input: str) -> str:
     """Generate a poem using both Anthropic and OpenAI APIs.
     
@@ -129,6 +133,7 @@ def trace_manager_client():
     """Fixture to initialize TraceManagerClient."""
     return TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
 
+@pytest.mark.asyncio
 async def test_token_counting(trace_manager_client):
     input = "Write a poem about Nissan R32 GTR"
     PROJECT_NAME = "TestingPoemBot"
@@ -159,6 +164,7 @@ async def test_token_counting(trace_manager_client):
         trace.print()
         return result
 
+@pytest.mark.asyncio
 async def test_trace_delete(trace_manager_client):
     with judgment.trace("TEST_RUN", project_name="TEST", overwrite=True) as trace:
         pass
@@ -171,6 +177,7 @@ async def test_trace_delete(trace_manager_client):
     response = trace_manager_client.fetch_trace(trace.trace_id)
     assert not response, "Trace should be deleted"
 
+@pytest.mark.asyncio
 async def test_trace_delete_batch(trace_manager_client):
     with judgment.trace("TEST_RUN", project_name="TEST", overwrite=True) as trace:
         pass
@@ -196,6 +203,7 @@ async def test_trace_delete_batch(trace_manager_client):
     response = trace_manager_client.fetch_trace(trace2.trace_id)
     assert not response, "Trace should be deleted"
 
+@pytest.mark.asyncio
 async def run_selected_tests(test_names: list[str]):
     """
     Run only the specified tests by name.
