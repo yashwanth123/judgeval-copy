@@ -271,19 +271,23 @@ class TraceClient:
         if self._current_span:
             duration = time.time() - start_time  # Calculate duration from start_time
             
-            print(f"self._current_span: {type(self._current_span)}")
-            print(f"{[(entry.function, entry.type, type(entry)) for entry in self.entries]}")
+            # print(f"self._current_span: {type(self._current_span)=}, {self._current_span=}")
+            # print(f'{self.entries[-2]=}, {self.entries[-3]=}')
+            # print(f"{[(entry.function, entry.type, type(entry)) for entry in self.entries]}")
             
             self.add_entry(TraceEntry(
                 type="evaluation",
-                function=self._current_span,
+                function=self.entries[-1].function,
+                # function=self._current_span,
                 depth=self.tracer.depth,
                 message=f"Evaluation results for {self._current_span}",
                 timestamp=time.time(),
-                evaluation_result=results,
+                evaluation_result=list(results),
                 duration=duration,
                 span_type="evaluation"
             ))
+            
+            # print(f"{self.entries[-1]=}")
 
     def record_input(self, inputs: dict):
         """Record input parameters for the current span"""
@@ -350,7 +354,7 @@ class TraceClient:
         active_functions = []  # Stack to track nested function calls
         function_entries = {}  # Store entries for each function
 
-        for entry in entries:
+        for i, entry in enumerate(entries):
             function = entry["function"]
             
             if entry["type"] == "enter":
@@ -372,11 +376,14 @@ class TraceClient:
                 current_entry["duration"] = entry["timestamp"] - current_entry["timestamp"]
                 condensed.append(current_entry)
                 active_functions.remove(function)
-                del function_entries[function]
+                # del function_entries[function]
                 
-            elif function in active_functions:
+            # The OR condition is to handle the Langchain LLM evaluation case.
+            elif function in active_functions or entry["type"] == "evaluation" and entries[i-1]["function"] == entry["function"]:
                 # Update existing function entry with additional data
                 current_entry = function_entries[function]
+                
+                print(f"{current_entry=}")
                 
                 if entry["type"] == "input" and entry["inputs"]:
                     current_entry["inputs"] = entry["inputs"]
@@ -386,9 +393,12 @@ class TraceClient:
                     
                 if entry["type"] == "evaluation" and entry["evaluation_result"]:
                     current_entry["evaluation_result"] = entry["evaluation_result"]
+                    
+            print(f"{entry=}, {active_functions=}")
 
         # Sort by timestamp
         condensed.sort(key=lambda x: x["timestamp"])
+        
         return condensed
 
     def save(self, empty_save: bool = False, overwrite: bool = False) -> Tuple[str, dict]:
@@ -400,6 +410,7 @@ class TraceClient:
         total_duration = self.get_duration()
         
         raw_entries = [entry.to_dict() for entry in self.entries]
+        
         # print(f"Raw entries: {raw_entries}")
         condensed_entries = self.condense_trace(raw_entries)
 
