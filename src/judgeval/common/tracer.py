@@ -275,6 +275,8 @@ class TraceClient:
             # print(f'{self.entries[-2]=}, {self.entries[-3]=}')
             # print(f"{[(entry.function, entry.type, type(entry)) for entry in self.entries]}")
             
+            # Have function be either the last function in the trace or the current span.
+            # function = self._current_span if not langchain else self.entries[-1].function
             self.add_entry(TraceEntry(
                 type="evaluation",
                 function=self.entries[-1].function,
