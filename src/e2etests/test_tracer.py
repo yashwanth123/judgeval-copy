@@ -163,7 +163,7 @@ async def test_trace_delete(trace_manager_client: TraceManagerClient):
     response = trace_manager_client.fetch_trace(trace.trace_id)
     assert response, "No traces found"
 
-    trace_manager_client.delete(trace.trace_id)
+    trace_manager_client.delete_trace(trace.trace_id)
     response = trace_manager_client.fetch_trace(trace.trace_id)
     assert not response, "Trace should be deleted"
 
@@ -185,7 +185,7 @@ async def test_trace_delete_batch(trace_manager_client: TraceManagerClient):
     assert response, "No traces found"
 
     trace_ids = [trace.trace_id, trace2.trace_id]
-    response = trace_manager_client.delete_batch(trace_ids)
+    response = trace_manager_client.delete_traces(trace_ids)
     assert response, "Delete batch should be successful"
 
     response = trace_manager_client.fetch_trace(trace.trace_id)
