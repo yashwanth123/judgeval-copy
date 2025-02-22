@@ -137,7 +137,7 @@ class TestBasicOperations:
         EVAL_RUN_NAME = ''.join(random.choices(string.ascii_letters + string.digits, k=20))
 
         self.run_eval_helper(client, PROJECT_NAME, EVAL_RUN_NAME)
-        client.delete_eval_by_project_and_run_name(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
+        client.delete_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
         with pytest.raises(ValueError, match="Error fetching eval results"):
             client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
 
@@ -150,7 +150,7 @@ class TestBasicOperations:
         self.run_eval_helper(client, PROJECT_NAME, EVAL_RUN_NAME)
         self.run_eval_helper(client, PROJECT_NAME, EVAL_RUN_NAME2)
 
-        client.delete_eval_by_project(project_name=PROJECT_NAME)
+        client.delete_project_evals(project_name=PROJECT_NAME)
         with pytest.raises(ValueError, match="Error fetching eval results"):
             client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME)
         
