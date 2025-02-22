@@ -310,7 +310,7 @@ def test_faithfulness_scorer():
         ]
     )
 
-    scorer = FaithfulnessScorer(threshold=0.8)
+    scorer = FaithfulnessScorer(threshold=1.0)
 
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
