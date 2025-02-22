@@ -236,7 +236,7 @@ class TraceManagerClient:
         if not empty_save and "ui_results_url" in response.json():
             rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
 
-    def delete(self, trace_id: str):
+    def delete_trace(self, trace_id: str):
         """
         Delete a trace from the database.
         """
@@ -256,7 +256,7 @@ class TraceManagerClient:
         
         return response.json()
     
-    def delete_batch(self, trace_ids: List[str]):
+    def delete_traces(self, trace_ids: List[str]):
         """
         Delete a batch of traces from the database.
         """
@@ -276,6 +276,7 @@ class TraceManagerClient:
         
         return response.json()
 
+
 class TraceClient:
     """Client for managing a single trace context"""
     def __init__(self, tracer, trace_id: str, name: str, project_name: str = "default_project", overwrite: bool = False):
@@ -289,7 +290,7 @@ class TraceClient:
         self.span_type = None
         self._current_span: Optional[TraceEntry] = None
         self.overwrite = overwrite
-        self.trace_manager_client = TraceManagerClient(tracer.api_key)
+        self.trace_manager_client = TraceManagerClient(tracer.api_key)  # Manages DB operations for trace data
         
     @contextmanager
     def span(self, name: str, span_type: SpanType = "span"):
@@ -546,7 +547,7 @@ class TraceClient:
         return self.trace_id, trace_data
 
     def delete(self):
-        return self.trace_manager_client.delete(self.trace_id)
+        return self.trace_manager_client.delete_trace(self.trace_id)
     
 class Tracer:
     _instance = None
