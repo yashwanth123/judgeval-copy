@@ -1,3 +1,4 @@
+from uuid import uuid4
 import openai
 import os
 import asyncio
@@ -6,9 +7,12 @@ from dotenv import load_dotenv
 import chromadb
 from chromadb.utils import embedding_functions
 
+from judgeval.common.tracer import Tracer, wrap
 from demo.cookbooks.openai_travel_agent.populate_db import destinations_data
 from demo.cookbooks.openai_travel_agent.tools import search_tavily
 
+client = wrap(openai.Client(api_key=os.getenv("OPENAI_API_KEY")))
+judgment = Tracer()
 
 def populate_vector_db(collection, destinations_data):
     """
@@ -22,24 +26,28 @@ def populate_vector_db(collection, destinations_data):
             ids=[f"destination_{data['destination'].lower().replace(' ', '_')}"]
         )
 
+@judgment.observe(span_type="tool")
 async def get_attractions(destination):
     """Search for top attractions in the destination."""
     prompt = f"Best tourist attractions in {destination}"
     attractions_search = search_tavily(prompt)
     return attractions_search
 
+@judgment.observe(span_type="tool")
 async def get_hotels(destination):
     """Search for hotels in the destination."""
     prompt = f"Best hotels in {destination}"
     hotels_search = search_tavily(prompt)
     return hotels_search
 
+@judgment.observe(span_type="tool")
 async def get_flights(destination):
     """Search for flights to the destination."""
     prompt = f"Flights to {destination} from major cities"
     flights_search = search_tavily(prompt)
     return flights_search
 
+@judgment.observe(span_type="tool")
 async def get_weather(destination, start_date, end_date):
     """Search for weather information."""
     prompt = f"Weather forecast for {destination} from {start_date} to {end_date}"
@@ -60,6 +68,7 @@ def initialize_vector_db():
     populate_vector_db(res, destinations_data)
     return res
 
+@judgment.observe(span_type="retriever")
 def query_vector_db(collection, destination, k=3):
     """Query the vector database for existing travel information."""
     try:
@@ -71,6 +80,7 @@ def query_vector_db(collection, destination, k=3):
     except Exception:
         return []
 
+@judgment.observe(span_type="Research")
 async def research_destination(destination, start_date, end_date):
     """Gather all necessary travel information for a destination."""
     # First, check the vector database
@@ -90,6 +100,7 @@ async def research_destination(destination, start_date, end_date):
         **tavily_data
     }
 
+@judgment.observe(span_type="function")
 async def create_travel_plan(destination, start_date, end_date, research_data):
     """Generate a travel itinerary using the researched data."""
     vector_db_context = "\n".join(research_data['vector_db_results']) if research_data['vector_db_results'] else "No pre-stored information available."
@@ -107,7 +118,6 @@ async def create_travel_plan(destination, start_date, end_date, research_data):
     - Weather: {research_data['weather']}
     """
     
-    client = openai.Client(api_key=os.getenv("OPENAI_API_KEY"))
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
@@ -121,9 +131,15 @@ async def create_travel_plan(destination, start_date, end_date, research_data):
 
 async def generate_itinerary(destination, start_date, end_date):
     """Main function to generate a travel itinerary."""
-    research_data = await research_destination(destination, start_date, end_date)
-    res = await create_travel_plan(destination, start_date, end_date, research_data)
-    return res
+    
+    with judgment.trace(
+        f"generate_itinerary_demo_{uuid4()}",
+        project_name="travel_agent_demo"    
+    ) as trace:
+        research_data = await research_destination(destination, start_date, end_date)
+        res = await create_travel_plan(destination, start_date, end_date, research_data)
+        trace.save()
+        return res
 
 
 if __name__ == "__main__":

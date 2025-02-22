@@ -3,6 +3,11 @@ import os
 import asyncio
 from tavily import TavilyClient
 
+from judgeval.common.tracer import Tracer
+
+judgment = Tracer()
+
+@judgment.observe(span_type="search_tool")
 def search_tavily(query):
     """Fetch travel data using Tavily API."""
     API_KEY = os.getenv("TAVILY_API_KEY")
