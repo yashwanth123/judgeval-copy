@@ -195,9 +195,16 @@ class JudgmentClient:
             eval_run_result[0]["results"] = [ScoringResult(**filtered_result)]
         return eval_run_result
     
-    def delete_eval_by_project_and_run_name(self, project_name: str, eval_run_name: str) -> bool:
+    def delete_eval(self, project_name: str, eval_run_name: str) -> bool:
         """
         Deletes an evaluation from the server by project and run name.
+
+        Args:
+            project_name (str): Name of the project
+            eval_run_name (str): Name of the evaluation run
+
+        Returns:
+            bool: Whether the evaluation was successfully deleted
         """
         eval_run_request_body = EvalRunRequestBody(project_name=project_name, 
                                                    eval_name=eval_run_name, 
@@ -211,9 +218,15 @@ class JudgmentClient:
             raise ValueError(f"Error deleting eval results: {response.json()}")
         return response.json()
     
-    def delete_eval_by_project(self, project_name: str) -> bool:
+    def delete_project_evals(self, project_name: str) -> bool:
         """
         Deletes all evaluations from the server for a given project.
+        
+        Args:
+            project_name (str): Name of the project
+
+        Returns:
+            bool: Whether the evaluations were successfully deleted
         """
         response = requests.delete(JUDGMENT_EVAL_DELETE_PROJECT_API_URL, 
                         json={
