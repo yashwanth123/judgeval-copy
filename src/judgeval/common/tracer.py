@@ -8,8 +8,20 @@ import functools
 import requests
 import uuid
 from contextlib import contextmanager
-from typing import Optional, Any, List, Literal, Tuple, Generator, TypeAlias, Union
-from dataclasses import dataclass, field
+from typing import (
+    Optional, 
+    Any, 
+    List, 
+    Literal, 
+    Tuple, 
+    Generator, 
+    TypeAlias, 
+    Union
+)
+from dataclasses import (
+    dataclass, 
+    field
+)
 from datetime import datetime 
 from openai import OpenAI
 from together import Together
@@ -23,16 +35,25 @@ from pydantic import BaseModel
 from http import HTTPStatus
 from rich import print as rprint
 
-from judgeval.constants import JUDGMENT_TRACES_FETCH_API_URL, JUDGMENT_TRACES_SAVE_API_URL, JUDGMENT_TRACES_DELETE_API_URL
+from judgeval.constants import (
+    JUDGMENT_TRACES_FETCH_API_URL, 
+    JUDGMENT_TRACES_SAVE_API_URL, 
+    JUDGMENT_TRACES_DELETE_API_URL
+)
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
+from judgeval.scorers import (
+    APIJudgmentScorer, 
+    JudgevalScorer
+)
 from judgeval.data.result import ScoringResult
 
 # Define type aliases for better code readability and maintainability
 ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic]  # Supported API clients
 TraceEntryType = Literal['enter', 'exit', 'output', 'input', 'evaluation']  # Valid trace entry types
 SpanType = Literal['span', 'tool', 'llm', 'evaluation']
+
+
 @dataclass
 class TraceEntry:
     """Represents a single trace entry with its visual representation.
@@ -156,12 +177,24 @@ class TraceEntry:
         except (TypeError, OverflowError, ValueError):
             return safe_stringify(self.output, self.function)
         
+
 class TraceManagerClient:
-    """Client for handling trace endpoints with the Judgment API"""
+    """
+    Client for handling trace endpoints with the Judgment API
+    
+
+    Operations include:
+    - Fetching a trace by id
+    - Saving a trace
+    - Deleting a trace
+    """
     def __init__(self, judgment_api_key: str):
         self.judgment_api_key = judgment_api_key
 
     def fetch_trace(self, trace_id: str):
+        """
+        Fetch a trace by its id
+        """
         response = requests.post(
             JUDGMENT_TRACES_FETCH_API_URL,
             json={
@@ -179,6 +212,14 @@ class TraceManagerClient:
         return response.json()
 
     def save_trace(self, trace_data: dict, empty_save: bool):
+        """
+        Saves a trace to the database
+
+        Args:
+            trace_data: The trace data to save
+            empty_save: Whether to save an empty trace
+            NOTE we save empty traces in order to properly handle async operations; we need something in the DB to associate the async results with
+        """
         response = requests.post(
             JUDGMENT_TRACES_SAVE_API_URL,
             json=trace_data,
@@ -265,6 +306,7 @@ class TraceClient:
             span_type=span_type
         ))
         
+        # Increment nested depth and set current span
         self.tracer.depth += 1
         prev_span = self._current_span
         self._current_span = name
