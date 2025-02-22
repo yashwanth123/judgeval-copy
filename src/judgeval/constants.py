@@ -51,7 +51,9 @@ TOGETHER_SUPPORTED_MODELS = {
     "MISTRAL_8x7B_INSTRUCT": "mistralai/Mixtral-8x7B-Instruct-v0.1",
 }
 
-ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys())
+JUDGMENT_SUPPORTED_MODELS = {"osiris-large", "osiris-mini"}
+
+ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys()) | JUDGMENT_SUPPORTED_MODELS
 
 ## System settings
 MAX_WORKER_THREADS = 10
