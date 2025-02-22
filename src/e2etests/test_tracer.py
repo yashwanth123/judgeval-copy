@@ -121,8 +121,7 @@ async def make_poem(input: str) -> str:
             ]
         )
         openai_result = openai_response.choices[0].message.content
-        
-        return await make_lower(f"{anthropic_result} {openai_result}")
+        return await make_lower(f"{openai_result} {anthropic_result}")
     
     except Exception as e:
         print(f"Error generating poem: {e}")
