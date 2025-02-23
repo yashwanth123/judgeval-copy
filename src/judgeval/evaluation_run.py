@@ -15,7 +15,7 @@ class EvaluationRun(BaseModel):
         project_name (str): The name of the project the evaluation results belong to
         eval_name (str): A name for this evaluation run
         examples (List[Example]): The examples to evaluate
-        scorers (List[Union[JudgmentScorer, CustomScorer]]): A list of scorers to use for evaluation
+        scorers (List[Union[JudgmentScorer, JudgevalScorer]]): A list of scorers to use for evaluation
         model (str): The model used as a judge when using LLM as a Judge
         aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
         metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.

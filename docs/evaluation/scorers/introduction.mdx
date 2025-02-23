@@ -53,13 +53,13 @@ Judgment implementations of default scorers are backed by **leading industry/aca
 ### Custom Scorers
 
 If you find that none of the default scorers meet your evaluation needs, setting up a custom scorer is easy with `judgeval`.
-You can create a custom scorer by inheritng from the `CustomScorer` class and implementing three methods:
+You can create a custom scorer by inheritng from the `JudgevalScorer` class and implementing three methods:
 - `score_example()`: produces a score for a single `Example`.
 - `a_score_example()`: async version of `score_example()`. You may use the same implementation logic as `score_example()`.
 - `success_check()`: determines whether an evaluation was successful.
 
 Custom scorers can be as simple or complex as you want, and **do not need to use LLMs**. 
-For sample implementations, check out the `CustomScorer` [documentation page](/evaluation/scorers/custom_scorers).
+For sample implementations, check out the `JudgevalScorer` [documentation page](/evaluation/scorers/custom_scorers).
 
 
 ### Classifier Scorers
@@ -83,7 +83,7 @@ results = client.run_evaluation(
 )
 ```
 
-If you want to execute a `CustomScorer` without running it through the `JudgmentClient`, you can score locally.
+If you want to execute a `JudgevalScorer` without running it through the `JudgmentClient`, you can score locally.
 Simply use the `score_example()` or `a_score_example()` method directly:
 
 ```python direct_scoring.py
@@ -91,7 +91,7 @@ Simply use the `score_example()` or `a_score_example()` method directly:
 
 example = Example(input="...", actual_output="...")
 
-scorer = CustomScorer()  # Your scorer here
+scorer = JudgevalScorer()  # Your scorer here
 score = scorer.score_example(example)
 ```
 

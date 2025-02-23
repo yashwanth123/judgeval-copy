@@ -127,9 +127,9 @@ Here's an example of computing BLEU scores:
 
 ```python bleu_custom_scorer.py
 import sacrebleu
-from judgeval.scorers import CustomScorer 
+from judgeval.scorers import JudgevalScorer
 
-class BLEUScorer(CustomScorer):
+class BLEUScorer(JudgevalScorer):
     def __init__(self, threshold: float = 0.5):
         super().__init__(score_type="BLEU", threshold=threshold)
 

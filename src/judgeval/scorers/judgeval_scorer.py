@@ -1,5 +1,5 @@
 """
-Custom Scorer class
+Judgeval Scorer class
 
 Enables client to create custom scorers that do not fall under any of the ready-made Judgment scorers.
 To create a custom scorer, extend this class and implement the `score_example`, `a_score_example`, and `success_check` methods.
@@ -57,12 +57,12 @@ class JudgevalScorer:
         verbose_logs: Optional[str] = None, 
         additional_metadata: Optional[Dict] = None
         ):
-            debug(f"Initializing CustomScorer with score_type={score_type}, threshold={threshold}")
+            debug(f"Initializing JudgevalScorer with score_type={score_type}, threshold={threshold}")
             if not 0 <= threshold <= 1:
                 raise ValueError("Threshold must be between 0 and 1")
             if strict_mode:
                 warning("Strict mode enabled - scoring will be more rigorous")
-            info(f"CustomScorer initialized with evaluation_model: {evaluation_model}")
+            info(f"JudgevalScorer initialized with evaluation_model: {evaluation_model}")
             self.score_type = score_type
             self.threshold = threshold
             self.score = score
@@ -81,7 +81,7 @@ class JudgevalScorer:
 
     def _add_model(self, model: Optional[Union[str, List[str], JudgevalJudge]] = None):
         """
-        Adds the evaluation model to the CustomScorer instance 
+        Adds the evaluation model to the JudgevalScorer instance 
 
         This method is used at eval time
         """
@@ -116,10 +116,10 @@ class JudgevalScorer:
         raise NotImplementedError("You must implement the `passes` method in your custom scorer")
 
     def __str__(self):
-        debug("Converting CustomScorer instance to string representation")
+        debug("Converting JudgevalScorer instance to string representation")
         if self.error:
-            warning(f"CustomScorer contains error: {self.error}")
-        info(f"CustomScorer status - success: {self.success}, score: {self.score}")
+            warning(f"JudgevalScorer contains error: {self.error}")
+        info(f"JudgevalScorer status - success: {self.success}, score: {self.score}")
         attributes = {
             "score_type": self.score_type,
             "threshold": self.threshold,
@@ -137,4 +137,4 @@ class JudgevalScorer:
             "verbose_logs": self.verbose_logs,
             "additional_metadata": self.additional_metadata,
         }
-        return f"CustomScorer({attributes})"
+        return f"JudgevalScorer({attributes})"

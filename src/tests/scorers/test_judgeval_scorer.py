@@ -22,7 +22,7 @@ class MockJudge(JudgevalJudge):
         return "mock-model"
 
 class SampleScorer(JudgevalScorer):
-    """Concrete implementation of CustomScorer for testing"""
+    """Concrete implementation of JudgevalScorer for testing"""
     def score_example(self, example, *args, **kwargs) -> float:
         return 0.8
     
@@ -43,7 +43,7 @@ def basic_scorer():
 def mock_judge():
     return MockJudge(model_name="mock-model")
 
-class TestCustomScorer:
+class TestJudgevalScorer:
     def test_initialization(self):
         """Test basic initialization with minimal parameters"""
         scorer = SampleScorer(score_type="test", threshold=0.5)
@@ -131,7 +131,7 @@ class TestCustomScorer:
     def test_str_representation(self, basic_scorer):
         """Test string representation of scorer"""
         str_rep = str(basic_scorer)
-        assert "CustomScorer" in str_rep
+        assert "JudgevalScorer" in str_rep
         assert "test_scorer" in str_rep
         assert "0.7" in str_rep  # threshold value
 
