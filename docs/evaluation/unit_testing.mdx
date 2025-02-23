@@ -1,0 +1,37 @@
+---
+title: Unit Testing
+---
+
+CI pipelines are the core of all mature software engineering practices. 
+
+**With LLMs, developers should expect nothing less.** 
+Using `judgeval`, you can easily unit test your LLM applications for consistency and quality in any metric of your choice.
+
+Unit testing is natively supported in `judgeval` through the `client.assert_test` method. 
+**This also integrates with `pytest`, meaning you won't have to learn any new testing frameworks!**
+
+```python
+from judgeval import JudgmentClient
+from judgeval.data import Example
+from judgeval.scorers import FaithfulnessScorer
+
+def test_faithfulness():
+    client = JudgmentClient()
+    
+    example = Example(
+        input="What is the capital of France?",
+        actual_output="The capital of France is Lyon.",
+        retrieval_context=["Come tour Paris' museums in the capital of France!"],
+    )
+    with pytest.raises(AssertionError):
+        client.assert_test(
+            eval_run_name="test_eval",
+            examples=[example],
+            scorers=[FaithfulnessScorer(threshold=1.0)],
+        )
+```
+
+`judgeval` naturally integrates into your CI pipelines, allowing you to execute robust unit tests across your entire codebase. 
+**This allows you to catch regressions in your LLM applications before they make it to production!**
+
+

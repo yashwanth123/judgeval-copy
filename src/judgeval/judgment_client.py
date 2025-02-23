@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any, Union
 import requests
 
 from judgeval.constants import ROOT_API
-from judgeval.data.datasets import EvalDataset
+from judgeval.data.datasets import EvalDataset, EvalDatasetClient
 from judgeval.data import (
     ScoringResult, 
     Example
@@ -23,7 +23,7 @@ from judgeval.run_evaluation import (
     assert_test
 )
 from judgeval.judges import JudgevalJudge
-from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL
+from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL, JUDGMENT_EVAL_DELETE_API_URL, JUDGMENT_EVAL_DELETE_PROJECT_API_URL
 from judgeval.common.exceptions import JudgmentAPIError
 from pydantic import BaseModel
 
@@ -36,6 +36,7 @@ class EvalRunRequestBody(BaseModel):
 class JudgmentClient:
     def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY")):
         self.judgment_api_key = judgment_api_key
+        self.eval_dataset_client = EvalDatasetClient(judgment_api_key)
         
         # Verify API key is valid
         result, response = self._validate_api_key()
@@ -121,7 +122,7 @@ class JudgmentClient:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
 
     def create_dataset(self) -> EvalDataset:
-        return EvalDataset(judgment_api_key=self.judgment_api_key)
+        return self.eval_dataset_client.create_dataset()
 
     def push_dataset(self, alias: str, dataset: EvalDataset, overwrite: Optional[bool] = False) -> bool:
         """
@@ -137,7 +138,7 @@ class JudgmentClient:
         """
         # Set judgment_api_key just in case it was not set
         dataset.judgment_api_key = self.judgment_api_key
-        return dataset.push(alias, overwrite)
+        return self.eval_dataset_client.push(dataset, alias, overwrite)
     
     def pull_dataset(self, alias: str) -> EvalDataset:
         """
@@ -149,9 +150,20 @@ class JudgmentClient:
         Returns:
             EvalDataset: The retrieved dataset
         """
-        dataset = EvalDataset(judgment_api_key=self.judgment_api_key)
-        dataset.pull(alias)
-        return dataset
+        return self.eval_dataset_client.pull(alias)
+    
+    def pull_all_user_dataset_stats(self) -> dict:
+        """
+        Retrieves all dataset stats from the Judgment platform for the user.
+
+        Args:
+            alias (str): The name of the dataset to retrieve
+
+        Returns:
+            EvalDataset: The retrieved dataset
+        """
+        return self.eval_dataset_client.pull_all_user_dataset_stats()
+    
     
     # Maybe add option where you can pass in the EvaluationRun object and it will pull the eval results from the backend
     def pull_eval(self, project_name: str, eval_run_name: str) -> List[Dict[str, Union[str, List[ScoringResult]]]]:
@@ -182,6 +194,51 @@ class JudgmentClient:
             eval_run_result[0]["id"] = result_id
             eval_run_result[0]["results"] = [ScoringResult(**filtered_result)]
         return eval_run_result
+    
+    def delete_eval(self, project_name: str, eval_run_name: str) -> bool:
+        """
+        Deletes an evaluation from the server by project and run name.
+
+        Args:
+            project_name (str): Name of the project
+            eval_run_name (str): Name of the evaluation run
+
+        Returns:
+            bool: Whether the evaluation was successfully deleted
+        """
+        eval_run_request_body = EvalRunRequestBody(project_name=project_name, 
+                                                   eval_name=eval_run_name, 
+                                                   judgment_api_key=self.judgment_api_key)
+        response = requests.delete(JUDGMENT_EVAL_DELETE_API_URL, 
+                        json=eval_run_request_body.model_dump(),
+                        headers={
+                            "Content-Type": "application/json",
+                        })
+        if response.status_code != requests.codes.ok:
+            raise ValueError(f"Error deleting eval results: {response.json()}")
+        return response.json()
+    
+    def delete_project_evals(self, project_name: str) -> bool:
+        """
+        Deletes all evaluations from the server for a given project.
+        
+        Args:
+            project_name (str): Name of the project
+
+        Returns:
+            bool: Whether the evaluations were successfully deleted
+        """
+        response = requests.delete(JUDGMENT_EVAL_DELETE_PROJECT_API_URL, 
+                        json={
+                            "project_name": project_name,
+                            "judgment_api_key": self.judgment_api_key
+                        },
+                        headers={
+                            "Content-Type": "application/json",
+                        })
+        if response.status_code != requests.codes.ok:
+            raise ValueError(f"Error deleting eval results: {response.json()}")
+        return response.json()
         
     def _validate_api_key(self):
         """
@@ -267,7 +324,6 @@ class JudgmentClient:
             
         return response.json()["slug"]
     
-    
     def assert_test(
         self, 
         examples: List[Example],
@@ -275,12 +331,14 @@ class JudgmentClient:
         model: Union[str, List[str], JudgevalJudge],
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        log_results: bool = False,
-        project_name: str = "",
-        eval_run_name: str = "",
+        log_results: bool = True,
+        project_name: str = "default_project",
+        eval_run_name: str = "default_eval_run",
         override: bool = False,
     ) -> None:
-        
+        """
+        Asserts a test by running the evaluation and checking the results for success
+        """
         results = self.run_evaluation(
             examples=examples,
             scorers=scorers,

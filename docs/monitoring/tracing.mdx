@@ -1,0 +1,186 @@
+---
+title: Tracing
+---
+
+## Overview ##
+
+`judgeval`'s tracing module allows you to view your LLM application's execution from **end-to-end**. 
+
+Using tracing, you can:
+- Gain observability into **every layer of your agentic system**, from database queries to tool calling and text generation.
+- Measure the performance of **each system component in any way** you want to measure it. For instance:
+    - Catch regressions in **retrieval quality, factuality, answer relevance**, and 10+ other [**research-backed metrics**](/evaluation/scorers/introduction).
+    - Quantify the **quality of each tool call** your agent makes
+    - Track the latency of each system component
+    - Count the token usage of each LLM generation
+- Export your workflow runs to the Judgment platform for **real-time analysis** or as a dataset for [**offline experimentation**](/evaluation/introduction).
+
+
+## Tracing Your Workflow ##
+
+Setting up tracing with `judgeval` takes three simple steps:
+
+### 1. Initialize a tracer with your API key
+
+```python
+from judgeval.common.tracer import Tracer
+
+judgment = Tracer()  # loads from JUDGMENT_API_KEY env var
+```
+
+<Note>
+    The [Judgment tracer](/api_reference/trace) is a singleton object that should be shared across your application.
+</Note>
+
+
+### 2. Wrap your workflow components
+
+`judgeval` provides three wrapping mechanisms for your workflow components:
+
+#### `wrap()` ####
+The `wrap()` function goes over your LLM client (e.g. OpenAI, Anthropic, etc.) and captures metadata surrounding your LLM calls, such as:
+- Latency
+- Token usage
+- Prompt/Completion
+- Model name
+
+#### `@observe` ####
+The `@observe` decorator wraps your functions/tools and captures metadata surrounding your function calls, such as:
+- Latency
+- Input/Output
+- Span type (e.g. `retriever`, `tool`, `LLM call`, etc.)
+
+Here's an example of using the `@observe` decorator on a function:
+```python
+from judgeval.common.tracer import Tracer
+
+judgment = Tracer()  # loads from JUDGMENT_API_KEY env var
+
+@judgment.observe(span_type="tool")
+def my_tool():
+    print("Hello world!")
+
+```
+
+<Note>
+    The `@observe` decorator is used on top of helper functions that you write, but is not designed to be used 
+    on your "main" function. For more information, see the `context manager` section below.
+</Note>
+
+#### `context manager` ####
+
+In your main function (e.g. the one that executes the primary workflow logic), you can use the `with judgment.trace()` context manager to trace the entire workflow.
+
+The context manager can **save/print the state of the trace at any point in the workflow**.
+This is useful for debugging or exporting any state of your workflow to run an evaluation from!
+
+<Tip>
+    The `with judgment.trace()` context manager detects any `@observe` decorated functions or wrapped LLM calls within the context and automatically captures their metadata.
+</Tip>
+
+
+#### Putting it all Together
+Here's a complete example of using the `with judgment.trace()` context manager with the other tracing mechanisms:
+```python
+from judgeval.common.tracer import Tracer, wrap
+from openai import OpenAI
+
+openai_client = wrap(OpenAI())
+judgment = Tracer()  # loads from JUDGMENT_API_KEY env var
+
+@judgment.observe(span_type="tool")
+def my_tool():
+    return "Hello world!"
+
+@judgment.observe(span_type="LLM call")
+def my_llm_call():
+    message = my_tool()
+    res = openai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": message}]
+    )
+    return res.choices[0].message.content
+
+def main():
+    with judgment.trace(
+        "main_workflow", 
+        project_name="my_project"
+    ) as trace:
+        res = my_llm_call()
+        trace.save()
+        trace.print()
+        return res
+```
+
+The printed trace appears as follows on the terminal:
+```
+→ main_workflow (trace: main_workflow)
+  → my_llm_call (trace: my_llm_call)
+    Input: {'args': [], 'kwargs': {}}
+    → my_tool (trace: my_tool)
+      Input: {'args': [], 'kwargs': {}}
+      Output: Hello world!
+    ← my_tool (0.000s)
+    Output: Hello! How can I assist you today?
+  ← my_llm_call (0.789s)
+```
+
+And the trace will appear on the Judgment platform as follows:
+
+![Alt text](/images/basic_trace_example.png "Basic Trace Example")
+
+### 3. Running Production Evaluations
+
+Optionally, you can run asynchronous evaluations directly inside your traces.
+
+This enables you to run evaluations on your **production data in real-time**, which can be useful for:
+- **Guardrailing your production system** against quality regressions (hallucinations, toxic responses, revealing private data, etc.).
+- Exporting production data for **offline experimentation** (e.g for A/B testing your workflow versions on relevant use cases).
+- Getting **actionable insights** on how to fix common failure modes in your workflow (e.g. missing knowledge base info, suboptimal prompts, etc.). 
+
+To execute an asynchronous evaluation, you can use the `trace.async_evaluate()` method. Here's an example of that:
+
+```python
+from judgeval.common.tracer import Tracer
+from judgeval.scorers import FaithfulnessScorer
+
+judgment = Tracer()
+
+def main():
+    with judgment.trace(
+        "main_workflow", 
+        project_name="my_project"
+    ) as trace:
+        retrieved_info = ...   # from knowledge base
+        res = ...  # your main workflow logic
+        
+        judgment.get_current_trace().async_evaluate(
+            scorers=[FaithfulnesssScorer(threshold=0.5)],
+            input="",
+            actual_output=res,
+            retrieval_context=[retrieved_info],
+            model="gpt-4o-mini",
+        )
+        return res
+```
+
+<Tip>
+You can organize how your async evaluation runs are logged to the Judgment platform by using the 
+`project_name` argument in the `trace` context manager. See our [API documentation](/api_reference/trace) 
+for more information.
+</Tip>
+
+## Example: OpenAI Travel Agent
+
+In this video, we'll walk through all of the topics covered in this guide by tracing over a simple OpenAI travel agent.
+
+<iframe 
+    width="560" 
+    height="315" 
+    src="https://www.youtube.com/embed/L76V4lXIolc"
+    title="YouTube video player" 
+    frameborder="0" 
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+    referrerpolicy="strict-origin-when-cross-origin" 
+    allowfullscreen
+></iframe>

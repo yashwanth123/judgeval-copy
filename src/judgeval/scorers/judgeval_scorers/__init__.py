@@ -28,6 +28,9 @@ from judgeval.scorers.judgeval_scorers.local_implementations import (
     AnswerCorrectnessScorer as LocalAnswerCorrectnessScorer
 )
 
+from judgeval.scorers.judgeval_scorers.classifiers import Text2SQLScorer
+
+
 class ScorerWrapper:
     """
     Wrapper class that can dynamically load either API or local implementation of a scorer.
@@ -141,4 +144,5 @@ __all__ = [
     "ContextualPrecisionScorer",
     "ContextualRecallScorer",
     "AnswerRelevancyScorer",
+    "Text2SQLScorer",
 ]

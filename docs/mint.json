@@ -70,7 +70,8 @@
             "evaluation/scorers/classifier_scorer"
           ]
         },
-        "evaluation/judges"
+        "evaluation/judges",
+        "evaluation/unit_testing"
       ]
     },
     {
@@ -85,6 +86,13 @@
       "group": "Judgment Platform",
       "pages": [
         "judgment/introduction"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api_reference/judgment_client",
+        "api_reference/trace"
       ]
     }
   ],

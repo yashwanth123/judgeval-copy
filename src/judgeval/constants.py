@@ -32,20 +32,25 @@ class APIScorer(str, Enum):
                 return member
 
 ROOT_API = os.getenv("JUDGMENT_API_URL", "https://api.judgmentlabs.ai")
-## API URLs
+# API URLs
 JUDGMENT_EVAL_API_URL = f"{ROOT_API}/evaluate/"
 JUDGMENT_DATASETS_PUSH_API_URL = f"{ROOT_API}/datasets/push/"
 JUDGMENT_DATASETS_PULL_API_URL = f"{ROOT_API}/datasets/pull/"
+JUDGMENT_DATASETS_PULL_ALL_API_URL = f"{ROOT_API}/datasets/get_all_stats/"
 JUDGMENT_EVAL_LOG_API_URL = f"{ROOT_API}/log_eval_results/"
 JUDGMENT_EVAL_FETCH_API_URL = f"{ROOT_API}/fetch_eval_results/"
+JUDGMENT_EVAL_DELETE_API_URL = f"{ROOT_API}/delete_eval_results_by_project_and_run_name/"
+JUDGMENT_EVAL_DELETE_PROJECT_API_URL = f"{ROOT_API}/delete_eval_results_by_project/"
+JUDGMENT_TRACES_FETCH_API_URL = f"{ROOT_API}/traces/fetch/"
 JUDGMENT_TRACES_SAVE_API_URL = f"{ROOT_API}/traces/save/"
+JUDGMENT_TRACES_DELETE_API_URL = f"{ROOT_API}/traces/delete/"
 
-## RabbitMQ
+# RabbitMQ
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq-networklb-faa155df16ec9085.elb.us-west-1.amazonaws.com")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", 5672)
 RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE", "task_queue")
 
-## Models
+# Models
 TOGETHER_SUPPORTED_MODELS = {
     "QWEN": "Qwen/Qwen2-72B-Instruct",
     "LLAMA3_70B_INSTRUCT_TURBO": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
@@ -55,7 +60,9 @@ TOGETHER_SUPPORTED_MODELS = {
     "MISTRAL_8x7B_INSTRUCT": "mistralai/Mixtral-8x7B-Instruct-v0.1",
 }
 
-ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys())
+JUDGMENT_SUPPORTED_MODELS = {"osiris-large", "osiris-mini"}
+
+ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys()) | JUDGMENT_SUPPORTED_MODELS
 
 ## System settings
 MAX_WORKER_THREADS = 10

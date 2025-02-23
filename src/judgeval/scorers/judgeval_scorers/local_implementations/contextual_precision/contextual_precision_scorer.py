@@ -4,6 +4,7 @@ from judgeval.judges import JudgevalJudge
 from judgeval.judges.utils import create_judge
 from judgeval.data import Example, ExampleParams
 from judgeval.scorers import JudgevalScorer
+from judgeval.constants import APIScorer
 from judgeval.scorers.utils import (
     get_or_create_event_loop,
     parse_response_json,
@@ -30,13 +31,17 @@ class ContextualPrecisionScorer(JudgevalScorer):
         strict_mode: bool = False,
         verbose_mode: bool = False,
     ):
-        self.threshold = 1 if strict_mode else threshold
-        self.include_reason = include_reason
+        super().__init__(
+            score_type=APIScorer.CONTEXTUAL_PRECISION,
+            threshold=1 if strict_mode else threshold,
+            evaluation_model=None,
+            include_reason=include_reason,
+            async_mode=async_mode,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode
+        )
         self.model, self.using_native_model = create_judge(model)
         self.evaluation_model = self.model.get_model_name()
-        self.async_mode = async_mode
-        self.strict_mode = strict_mode
-        self.verbose_mode = verbose_mode
 
     def score_example(
         self,

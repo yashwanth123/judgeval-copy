@@ -1,6 +1,7 @@
 from typing import Optional, List, Union, Tuple
 from pydantic import BaseModel
 
+from judgeval.constants import APIScorer
 from judgeval.judges import JudgevalJudge
 from judgeval.judges.utils import create_judge
 from judgeval.data import Example, ExampleParams
@@ -38,13 +39,17 @@ class AnswerCorrectnessScorer(JudgevalScorer):
         strict_mode: bool = False,
         verbose_mode: bool = False
     ):
-        self.threshold = 1 if strict_mode else threshold
-        self.include_reason = include_reason
+        super().__init__(
+            score_type=APIScorer.ANSWER_CORRECTNESS,
+            threshold=1 if strict_mode else threshold,
+            evaluation_model=None,
+            include_reason=include_reason,
+            async_mode=async_mode,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode
+        )
         self.model, self.using_native_model = create_judge(model)
         self.evaluation_model = self.model.get_model_name()
-        self.async_mode = async_mode
-        self.strict_mode = strict_mode
-        self.verbose_mode = verbose_mode
 
     async def _a_get_statements(self, expected_output: str) -> List[str]:
         prompt = AnswerCorrectnessTemplate.deduce_statements(

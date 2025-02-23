@@ -1,6 +1,6 @@
 [project]
 name = "judgeval"
-version = "0.0.4"
+version = "0.0.10"
 authors = [
     { name="Andrew Li", email="andrew@judgmentlabs.ai" },
     { name="Alex Shan", email="alex@judgmentlabs.ai" },
@@ -28,6 +28,8 @@ dependencies = [
     "together",
     "anthropic",
     "patronus",
+    "nest-asyncio",
+    "pika",
 ]
 
 [project.optional-dependencies]

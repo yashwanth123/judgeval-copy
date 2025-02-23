@@ -1,7 +1,9 @@
 from typing import List, Optional, Union, Any
 from pydantic import BaseModel, ValidationError, create_model
 
+from judgeval.constants import APIScorer
 from judgeval.judges import JudgevalJudge
+from judgeval.judges.utils import create_judge
 from judgeval.scorers.utils import (get_or_create_event_loop,
                                     scorer_progress_meter,
                                     create_verbose_logs,
@@ -30,13 +32,18 @@ class JsonCorrectnessScorer(JudgevalScorer):
         verbose_mode: bool = False,
         user: Optional[str] = None
     ):
-        self.score_type = "json_correctness"
-        self.model = model
-        self.threshold = threshold
-        self.async_mode = async_mode
-        self.strict_mode = strict_mode
-        self.verbose_mode = verbose_mode
+        super().__init__(
+            score_type=APIScorer.JSON_CORRECTNESS,
+            threshold=1 if strict_mode else threshold,
+            evaluation_model=None,
+            include_reason=False,
+            async_mode=async_mode,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode
+        )
         self.user = user
+        self.model, self.using_native_model = create_judge(model)
+        self.evaluation_model = self.model.get_model_name()
 
         if isinstance(json_schema, dict):
             # Convert to BaseModel
