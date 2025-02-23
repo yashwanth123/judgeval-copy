@@ -8,8 +8,20 @@ import functools
 import requests
 import uuid
 from contextlib import contextmanager
-from typing import Optional, Any, List, Literal, Tuple, Generator, TypeAlias, Union
-from dataclasses import dataclass, field
+from typing import (
+    Optional, 
+    Any, 
+    List, 
+    Literal, 
+    Tuple, 
+    Generator, 
+    TypeAlias, 
+    Union
+)
+from dataclasses import (
+    dataclass, 
+    field
+)
 from datetime import datetime 
 from openai import OpenAI
 from together import Together
@@ -23,16 +35,25 @@ from pydantic import BaseModel
 from http import HTTPStatus
 from rich import print as rprint
 
-from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
+from judgeval.constants import (
+    JUDGMENT_TRACES_FETCH_API_URL, 
+    JUDGMENT_TRACES_SAVE_API_URL, 
+    JUDGMENT_TRACES_DELETE_API_URL
+)
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
+from judgeval.scorers import (
+    APIJudgmentScorer, 
+    JudgevalScorer
+)
 from judgeval.data.result import ScoringResult
 
 # Define type aliases for better code readability and maintainability
 ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic]  # Supported API clients
 TraceEntryType = Literal['enter', 'exit', 'output', 'input', 'evaluation']  # Valid trace entry types
 SpanType = Literal['span', 'tool', 'llm', 'evaluation']
+
+
 @dataclass
 class TraceEntry:
     """Represents a single trace entry with its visual representation.
@@ -155,6 +176,106 @@ class TraceEntry:
             return self.output
         except (TypeError, OverflowError, ValueError):
             return safe_stringify(self.output, self.function)
+        
+
+class TraceManagerClient:
+    """
+    Client for handling trace endpoints with the Judgment API
+    
+
+    Operations include:
+    - Fetching a trace by id
+    - Saving a trace
+    - Deleting a trace
+    """
+    def __init__(self, judgment_api_key: str):
+        self.judgment_api_key = judgment_api_key
+
+    def fetch_trace(self, trace_id: str):
+        """
+        Fetch a trace by its id
+        """
+        response = requests.post(
+            JUDGMENT_TRACES_FETCH_API_URL,
+            json={
+                "trace_id": trace_id,
+                "judgment_api_key": self.judgment_api_key,
+            },
+            headers={
+                "Content-Type": "application/json",
+            }
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to fetch traces: {response.text}")
+        
+        return response.json()
+
+    def save_trace(self, trace_data: dict, empty_save: bool):
+        """
+        Saves a trace to the database
+
+        Args:
+            trace_data: The trace data to save
+            empty_save: Whether to save an empty trace
+            NOTE we save empty traces in order to properly handle async operations; we need something in the DB to associate the async results with
+        """
+        response = requests.post(
+            JUDGMENT_TRACES_SAVE_API_URL,
+            json=trace_data,
+            headers={
+                "Content-Type": "application/json",
+            }
+        )
+        
+        if response.status_code == HTTPStatus.BAD_REQUEST:
+            raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
+        elif response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to save trace data: {response.text}")
+        
+        if not empty_save and "ui_results_url" in response.json():
+            rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
+
+    def delete_trace(self, trace_id: str):
+        """
+        Delete a trace from the database.
+        """
+        response = requests.delete(
+            JUDGMENT_TRACES_DELETE_API_URL,
+            json={
+                "judgment_api_key": self.judgment_api_key,
+                "trace_ids": [trace_id],
+            },
+            headers={
+                "Content-Type": "application/json",
+            }
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to delete trace: {response.text}")
+        
+        return response.json()
+    
+    def delete_traces(self, trace_ids: List[str]):
+        """
+        Delete a batch of traces from the database.
+        """
+        response = requests.delete(
+            JUDGMENT_TRACES_DELETE_API_URL,
+            json={
+                "judgment_api_key": self.judgment_api_key,
+                "trace_ids": trace_ids,
+            },
+            headers={
+                "Content-Type": "application/json",
+            }
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to delete trace: {response.text}")
+        
+        return response.json()
+
 
 class TraceClient:
     """Client for managing a single trace context"""
@@ -169,6 +290,7 @@ class TraceClient:
         self.span_type = None
         self._current_span: Optional[TraceEntry] = None
         self.overwrite = overwrite
+        self.trace_manager_client = TraceManagerClient(tracer.api_key)  # Manages DB operations for trace data
         
     @contextmanager
     def span(self, name: str, span_type: SpanType = "span"):
@@ -185,6 +307,7 @@ class TraceClient:
             span_type=span_type
         ))
         
+        # Increment nested depth and set current span
         self.tracer.depth += 1
         prev_span = self._current_span
         self._current_span = name
@@ -383,6 +506,24 @@ class TraceClient:
         raw_entries = [entry.to_dict() for entry in self.entries]
         condensed_entries = self.condense_trace(raw_entries)
 
+        # Calculate total token counts from LLM API calls
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_tokens = 0
+        
+        for entry in condensed_entries:
+            if entry.get("span_type") == "llm" and isinstance(entry.get("output"), dict):
+                usage = entry["output"].get("usage", {})
+                # Handle OpenAI/Together format
+                if "prompt_tokens" in usage:
+                    total_prompt_tokens += usage.get("prompt_tokens", 0)
+                    total_completion_tokens += usage.get("completion_tokens", 0)
+                # Handle Anthropic format
+                elif "input_tokens" in usage:
+                    total_prompt_tokens += usage.get("input_tokens", 0)
+                    total_completion_tokens += usage.get("output_tokens", 0)
+                total_tokens += usage.get("total_tokens", 0)
+
         # Create trace document
         trace_data = {
             "trace_id": self.trace_id,
@@ -392,34 +533,22 @@ class TraceClient:
             "created_at": datetime.fromtimestamp(self.start_time).isoformat(),
             "duration": total_duration,
             "token_counts": {
-                "prompt_tokens": 0,  # Dummy value
-                "completion_tokens": 0,  # Dummy value
-                "total_tokens": 0,  # Dummy value
-            },  # TODO: Add token counts
+                "prompt_tokens": total_prompt_tokens,
+                "completion_tokens": total_completion_tokens,
+                "total_tokens": total_tokens,
+            },
             "entries": condensed_entries,
             "empty_save": empty_save,
             "overwrite": overwrite
         }
 
         # Save trace data by making POST request to API
-        response = requests.post(
-            JUDGMENT_TRACES_SAVE_API_URL,
-            json=trace_data,
-            headers={
-                "Content-Type": "application/json",
-            }
-        )
-        
-        if response.status_code == HTTPStatus.BAD_REQUEST:
-            raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
-        elif response.status_code != HTTPStatus.OK:
-            raise ValueError(f"Failed to save trace data: {response.text}")
-        
-        if not empty_save and "ui_results_url" in response.json():
-            rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
-        
+        self.trace_manager_client.save_trace(trace_data, empty_save)
         return self.trace_id, trace_data
 
+    def delete(self):
+        return self.trace_manager_client.delete_trace(self.trace_id)
+    
 class Tracer:
     _instance = None
 

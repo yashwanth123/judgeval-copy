@@ -39,8 +39,11 @@ JUDGMENT_DATASETS_PULL_API_URL = f"{ROOT_API}/datasets/pull/"
 JUDGMENT_DATASETS_PULL_ALL_API_URL = f"{ROOT_API}/datasets/get_all_stats/"
 JUDGMENT_EVAL_LOG_API_URL = f"{ROOT_API}/log_eval_results/"
 JUDGMENT_EVAL_FETCH_API_URL = f"{ROOT_API}/fetch_eval_results/"
+JUDGMENT_EVAL_DELETE_API_URL = f"{ROOT_API}/delete_eval_results_by_project_and_run_name/"
+JUDGMENT_EVAL_DELETE_PROJECT_API_URL = f"{ROOT_API}/delete_eval_results_by_project/"
+JUDGMENT_TRACES_FETCH_API_URL = f"{ROOT_API}/traces/fetch/"
 JUDGMENT_TRACES_SAVE_API_URL = f"{ROOT_API}/traces/save/"
-
+JUDGMENT_TRACES_DELETE_API_URL = f"{ROOT_API}/traces/delete/"
 ## Models
 TOGETHER_SUPPORTED_MODELS = {
     "QWEN": "Qwen/Qwen2-72B-Instruct",
@@ -51,7 +54,9 @@ TOGETHER_SUPPORTED_MODELS = {
     "MISTRAL_8x7B_INSTRUCT": "mistralai/Mixtral-8x7B-Instruct-v0.1",
 }
 
-ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys())
+JUDGMENT_SUPPORTED_MODELS = {"osiris-large", "osiris-mini"}
+
+ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys()) | JUDGMENT_SUPPORTED_MODELS
 
 ## System settings
 MAX_WORKER_THREADS = 10
