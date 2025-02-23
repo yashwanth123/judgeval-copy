@@ -46,7 +46,7 @@ results = client.run_evaluation(
 
 ## Use Your Own Judge Model
 
-If you have a custom model you'd like to use as a judge, such as a finetuned `gpt4o-mini`, you can use them in your `CustomScorer` evaluations.
+If you have a custom model you'd like to use as a judge, such as a finetuned `gpt4o-mini`, you can use them in your `JudgevalScorer` evaluations.
 
 Simply inherit from the `judgevalJudge` class and implement the following methods:
 - `__init__()`: sets the `model_name (str)` and `model` attributes.
