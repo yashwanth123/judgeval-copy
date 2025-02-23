@@ -1,4 +1,4 @@
-docket_id,excerpts,raw_response,quote,is_class_action,note
+docket_id,excerpts,raw_response,quote,is_class_action,note,is_hallucination
 X1Q6O2RCSF82,"<filing_excerpts>
 2019-03-26 Form SC TO-T/A [https://www.sec.gov/Archives/edgar/data/310158/000119312519086616/d690289dsctota.htm]:
 Item 11 of the Schedule TO is hereby amended and supplemented as set forth below:
@@ -47,7 +47,7 @@ Here is the output in JSON format:
     ""is_class_action"": ""No"",
     ""note"": ""The document mentions 'putative class-action lawsuits' but does not explicitly state that the Reed case is a class action.""
 }
-```",Not applicable,No,The document mentions 'putative class-action lawsuits' but does not explicitly state that the Reed case is a class action.
+```",Not applicable,No,The document mentions 'putative class-action lawsuits' but does not explicitly state that the Reed case is a class action.,TRUE
 NOBLAW83909877,"<filing_excerpts>
 2020-07-24 Form DEFM14A [https://www.sec.gov/Archives/edgar/data/1585790/000104746920004238/a2242105zdefm14a.htm]:
 The parties have also agreed that, if the Company termination fee is payable as a result of an acceptance by the Board of a superior proposal (as defined in the section entitled ""The Amended Merger Agreement--Other Covenants and Agreements; The Advanced Disposal Board Recommendation; Change of Recommendation; Fiduciary Exception""), Waste Management's and Merger Sub's right to terminate the amended merger agreement and receive payment of the Company termination fee will be the sole and exclusive remedy of Waste Management and Merger Sub for any loss suffered by Waste Management or Merger Sub as a result of a breach by Advanced Disposal of its obligations with respect to the non-solicitation provisions under the amended merger agreement. In addition, the parties have agreed that Advanced Disposal's right to terminate the amended merger agreement and receive payment of the Waste Management termination fee will be the sole and exclusive remedy of Advanced Disposal against Waste Management and Merger Sub for any loss suffered by Advanced Disposal as a result of a breach by Waste Management or Merger Sub of certain of its obligations with respect to regulatory matters under the amended merger agreement. The parties further agreed that Advanced Disposal will not have any right to seek money damages due to Waste Management's breach of the regulatory covenant in circumstances where the Waste Management termination fee is not payable unless the amended merger agreement is terminated due to Waste Management's willful breach, in which case, Advanced Disposal can seek damages up to $250,000,000. Advanced Disposal, however, retains the right to seek specific performance.
@@ -108,7 +108,7 @@ Here is the output in JSON format:
     ""is_class_action"": ""No"",
     ""note"": """"
 }
-```",Not applicable,No,
+```",Not applicable,No,,TRUE
 X1Q6O3PIPU82,"<filing_excerpts>
 2019-07-17 Form SC TO-T/A [https://www.sec.gov/Archives/edgar/data/78003/000119312519195737/d777680dsctota.htm]:
 Items 1 through 11.
@@ -221,7 +221,7 @@ Here is the output in the required format:
     ""is_class_action"": ""Yes"",
     ""note"": ""The case is explicitly mentioned as a putative class action lawsuit.""
 }
-```","On July 1, 2019, a purported stockholder of Array filed a putative class action lawsuit against Array, its directors, Pfizer and Purchaser in the United States District Court for the District of Delaware, captioned Michael Kent v. Array BioPharma Inc., et al., Case No. 1:19-cv-01248 (the ""Kent Complaint"").",Yes,The case is explicitly mentioned as a putative class action lawsuit.
+```","On July 1, 2019, a purported stockholder of Array filed a putative class action lawsuit against Array, its directors, Pfizer and Purchaser in the United States District Court for the District of Delaware, captioned Michael Kent v. Array BioPharma Inc., et al., Case No. 1:19-cv-01248 (the ""Kent Complaint"").",Yes,The case is explicitly mentioned as a putative class action lawsuit.,FALSE
 X1Q6O3PKJ882,"<filing_excerpts>
 2019-07-17 Form SC TO-T/A [https://www.sec.gov/Archives/edgar/data/78003/000119312519195737/d777680dsctota.htm]:
 Items 1 through 11.
@@ -334,7 +334,7 @@ Here is the JSON object:
     ""is_class_action"": ""Yes"",
     ""note"": ""The case is explicitly mentioned as a putative class action lawsuit.""
 }
-```","On July 2, 2019 another purported stockholder of Array filed a lawsuit against Array, its directors, Pfizer and Purchaser in the United States District Court for the Southern District of New York, captioned Elaine Wang v. Array BioPharma Inc., et al., Case No. 1:19-cv-06168 (the ""Wang Complaint"").",Yes,The case is explicitly mentioned as a putative class action lawsuit.
+```","On July 2, 2019 another purported stockholder of Array filed a lawsuit against Array, its directors, Pfizer and Purchaser in the United States District Court for the Southern District of New York, captioned Elaine Wang v. Array BioPharma Inc., et al., Case No. 1:19-cv-06168 (the ""Wang Complaint"").",Yes,The case is explicitly mentioned as a putative class action lawsuit.,TRUE
 X1Q6O3Q3GPO2,"<filing_excerpts>
 2019-07-17 Form SC TO-T/A [https://www.sec.gov/Archives/edgar/data/78003/000119312519195737/d777680dsctota.htm]:
 Items 1 through 11.
@@ -425,7 +425,7 @@ Here is the JSON object:
     ""is_class_action"": ""Yes"",
     ""note"": ""The case is explicitly described as a putative class action lawsuit.""
 }
-```","On July 3, 2019 a third purported stockholder of Array filed a putative class action lawsuit against Array and its directors in the United States District Court for the District of Colorado, captioned Jacques Noel v. Array BioPharma et al., Case No. 1:19-cv-01925.",Yes,The case is explicitly described as a putative class action lawsuit.
+```","On July 3, 2019 a third purported stockholder of Array filed a putative class action lawsuit against Array and its directors in the United States District Court for the District of Colorado, captioned Jacques Noel v. Array BioPharma et al., Case No. 1:19-cv-01925.",Yes,The case is explicitly described as a putative class action lawsuit.,FALSE
 X1Q6O3QT9QO2,"<filing_excerpts>
 2019-07-17 Form SC TO-T/A [https://www.sec.gov/Archives/edgar/data/78003/000119312519195737/d777680dsctota.htm]:
 Items 1 through 11.
@@ -520,7 +520,7 @@ Here is the output in the required JSON format:
     ""is_class_action"": ""No"",
     ""note"": ""The case of interest is not explicitly stated to be a class action, and no language suggests that the plaintiff is representing other similarly situated individuals.""
 }
-```",Not applicable,No,"The case of interest is not explicitly stated to be a class action, and no language suggests that the plaintiff is representing other similarly situated individuals."
+```",Not applicable,No,"The case of interest is not explicitly stated to be a class action, and no language suggests that the plaintiff is representing other similarly situated individuals.",FALSE
 X1Q6O3RVP0O2,"<filing_excerpts>
 2019-07-17 Form SC TO-T/A [https://www.sec.gov/Archives/edgar/data/78003/000119312519195737/d777680dsctota.htm]:
 Items 1 through 11.
@@ -589,7 +589,7 @@ Here is the JSON object:
     ""is_class_action"": ""Yes"",
     ""note"": ""The case is explicitly mentioned as a putative class action lawsuit.""
 }
-```","On July 11, 2019, a fifth purported stockholder of Array filed a lawsuit against Array and its directors in the United States District Court for the District of Colorado, captioned Larry Guerrero v. Array BioPharma Inc., et al., Case No. 1:19-cv-02000.",Yes,The case is explicitly mentioned as a putative class action lawsuit.
+```","On July 11, 2019, a fifth purported stockholder of Array filed a lawsuit against Array and its directors in the United States District Court for the District of Colorado, captioned Larry Guerrero v. Array BioPharma Inc., et al., Case No. 1:19-cv-02000.",Yes,The case is explicitly mentioned as a putative class action lawsuit.,TRUE
 X1Q6O3S88882,"<filing_excerpts>
 2019-07-17 Form SC TO-T/A [https://www.sec.gov/Archives/edgar/data/78003/000119312519195737/d777680dsctota.htm]:
 Items 1 through 11.
@@ -658,7 +658,7 @@ Therefore, the conclusion is:
     ""quote"": ""Not applicable"",
     ""is_class_action"": ""No"",
     ""note"": ""The document does not provide any information to determine that the target case is a class action.""
-}",Not applicable,No,The document does not provide any information to determine that the target case is a class action.
+}",Not applicable,No,The document does not provide any information to determine that the target case is a class action.,FALSE
 X1Q6O3SBN2O2,"<filing_excerpts>
 2019-07-17 Form SC TO-T/A [https://www.sec.gov/Archives/edgar/data/78003/000119312519195737/d777680dsctota.htm]:
 Items 1 through 11.
@@ -847,7 +847,7 @@ However, ""putative class action lawsuit"" is not mentioned in the same sentence
 
 However, this sentence does not refer to the target case.  However, another sentence mentions the target case:
 
-""On July 12, 2019, a seventh purported stockholder of Array filed a lawsuit against Array and its directors in the United States District Court for the District of Colorado, captioned Chanie Dembitzer v. Array BioPharma Inc., et",,,
+""On July 12, 2019, a seventh purported stockholder of Array filed a lawsuit against Array and its directors in the United States District Court for the District of Colorado, captioned Chanie Dembitzer v. Array BioPharma Inc., et",,,,TRUE
 X1Q6O3MA0L82,"<filing_excerpts>
 2019-11-01 Form 10-Q [https://www.sec.gov/Archives/edgar/data/805022/000080502219000039/bplq3201910q.htm]:
 In the ordinary course of business, we are involved in various claims and legal proceedings, some of which are covered by insurance. We are generally unable to predict the timing or outcome of these claims and proceedings. Based upon our evaluation of existing claims and proceedings and the probability of losses resulting from such contingencies, we have accrued certain amounts relating to such claims and proceedings, none of which are considered material.
@@ -916,7 +916,7 @@ Here is the JSON object:
     ""is_class_action"": ""Yes"",
     ""note"": ""The document explicitly mentions that the Luers Action is a putative class action.""
 }
-```","On June 20, 2019, a purported unitholder of Buckeye filed a complaint in a putative class action in the United States District Court for the Southern District of New York, captioned Anthony Luers v. Buckeye Partners, L.P., et al., Case No. 1:19-cv-05767 (the ""Luers Action"").",Yes,The document explicitly mentions that the Luers Action is a putative class action.
+```","On June 20, 2019, a purported unitholder of Buckeye filed a complaint in a putative class action in the United States District Court for the Southern District of New York, captioned Anthony Luers v. Buckeye Partners, L.P., et al., Case No. 1:19-cv-05767 (the ""Luers Action"").",Yes,The document explicitly mentions that the Luers Action is a putative class action.,TRUE
 X1Q6O3KH5G82,"<filing_excerpts>
 2019-11-01 Form 10-Q [https://www.sec.gov/Archives/edgar/data/805022/000080502219000039/bplq3201910q.htm]:
 In the ordinary course of business, we are involved in various claims and legal proceedings, some of which are covered by insurance. We are generally unable to predict the timing or outcome of these claims and proceedings. Based upon our evaluation of existing claims and proceedings and the probability of losses resulting from such contingencies, we have accrued certain amounts relating to such claims and proceedings, none of which are considered material.
@@ -985,7 +985,7 @@ Here is the JSON object:
     ""is_class_action"": ""Yes"",
     ""note"": ""The document explicitly mentions that the case is a putative class action.""
 }
-```","On June 13, 2019, a purported unitholder of Buckeye filed a complaint in a putative class action in the United States District Court for the Southern District of Texas, Houston Division, captioned Harry Curtis, individually and on behalf of all others similarly situated, v. Buckeye Partners, L.P., et al., Case No. 4:19-cv-2147 (the 'Curtis Action').",Yes,The document explicitly mentions that the case is a putative class action.
+```","On June 13, 2019, a purported unitholder of Buckeye filed a complaint in a putative class action in the United States District Court for the Southern District of Texas, Houston Division, captioned Harry Curtis, individually and on behalf of all others similarly situated, v. Buckeye Partners, L.P., et al., Case No. 4:19-cv-2147 (the 'Curtis Action').",Yes,The document explicitly mentions that the case is a putative class action.,FALSE
 X1Q6O3LS4JO2,"<filing_excerpts>
 2019-11-01 Form 10-Q [https://www.sec.gov/Archives/edgar/data/805022/000080502219000039/bplq3201910q.htm]:
 In the ordinary course of business, we are involved in various claims and legal proceedings, some of which are covered by insurance. We are generally unable to predict the timing or outcome of these claims and proceedings. Based upon our evaluation of existing claims and proceedings and the probability of losses resulting from such contingencies, we have accrued certain amounts relating to such claims and proceedings, none of which are considered material.
@@ -1054,7 +1054,7 @@ Here is the JSON object:
     ""is_class_action"": ""Yes"",
     ""note"": ""The document explicitly mentions that the case is a putative class action.""
 }
-```","On June 18, 2019, a purported unitholder of Buckeye filed a complaint in a putative class action in the United States District Court for the District of Delaware, captioned Michael Kent, individually and on behalf of all others similarly situated, v. Buckeye Partners, L.P., et al., Case No. 1:19-cv-01128 (the 'Kent Action').",Yes,The document explicitly mentions that the case is a putative class action.
+```","On June 18, 2019, a purported unitholder of Buckeye filed a complaint in a putative class action in the United States District Court for the District of Delaware, captioned Michael Kent, individually and on behalf of all others similarly situated, v. Buckeye Partners, L.P., et al., Case No. 1:19-cv-01128 (the 'Kent Action').",Yes,The document explicitly mentions that the case is a putative class action.,FALSE
 X1Q6O3M1PDO2,"<filing_excerpts>
 2019-11-01 Form 10-Q [https://www.sec.gov/Archives/edgar/data/805022/000080502219000039/bplq3201910q.htm]:
 In the ordinary course of business, we are involved in various claims and legal proceedings, some of which are covered by insurance. We are generally unable to predict the timing or outcome of these claims and proceedings. Based upon our evaluation of existing claims and proceedings and the probability of losses resulting from such contingencies, we have accrued certain amounts relating to such claims and proceedings, none of which are considered material.
@@ -1134,7 +1134,7 @@ Here is the JSON object:
     ""is_class_action"": ""Yes"",
     ""note"": ""The case is described as a putative class action in the excerpts.""
 }
-```","On June 19, 2019, a purported unitholder of the Partnership filed a complaint in a putative class action in the United States District Court for the Southern District of New York, captioned John Greer v. Buckeye Partners, L.P., et al., Case No. 1:19-cv-05741 (the ""Greer Action"").",Yes,The case is described as a putative class action in the excerpts.
+```","On June 19, 2019, a purported unitholder of the Partnership filed a complaint in a putative class action in the United States District Court for the Southern District of New York, captioned John Greer v. Buckeye Partners, L.P., et al., Case No. 1:19-cv-05741 (the ""Greer Action"").",Yes,The case is described as a putative class action in the excerpts.,TRUE
 X1Q6O3NFP1O2,"<filing_excerpts>
 2019-08-15 Form DEFA14A [https://www.sec.gov/Archives/edgar/data/949158/000162828019010832/cray-supplementalproxy.htm]:
 Litigation Relating to the Merger
@@ -1222,4 +1222,4 @@ However, I realized that I made another mistake. The correct output should be:
     ""is_class_action"": ""Yes"",
     ""note"": ""The case is referred to as a 'putative shareholder class action complaint' in the filing excerpts.""
 }
-```","On June 24, 2019, a putative shareholder class action complaint was filed in the same court against the same defendants, captioned Stein v. Cray Inc. et al., Case No. 1:19-cv-01188-UNA (the 'Stein Complaint' and together with the Davie Complaint and Kent Complaint, the 'Delaware Complaints').",Yes,The case is referred to as a 'putative shareholder class action complaint' in the filing excerpts.
+```","On June 24, 2019, a putative shareholder class action complaint was filed in the same court against the same defendants, captioned Stein v. Cray Inc. et al., Case No. 1:19-cv-01188-UNA (the 'Stein Complaint' and together with the Davie Complaint and Kent Complaint, the 'Delaware Complaints').",Yes,The case is referred to as a 'putative shareholder class action complaint' in the filing excerpts.,TRUE
