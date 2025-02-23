@@ -11,7 +11,7 @@ from anthropic import Anthropic
 import pytest
 
 # Local imports
-from judgeval.common.tracer import Tracer, wrap, TraceClient, TraceManagerClient
+from judgeval.tracer import Tracer, wrap, TraceClient, TraceManagerClient
 from judgeval.constants import APIScorer
 from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer
 
