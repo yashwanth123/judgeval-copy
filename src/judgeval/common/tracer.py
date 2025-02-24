@@ -380,10 +380,16 @@ class TraceClient:
             override=self.overwrite
         )
         
-        self.record_evaluation(eval_run, start_time)  # Pass start_time to record_evaluation
+        self.add_eval_run(eval_run, start_time)  # Pass start_time to record_evaluation
             
-    def record_evaluation(self, eval_run: EvaluationRun, start_time: float):
-        """Record evaluation results for the current span"""
+    def add_eval_run(self, eval_run: EvaluationRun, start_time: float):
+        """
+        Add evaluation run data to the trace
+
+        Args:
+            eval_run (EvaluationRun): The evaluation run to add to the trace
+            start_time (float): The start time of the evaluation run
+        """
         if self._current_span:
             duration = time.time() - start_time  # Calculate duration from start_time
             
