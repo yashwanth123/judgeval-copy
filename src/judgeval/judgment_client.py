@@ -182,6 +182,10 @@ class JudgmentClient:
                                                    eval_name=eval_run_name, 
                                                    judgment_api_key=self.judgment_api_key)
         eval_run = requests.post(JUDGMENT_EVAL_FETCH_API_URL,
+                                 headers={
+                                    "Content-Type": "application/json",
+                                    "Authorization": f"Bearer {self.judgment_api_key}"
+                                 },
                                  json=eval_run_request_body.model_dump())
         if eval_run.status_code != requests.codes.ok:
             raise ValueError(f"Error fetching eval results: {eval_run.json()}")
@@ -213,6 +217,7 @@ class JudgmentClient:
                         json=eval_run_request_body.model_dump(),
                         headers={
                             "Content-Type": "application/json",
+                            "Authorization": f"Bearer {self.judgment_api_key}"
                         })
         if response.status_code != requests.codes.ok:
             raise ValueError(f"Error deleting eval results: {response.json()}")
@@ -235,6 +240,7 @@ class JudgmentClient:
                         },
                         headers={
                             "Content-Type": "application/json",
+                            "Authorization": f"Bearer {self.judgment_api_key}"
                         })
         if response.status_code != requests.codes.ok:
             raise ValueError(f"Error deleting eval results: {response.json()}")

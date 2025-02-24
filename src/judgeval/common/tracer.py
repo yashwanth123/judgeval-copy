@@ -199,10 +199,11 @@ class TraceManagerClient:
             JUDGMENT_TRACES_FETCH_API_URL,
             json={
                 "trace_id": trace_id,
-                "judgment_api_key": self.judgment_api_key,
+                # "judgment_api_key": self.judgment_api_key,
             },
             headers={
                 "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}"
             }
         )
 
@@ -225,6 +226,7 @@ class TraceManagerClient:
             json=trace_data,
             headers={
                 "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}"
             }
         )
         
@@ -248,6 +250,7 @@ class TraceManagerClient:
             },
             headers={
                 "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}"
             }
         )
 
@@ -263,11 +266,12 @@ class TraceManagerClient:
         response = requests.delete(
             JUDGMENT_TRACES_DELETE_API_URL,
             json={
-                "judgment_api_key": self.judgment_api_key,
+                # "judgment_api_key": self.judgment_api_key,
                 "trace_ids": trace_ids,
             },
             headers={
                 "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}"
             }
         )
 
