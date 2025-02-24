@@ -550,20 +550,6 @@ class TraceClient:
             "empty_save": empty_save,
             "overwrite": overwrite
         }
-
-        # Save trace data by making POST request to API
-        response = requests.post(
-            JUDGMENT_TRACES_SAVE_API_URL,
-            json=trace_data,
-            headers={
-                "Content-Type": "application/json",
-            }
-        )
-        
-        if response.status_code == HTTPStatus.BAD_REQUEST:
-            raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
-        elif response.status_code != HTTPStatus.OK:
-            raise ValueError(f"Failed to save trace data: {response.text}")
         
         if not empty_save:
             connection = pika.BlockingConnection(
