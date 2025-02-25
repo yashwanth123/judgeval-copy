@@ -3,11 +3,11 @@ Classes for representing examples in a dataset.
 """
 
 
-from typing import TypeVar, Optional, Any, Dict, List, UUID
+from typing import TypeVar, Optional, Any, Dict, List
+from uuid import uuid4
 from pydantic import BaseModel, Field
 from enum import Enum
 from datetime import datetime
-from uuid import uuid4
 
 
 Input = TypeVar('Input')
@@ -34,14 +34,14 @@ class Example(BaseModel):
     tools_called: Optional[List[str]] = None
     expected_tools: Optional[List[str]] = None
     name: Optional[str] = None
-    example_id: UUID = Field(default_factory=uuid4)
+    example_id: str = Field(default_factory=lambda: str(uuid4()))
     example_index: Optional[int] = None
     timestamp: Optional[str] = None
     trace_id: Optional[str] = None
 
     def __init__(self, **data):
         if 'example_id' not in data:
-            data['example_id'] = uuid4()
+            data['example_id'] = str(uuid4())
         super().__init__(**data)
         # Set timestamp if not provided
         if self.timestamp is None:
@@ -58,7 +58,7 @@ class Example(BaseModel):
             "tools_called": self.tools_called,
             "expected_tools": self.expected_tools,
             "name": self.name,
-            "example_id": str(self.example_id),
+            "example_id": self.example_id,
             "example_index": self.example_index,
             "timestamp": self.timestamp,
             "trace_id": self.trace_id
