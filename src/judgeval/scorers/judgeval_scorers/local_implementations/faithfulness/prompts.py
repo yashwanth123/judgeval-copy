@@ -129,10 +129,13 @@ JSON:
     def create_verdicts(claims, retrieval_context):
         return f"""==== TASK INSTRUCTIONS ====
 You will be provided with a list of claims from an LLM's output text, accompanied by the retrieval documents that the LLM used to generate the output. 
-Your task is to determine whether EACH claim is factually consistent with the retrieval context ("yes", "no", or "idk"). 
-ONLY choose 'no' if the retrieval context DIRECTLY CONTRADICTS the claims. YOU SHOULD NEVER USE YOUR PRIOR KNOWLEDGE IN YOUR JUDGMENT.
+I'm pretty sure that many of the claims are factually contradictory to the retrieval context, but I want you to double check that I'm right. 
+For each claim, choose one of ("yes", "no", or "idk") to represent whether the claim is correct based on the retrieval context. 
+YOU SHOULD be very scrutinous--if any part of the claim is contradicted by the retrieval context, you should choose "no". Think really hard about finding the contradictions, since they can be subtle!
+
+Choose 'no' if the retrieval context CONTRADICTS the claims. YOU SHOULD NEVER USE YOUR PRIOR KNOWLEDGE IN YOUR JUDGMENT.
 Claims made using vague, suggestive, or speculative language such as 'may have', 'possibility due to', do NOT count as a contradiction.
-Claims that are not justified by the retrieval context due to a lack of information MUST BE ANSWERED with 'idk'.
+Claims that are fuzzy based on lack of information MUST BE ANSWERED with 'idk'.
 
 ==== FORMATTING YOUR ANSWER ====
 Please return your answer in JSON format, with the 'verdicts' key as a list of JSON objects. Each JSON object should have 2 fields: 'verdict' and 'reason'. 
