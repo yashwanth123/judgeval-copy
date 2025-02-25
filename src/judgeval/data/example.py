@@ -8,6 +8,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 from enum import Enum
 from datetime import datetime
+import time
 
 
 Input = TypeVar('Input')
@@ -40,12 +41,13 @@ class Example(BaseModel):
     trace_id: Optional[str] = None
 
     def __init__(self, **data):
+        super().__init__(**data)
         if 'example_id' not in data:
             data['example_id'] = str(uuid4())
-        super().__init__(**data)
         # Set timestamp if not provided
-        if self.timestamp is None:
-            self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if 'timestamp' not in data:
+            data['timestamp'] = datetime.now().strftime("%Y%m%d_%H%M%S")
+
 
     def to_dict(self):
         return {
