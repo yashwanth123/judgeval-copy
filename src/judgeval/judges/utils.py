@@ -6,7 +6,7 @@ from typing import Optional, Union, Tuple, List
 
 from judgeval.common.exceptions import InvalidJudgeModelError
 from judgeval.judges import JudgevalJudge, LiteLLMJudge, TogetherJudge, MixtureOfJudges
-from judgeval.constants import TOGETHER_SUPPORTED_MODELS
+from judgeval.constants import TOGETHER_SUPPORTED_MODELS, JUDGMENT_SUPPORTED_MODELS, ACCEPTABLE_MODELS
 
 LITELLM_SUPPORTED_MODELS = set(litellm.model_list)
 
@@ -33,7 +33,13 @@ def create_judge(
     # Either string or List[str]
     if isinstance(model, list):
         for m in model:
-            if m not in TOGETHER_SUPPORTED_MODELS and m not in LITELLM_SUPPORTED_MODELS:
+            if m in JUDGMENT_SUPPORTED_MODELS:
+                raise NotImplementedError(
+                    """Judgment models are not yet supported for local scoring.
+                    Please either set the `use_judgment` flag to True or use 
+                    non-Judgment models."""
+                )
+            if m not in LITELLM_SUPPORTED_MODELS and m not in TOGETHER_SUPPORTED_MODELS:
                 raise InvalidJudgeModelError(f"Invalid judge model chosen: {m}")
         return MixtureOfJudges(models=model), True
     # If model is a string, check that it corresponds to a valid model
@@ -41,5 +47,11 @@ def create_judge(
         return LiteLLMJudge(model=model), True
     if model in TOGETHER_SUPPORTED_MODELS:
         return TogetherJudge(model=model), True
+    if model in JUDGMENT_SUPPORTED_MODELS:
+        raise NotImplementedError(
+            """Judgment models are not yet supported for local scoring.
+            Please either set the `use_judgment` flag to True or use 
+            non-Judgment models."""
+        )
     else:
         raise InvalidJudgeModelError(f"Invalid judge model chosen: {model}")

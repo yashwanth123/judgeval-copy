@@ -53,13 +53,12 @@ def run_judgment_evaluation(examples: List[Example]):
     scorer = FaithfulnessScorer(threshold=1.0)
     
     output = client.run_evaluation(
-        model="o3-mini",
+        model="osiris-large",
         examples=examples,
         scorers=[scorer],
-        eval_run_name="cstone-basic-test-o3-mini-3", 
+        eval_run_name="cstone-basic-test-osiris-large-1", 
         project_name="cstone_faithfulness_testing",
         override=True,
-        use_judgment=False,
     )
     
     scores = []
