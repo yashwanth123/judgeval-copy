@@ -385,7 +385,7 @@ class TraceClient:
                 # Update existing function entry with additional data
                 current_entry = function_entries[function]
                 
-                print(f"{current_entry=}")
+                # print(f"{current_entry=}")
                 
                 if entry["type"] == "input" and entry["inputs"]:
                     current_entry["inputs"] = entry["inputs"]
@@ -396,7 +396,7 @@ class TraceClient:
                 if entry["type"] == "evaluation" and entry["evaluation_result"]:
                     current_entry["evaluation_result"] = entry["evaluation_result"]
                     
-            print(f"{entry=}, {active_functions=}")
+            # print(f"{entry=}, {active_functions=}")
 
         # Sort by timestamp
         condensed.sort(key=lambda x: x["timestamp"])
