@@ -121,7 +121,7 @@ incorrect_financial_data = [{
         Let's assume we have a table named `stock_transactions` with the following columns:
 
         - `id` (INT): A unique identifier for each transaction.
-        - `stock_symbol` (VARCHAR): The ticker symbol of the stock (e.g., AAPL for Apple).
+        - `stock_symbol` (VARCHAR): The ticker symbol of the stock (e.g., appl for Apple).
         - `transaction_type` (VARCHAR): Type of transaction, either 'buy' or 'sell'.
         - `quantity` (INT): The number of shares bought or sold.
         - `price_per_share` (DECIMAL): The price per share at the time of the transaction.
