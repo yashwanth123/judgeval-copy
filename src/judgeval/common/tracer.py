@@ -596,7 +596,6 @@ class Tracer:
             
             self.api_key: str = api_key
             self.project_name: str = project_name
-            print(f"Initializing Tracer with API key: {api_key} and project name: {project_name}")
             self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
             self.depth: int = 0
             self._current_trace: Optional[str] = None
