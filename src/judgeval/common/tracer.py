@@ -588,23 +588,25 @@ class Tracer:
             cls._instance = super(Tracer, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, api_key: str = os.getenv("JUDGMENT_API_KEY")):
+    def __init__(self, api_key: str = os.getenv("JUDGMENT_API_KEY"), project_name: str = "default_project"):
         if not hasattr(self, 'initialized'):
 
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
             
             self.api_key: str = api_key
+            self.project_name: str = project_name
             self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
             self.depth: int = 0
             self._current_trace: Optional[str] = None
             self.initialized: bool = True
         
     @contextmanager
-    def trace(self, name: str, project_name: str = "default_project", overwrite: bool = False) -> Generator[TraceClient, None, None]:
+    def trace(self, name: str, project_name: str = None, overwrite: bool = False) -> Generator[TraceClient, None, None]:
         """Start a new trace context using a context manager"""
         trace_id = str(uuid.uuid4())
-        trace = TraceClient(self, trace_id, name, project_name=project_name, overwrite=overwrite)
+        project = project_name if project_name is not None else self.project_name
+        trace = TraceClient(self, trace_id, name, project_name=project, overwrite=overwrite)
         prev_trace = self._current_trace
         self._current_trace = trace
         
@@ -623,28 +625,40 @@ class Tracer:
         """
         return self._current_trace    
 
-    def observe(self, func=None, *, name=None, span_type: SpanType = "span"):
+    def observe(self, func=None, *, name=None, span_type: SpanType = "span", project_name: str = None, overwrite: bool = False):
         """
         Decorator to trace function execution with detailed entry/exit information.
         
         Args:
-            func: The function to trace
-            name: Optional custom name for the function
-            span_type: The type of span to use for this observation (default: "span")
+            func: The function to decorate
+            name: Optional custom name for the span (defaults to function name)
+            span_type: Type of span (default "span")
+            project_name: Optional project name override
+            overwrite: Whether to overwrite existing traces
         """
         if func is None:
-            return lambda f: self.observe(f, name=name, span_type=span_type)
+            return lambda f: self.observe(f, name=name, span_type=span_type, project_name=project_name, overwrite=overwrite)
+        
+        # Use provided name or fall back to function name
+        span_name = name or func.__name__
         
         if asyncio.iscoroutinefunction(func):
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
+                # If there's already a trace, use it. Otherwise create a new one
                 if self._current_trace:
-                    span_name = name or func.__name__
-                    
-                    with self._current_trace.span(span_name, span_type=span_type) as span:
-                        # Set the span type
-                        span.span_type = span_type
-                        
+                    trace = self._current_trace
+                else:
+                    trace_id = str(uuid.uuid4())
+                    trace_name = str(uuid.uuid4())
+                    project = project_name if project_name is not None else self.project_name
+                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite)
+                    self._current_trace = trace
+                    # Only save empty trace for the root call
+                    trace.save(empty_save=True, overwrite=overwrite)
+
+                try:
+                    with trace.span(span_name, span_type=span_type) as span:
                         # Record inputs
                         span.record_input({
                             'args': list(args),
@@ -658,19 +672,30 @@ class Tracer:
                         span.record_output(result)
                         
                         return result
-                
-                return await func(*args, **kwargs)
+                finally:
+                    # Only save and cleanup if this is the root observe call
+                    if self.depth == 0:
+                        trace.save(empty_save=False, overwrite=overwrite)
+                        self._current_trace = None
+                    
             return async_wrapper
         else:
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
+                # If there's already a trace, use it. Otherwise create a new one
                 if self._current_trace:
-                    span_name = name or func.__name__
-                    
-                    with self._current_trace.span(span_name, span_type=span_type) as span:
-                        # Set the span type
-                        span.span_type = span_type
-                        
+                    trace = self._current_trace
+                else:
+                    trace_id = str(uuid.uuid4())
+                    trace_name = str(uuid.uuid4())
+                    project = project_name if project_name is not None else self.project_name
+                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite)
+                    self._current_trace = trace
+                    # Only save empty trace for the root call
+                    trace.save(empty_save=True, overwrite=overwrite)
+                
+                try:
+                    with trace.span(span_name, span_type=span_type) as span:
                         # Record inputs
                         span.record_input({
                             'args': list(args),
@@ -684,8 +709,12 @@ class Tracer:
                         span.record_output(result)
                         
                         return result
-                
-                return func(*args, **kwargs)
+                finally:
+                    # Only save and cleanup if this is the root observe call
+                    if self.depth == 0:
+                        trace.save(empty_save=False, overwrite=overwrite)
+                        self._current_trace = None
+                    
             return wrapper
 
 def wrap(client: Any) -> Any:
