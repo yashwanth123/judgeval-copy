@@ -104,7 +104,7 @@ async def classify(state: AgentState) -> AgentState:
     )
     
     await judgment.get_current_trace().async_evaluate(
-        scorers=[AnswerCorrectnessScorer(threshold=0.5)],
+        scorers=[AnswerCorrectnessScorer(threshold=1)],
         input=str(input_msg),
         actual_output=response.content,
         expected_output="pnl",
@@ -147,10 +147,21 @@ async def generate_response(state: AgentState) -> AgentState:
     )
     
     await judgment.get_current_trace().async_evaluate(
-        scorers=[AnswerCorrectnessScorer(threshold=0.5)],
+        scorers=[AnswerCorrectnessScorer(threshold=1)],
         input=str(input_msg),
         actual_output=response.content,
-        expected_output="SELECT * FROM pnl WHERE stock_symbol = 'AAPL'",
+        # retrieval_context=[documents],
+        expected_output="""
+        SELECT 
+            SUM(CASE 
+                WHEN transaction_type = 'sell' THEN (price_per_share - (SELECT price_per_share FROM stock_transactions WHERE stock_symbol = 'aapl' AND transaction_type = 'buy' LIMIT 1)) * quantity 
+                ELSE 0 
+            END) AS realized_pnl
+        FROM 
+            stock_transactions
+        WHERE 
+            stock_symbol = 'aapl';
+        """,
         model="gpt-4o-mini"
     )
 
@@ -158,9 +169,8 @@ async def generate_response(state: AgentState) -> AgentState:
 
 async def main():
     with judgment.trace(
-        "jpmorgan_run1",
-        project_name="jpmorgan_test",
-        overwrite=True
+        "JP_Morgan_Run_6",
+        project_name="JPMorgan",
     ) as trace:
 
         # Initialize the graph
@@ -206,7 +216,7 @@ async def main():
         }, config=dict(callbacks=[handler]))
         trace.save()
     
-        print(f"Response: {response['messages'][-1]}")
+        print(f"Response: {response['messages'][-1].content}")
 
 if __name__ == "__main__":
     asyncio.run(main())
