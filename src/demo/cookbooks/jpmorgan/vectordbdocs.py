@@ -47,21 +47,21 @@ financial_data = [{
     {
         "information": """
         stock_transactions table:
-        appl buy 100 100 2024-01-01
-        appl sell 50 150 2024-01-02
+        aapl buy 100 100 2024-01-01
+        aapl sell 50 150 2024-01-02
         """,
         "category": "pnl"
     },
     {
         "information": """
         Common ticker symbols:
-        Tesla: TSSL
-        Apple: APPL
-        Microsoft: MCST
-        Amazon: AMZN.A
-        Google: GOOG.L
-        Facebook: META.X
-        Netflix: NFLX.B
+        Tesla: TSLA
+        Apple: AAPL
+        Microsoft: MSFT
+        Amazon: AMZN
+        Google: GOOGL
+        Facebook: META
+        Netflix: NFLX
         """,
         "category": "stocks"
     },
