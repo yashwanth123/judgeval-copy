@@ -8,12 +8,12 @@ from chromadb.utils import embedding_functions
 from vectordbdocs import financial_data, incorrect_financial_data
 
 from typing import Optional
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, ChatMessage
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph
 
 from judgeval.common.tracer import Tracer, JudgevalCallbackHandler
-from judgeval.scorers import AnswerCorrectnessScorer
+from judgeval.scorers import AnswerCorrectnessScorer, FaithfulnessScorer
 
 
 
@@ -43,7 +43,7 @@ collection = client.get_or_create_collection(
     embedding_function=embedding_functions.OpenAIEmbeddingFunction(api_key=os.getenv("OPENAI_API_KEY"))
 )
 
-
+# populate_vector_db(collection, financial_data)
 populate_vector_db(collection, incorrect_financial_data)
 
 @judgment.observe(name="pnl_retriever", span_type="retriever")
@@ -79,11 +79,42 @@ def stock_retriever(state: AgentState) -> AgentState:
 
 @judgment.observe(name="bad_classifier", span_type="llm")
 async def bad_classifier(state: AgentState) -> AgentState:
-    return {"messages": state["messages"], "category": "pnl"}
+    return {"messages": state["messages"], "category": "balance_sheets"}
+
+@judgment.observe(name="bad_classify")
+async def bad_classify(state: AgentState) -> AgentState:
+    await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerCorrectnessScorer(threshold=1)],
+        input=state["messages"][-1].content,
+        actual_output="balance_sheets",
+        expected_output="pnl",
+        model="gpt-4o-mini"
+    )
+    return await bad_classifier(state)
 
 @judgment.observe(name="bad_sql_generator", span_type="llm")
 async def bad_sql_generator(state: AgentState) -> AgentState:
-    return {"messages": state["messages"], "documents": "SELECT * FROM pnl WHERE stock_symbol = 'AAPL'"}
+    actual_output = "SELECT * FROM pnl WHERE stock_symbol = 'AAPL'"
+    await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerCorrectnessScorer(threshold=1), FaithfulnessScorer(threshold=1)],
+        input=state["messages"][-1].content,
+        retrieval_context=state.get("documents", []),
+        actual_output=actual_output,
+        expected_output=
+        """
+        SELECT 
+            SUM(CASE 
+                WHEN transaction_type = 'sell' THEN (price_per_share - (SELECT price_per_share FROM stock_transactions WHERE stock_symbol = 'aapl' AND transaction_type = 'buy' LIMIT 1)) * quantity 
+                ELSE 0 
+            END) AS realized_pnl
+        FROM 
+            stock_transactions
+        WHERE 
+            stock_symbol = 'aapl';
+        """,
+        model="gpt-4o-mini"
+    )
+    return {"messages": state["messages"] + [ChatMessage(content=actual_output, role="chatbot")]}
 
 # Create the classifier node with a system prompt
 @judgment.observe(name="classify")
