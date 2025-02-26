@@ -557,7 +557,8 @@ class TraceClient:
             "overwrite": overwrite
         }
         
-        if not empty_save:
+        # Execute asynchrous evaluation in the background
+        if not empty_save:  # Only send to RabbitMQ if the trace is not empty
             connection = pika.BlockingConnection(
                 pika.ConnectionParameters(host=RABBITMQ_HOST, port=RABBITMQ_PORT))
             channel = connection.channel()
@@ -590,16 +591,23 @@ class Tracer:
 
     def __init__(self, api_key: str = os.getenv("JUDGMENT_API_KEY"), project_name: str = "default_project"):
         if not hasattr(self, 'initialized'):
-
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
             
             self.api_key: str = api_key
             self.project_name: str = project_name
+            print(f"Initializing Tracer with API key: {api_key} and project name: {project_name}")
             self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
             self.depth: int = 0
             self._current_trace: Optional[str] = None
             self.initialized: bool = True
+        elif hasattr(self, 'project_name') and self.project_name != project_name:
+            warnings.warn(
+                f"Attempting to initialize Tracer with project_name='{project_name}' but it was already initialized with "
+                f"project_name='{self.project_name}'. Due to the singleton pattern, the original project_name will be used. "
+                "To use a different project name, ensure the first Tracer initialization uses the desired project name.",
+                RuntimeWarning
+            )
         
     @contextmanager
     def trace(self, name: str, project_name: str = None, overwrite: bool = False) -> Generator[TraceClient, None, None]:
