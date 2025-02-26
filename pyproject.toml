@@ -37,7 +37,7 @@ dev = [
     "pytest-mock>=3.14.0",
     "langfuse==2.50.3",
     "patronus",
-    tavily-python=="*"
+    "tavily-python==*"
 ]
 
 [project.urls]
