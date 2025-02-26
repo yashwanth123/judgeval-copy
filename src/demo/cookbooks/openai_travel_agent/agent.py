@@ -10,9 +10,11 @@ from chromadb.utils import embedding_functions
 from judgeval.common.tracer import Tracer, wrap
 from demo.cookbooks.openai_travel_agent.populate_db import destinations_data
 from demo.cookbooks.openai_travel_agent.tools import search_tavily
+from judgeval.scorers import AnswerRelevancyScorer, FaithfulnessScorer
+
 
 client = wrap(openai.Client(api_key=os.getenv("OPENAI_API_KEY")))
-judgment = Tracer()
+judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"), project_name="travel_agent_demo")
 
 def populate_vector_db(collection, destinations_data):
     """
@@ -45,6 +47,12 @@ async def get_flights(destination):
     """Search for flights to the destination."""
     prompt = f"Flights to {destination} from major cities"
     flights_search = search_tavily(prompt)
+    judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerRelevancyScorer(threshold=0.5)],
+        input=prompt,
+        actual_output=flights_search,
+        model="gpt-4",
+    )
     return flights_search
 
 @judgment.observe(span_type="tool")
@@ -52,6 +60,12 @@ async def get_weather(destination, start_date, end_date):
     """Search for weather information."""
     prompt = f"Weather forecast for {destination} from {start_date} to {end_date}"
     weather_search = search_tavily(prompt)
+    judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerRelevancyScorer(threshold=0.5)],
+        input=prompt,
+        actual_output=weather_search,
+        model="gpt-4",
+    )
     return weather_search
 
 def initialize_vector_db():
@@ -125,21 +139,23 @@ async def create_travel_plan(destination, start_date, end_date, research_data):
             {"role": "user", "content": prompt}
         ]
     ).choices[0].message.content
+
+    judgment.get_current_trace().async_evaluate(
+        scorers=[FaithfulnessScorer(threshold=0.5)],
+        input=prompt,
+        actual_output=response,
+        retrieval_context=[str(vector_db_context), str(research_data)],
+        model="gpt-4",
+    )
     
     return response
 
-
+@judgment.observe(span_type="Main Function", overwrite=True)
 async def generate_itinerary(destination, start_date, end_date):
     """Main function to generate a travel itinerary."""
-    
-    with judgment.trace(
-        f"generate_itinerary_demo_{uuid4()}",
-        project_name="travel_agent_demo"    
-    ) as trace:
-        research_data = await research_destination(destination, start_date, end_date)
-        res = await create_travel_plan(destination, start_date, end_date, research_data)
-        trace.save()
-        return res
+    research_data = await research_destination(destination, start_date, end_date)
+    res = await create_travel_plan(destination, start_date, end_date, research_data)
+    return res
 
 
 if __name__ == "__main__":
