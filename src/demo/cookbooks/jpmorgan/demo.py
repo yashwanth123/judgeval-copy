@@ -178,10 +178,10 @@ async def generate_response(state: AgentState) -> AgentState:
     )
     
     await judgment.get_current_trace().async_evaluate(
-        scorers=[AnswerCorrectnessScorer(threshold=1)],
+        scorers=[AnswerCorrectnessScorer(threshold=1), FaithfulnessScorer(threshold=1)],
         input=str(input_msg),
         actual_output=response.content,
-        # retrieval_context=[documents],
+        retrieval_context=documents,
         expected_output="""
         SELECT 
             SUM(CASE 
@@ -200,8 +200,9 @@ async def generate_response(state: AgentState) -> AgentState:
 
 async def main():
     with judgment.trace(
-        "JP_Morgan_Run_6",
+        "JP_Morgan_Run_19",
         project_name="JPMorgan",
+        overwrite=True
     ) as trace:
 
         # Initialize the graph
@@ -210,6 +211,7 @@ async def main():
         # Add classifier node
         # For failure test, pass in bad_classifier
         graph_builder.add_node("classifier", classify)
+        # graph_builder.add_node("classifier", bad_classify)
         
         # Add conditional edges based on classification
         graph_builder.add_conditional_edges(
@@ -228,7 +230,8 @@ async def main():
         graph_builder.add_node("stock_retriever", stock_retriever)
 
         # Add edges from retrievers to response generator
-        graph_builder.add_node("response_generator", generate_response)
+        # graph_builder.add_node("response_generator", generate_response)
+        graph_builder.add_node("response_generator", bad_sql_generator)
         graph_builder.add_edge("pnl_retriever", "response_generator")
         graph_builder.add_edge("balance_sheet_retriever", "response_generator")
         graph_builder.add_edge("stock_retriever", "response_generator")
@@ -242,7 +245,7 @@ async def main():
         handler = JudgevalCallbackHandler(trace)
 
         response = await graph.ainvoke({
-            "messages": [HumanMessage(content="Please calculate our PNL on Apple stock. We have 100 shares, we bought at $100, it is now at $200.")],
+            "messages": [HumanMessage(content="Please calculate our PNL on Apple stock. Refer to table information from documents provided.")],
             "category": None,
         }, config=dict(callbacks=[handler]))
         trace.save()
