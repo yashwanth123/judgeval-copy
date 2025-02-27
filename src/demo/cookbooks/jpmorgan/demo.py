@@ -54,7 +54,11 @@ def pnl_retriever(state: AgentState) -> AgentState:
         where={"category": "pnl"},
         n_results=3
     )
-    return {"messages": state["messages"], "documents": results["documents"][0]}
+    documents = []
+    for document in results["documents"]:
+        documents += document
+
+    return {"messages": state["messages"], "documents": documents}
 
 @judgment.observe(name="balance_sheet_retriever", span_type="retriever")
 def balance_sheet_retriever(state: AgentState) -> AgentState:
@@ -64,8 +68,11 @@ def balance_sheet_retriever(state: AgentState) -> AgentState:
         where={"category": "balance_sheets"},
         n_results=3
     )
-    
-    return {"messages": state["messages"], "documents": results["documents"][0]}
+    documents = []
+    for document in results["documents"]:
+        documents += document
+
+    return {"messages": state["messages"], "documents": documents}
 
 @judgment.observe(name="stock_retriever", span_type="retriever")
 def stock_retriever(state: AgentState) -> AgentState:
@@ -75,31 +82,41 @@ def stock_retriever(state: AgentState) -> AgentState:
         where={"category": "stocks"},
         n_results=3
     )
-    return {"messages": state["messages"], "documents": results["documents"][0]}
+    documents = []
+    for document in results["documents"]:
+        documents += document
+
+    return {"messages": state["messages"], "documents": documents}
 
 @judgment.observe(name="bad_classifier", span_type="llm")
 async def bad_classifier(state: AgentState) -> AgentState:
-    return {"messages": state["messages"], "category": "balance_sheets"}
+    return {"messages": state["messages"], "category": "stocks"}
 
 @judgment.observe(name="bad_classify")
 async def bad_classify(state: AgentState) -> AgentState:
+    category = await bad_classifier(state)
+    
     await judgment.get_current_trace().async_evaluate(
         scorers=[AnswerCorrectnessScorer(threshold=1)],
         input=state["messages"][-1].content,
-        actual_output="balance_sheets",
+        actual_output=category["category"],
         expected_output="pnl",
         model="gpt-4o-mini"
     )
-    return await bad_classifier(state)
+    
+    return {"messages": state["messages"], "category": category["category"]}
 
 @judgment.observe(name="bad_sql_generator", span_type="llm")
 async def bad_sql_generator(state: AgentState) -> AgentState:
-    actual_output = "SELECT * FROM pnl WHERE stock_symbol = 'AAPL'"
+    ACTUAL_OUTPUT = "SELECT * FROM pnl WHERE stock_symbol = 'apppl'"
+    
+    print(f"{state.get('documents', [])=}")
+    
     await judgment.get_current_trace().async_evaluate(
         scorers=[AnswerCorrectnessScorer(threshold=1), FaithfulnessScorer(threshold=1)],
         input=state["messages"][-1].content,
         retrieval_context=state.get("documents", []),
-        actual_output=actual_output,
+        actual_output=ACTUAL_OUTPUT,
         expected_output=
         """
         SELECT 
