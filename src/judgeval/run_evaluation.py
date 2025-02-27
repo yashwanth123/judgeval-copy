@@ -360,9 +360,70 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
 
     info(f"Successfully merged {len(merged_results)} results")
 
-    # The rules will be evaluated on the server side, not here in the client
-    # We only need to include the rules in the EvaluationRun
-
+    # Evaluate rules against local scoring results if rules exist
+    if evaluation_run.rules and local_results:
+        info(f"Evaluating {len(evaluation_run.rules)} rules against local scoring results")
+        try:
+            # Create a dictionary with example_id as key for easier lookup
+            results_by_example = {
+                result.example_id: result 
+                for result in local_results
+            }
+            
+            all_alerts = []
+            
+            # Evaluate each rule against each result
+            for rule in evaluation_run.rules:
+                debug(f"Evaluating rule: {rule.name}")
+                
+                for example_id, result in results_by_example.items():
+                    # Extract scores from scorers_data
+                    scores = {}
+                    for scorer_data in result.scorers_data or []:
+                        if hasattr(scorer_data, 'name') and hasattr(scorer_data, 'score'):
+                            scores[scorer_data.name] = scorer_data.score
+                    
+                    # Skip if no scores to evaluate
+                    if not scores:
+                        continue
+                    
+                    # Evaluate rule conditions
+                    rule_result = rule.evaluate(scores)
+                    
+                    # Create alert object with example_id
+                    alert = {
+                        "rule_name": rule.name,
+                        "status": "triggered" if rule_result["triggered"] else "not_triggered",
+                        "conditions_results": rule_result["conditions_results"],
+                        "example_id": example_id,
+                        "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S")
+                    }
+                    all_alerts.append(alert)
+                    
+                    if rule_result["triggered"]:
+                        debug(f"Rule '{rule.name}' triggered for example {example_id}")
+            
+            # Log all alerts in a single request
+            if all_alerts:
+                info(f"Logging {len(all_alerts)} alerts to the database")
+                try:
+                    alert_response = requests.post(
+                        f"{ROOT_API}/alerts/log/",
+                        json={
+                            "all_alerts": all_alerts,
+                            "judgment_api_key": evaluation_run.judgment_api_key
+                        }
+                    )
+                    if alert_response.ok:
+                        debug(f"Successfully logged {len(all_alerts)} alerts")
+                    else:
+                        error(f"Error logging alerts: {alert_response.status_code} - {alert_response.text}")
+                except Exception as e:
+                    error(f"Error posting alerts to API: {str(e)}")
+        except Exception as e:
+            error(f"Error evaluating rules: {str(e)}")
+            # Don't fail the entire evaluation if rule evaluation fails
+    
     if evaluation_run.log_results:
         log_evaluation_results(merged_results, evaluation_run)
 
