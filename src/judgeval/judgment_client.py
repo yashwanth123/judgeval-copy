@@ -15,7 +15,8 @@ from judgeval.scorers import (
     APIJudgmentScorer, 
     JudgevalScorer, 
     ClassifierScorer, 
-    ScorerWrapper
+    ScorerWrapper,
+    score,
 )
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.run_evaluation import (
@@ -26,6 +27,7 @@ from judgeval.judges import JudgevalJudge
 from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL, JUDGMENT_EVAL_DELETE_API_URL, JUDGMENT_EVAL_DELETE_PROJECT_API_URL
 from judgeval.common.exceptions import JudgmentAPIError
 from pydantic import BaseModel
+from judgeval.rules import Rule
 
 class EvalRunRequestBody(BaseModel):
     eval_name: str
@@ -57,10 +59,27 @@ class JudgmentClient:
         project_name: str = "default_project",
         eval_run_name: str = "default_eval_run",
         override: bool = False,
-        use_judgment: bool = True
+        use_judgment: bool = True,
+        rules: Optional[List[Rule]] = None
     ) -> List[ScoringResult]:
         """
         Executes an evaluation of `Example`s using one or more `Scorer`s
+        
+        Args:
+            examples (List[Example]): The examples to evaluate
+            scorers (List[Union[ScorerWrapper, JudgevalScorer]]): A list of scorers to use for evaluation
+            model (Union[str, List[str], JudgevalJudge]): The model used as a judge when using LLM as a Judge
+            aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
+            metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run
+            log_results (bool): Whether to log the results to the Judgment API
+            project_name (str): The name of the project the evaluation results belong to
+            eval_run_name (str): A name for this evaluation run
+            override (bool): Whether to override an existing evaluation run with the same name
+            use_judgment (bool): Whether to use Judgment API for evaluation
+            rules (Optional[List[Rule]]): Rules to evaluate against scoring results
+            
+        Returns:
+            List[ScoringResult]: The results of the evaluation
         """
         try:
             # Load appropriate implementations for all scorers
@@ -78,7 +97,8 @@ class JudgmentClient:
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,
-                judgment_api_key=self.judgment_api_key
+                judgment_api_key=self.judgment_api_key,
+                rules=rules
             )
             return run_eval(eval, override)
         except ValueError as e:
@@ -94,10 +114,26 @@ class JudgmentClient:
         project_name: str = "",
         eval_run_name: str = "",
         log_results: bool = False,
-        use_judgment: bool = True
+        use_judgment: bool = True,
+        rules: Optional[List[Rule]] = None
     ) -> List[ScoringResult]:
         """
         Executes an evaluation of a `EvalDataset` using one or more `Scorer`s
+        
+        Args:
+            dataset (EvalDataset): The dataset containing examples to evaluate
+            scorers (List[Union[ScorerWrapper, JudgevalScorer]]): A list of scorers to use for evaluation
+            model (Union[str, List[str], JudgevalJudge]): The model used as a judge when using LLM as a Judge
+            aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
+            metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run
+            project_name (str): The name of the project the evaluation results belong to
+            eval_run_name (str): A name for this evaluation run
+            log_results (bool): Whether to log the results to the Judgment API
+            use_judgment (bool): Whether to use Judgment API for evaluation
+            rules (Optional[List[Rule]]): Rules to evaluate against scoring results
+            
+        Returns:
+            List[ScoringResult]: The results of the evaluation
         """
         try:
             # Load appropriate implementations for all scorers
@@ -115,7 +151,8 @@ class JudgmentClient:
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,
-                judgment_api_key=self.judgment_api_key
+                judgment_api_key=self.judgment_api_key,
+                rules=rules
             )
             return run_eval(evaluation_run)
         except ValueError as e:
@@ -335,9 +372,22 @@ class JudgmentClient:
         project_name: str = "default_project",
         eval_run_name: str = "default_eval_run",
         override: bool = False,
+        rules: Optional[List[Rule]] = None
     ) -> None:
         """
         Asserts a test by running the evaluation and checking the results for success
+        
+        Args:
+            examples (List[Example]): The examples to evaluate
+            scorers (List[Union[APIJudgmentScorer, JudgevalScorer]]): A list of scorers to use for evaluation
+            model (Union[str, List[str], JudgevalJudge]): The model used as a judge when using LLM as a Judge
+            aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
+            metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run
+            log_results (bool): Whether to log the results to the Judgment API
+            project_name (str): The name of the project the evaluation results belong to
+            eval_run_name (str): A name for this evaluation run
+            override (bool): Whether to override an existing evaluation run with the same name
+            rules (Optional[List[Rule]]): Rules to evaluate against scoring results
         """
         results = self.run_evaluation(
             examples=examples,
@@ -348,7 +398,8 @@ class JudgmentClient:
             log_results=log_results,
             project_name=project_name,
             eval_run_name=eval_run_name,
-            override=override
+            override=override,
+            rules=rules
         )
         
         assert_test(results)

@@ -30,6 +30,7 @@ from judgeval.common.logger import (
     error, 
     example_logging_context
 )
+from judgeval.utils.alerts import AlertResult, AlertResultsClient
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
