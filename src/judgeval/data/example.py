@@ -41,12 +41,12 @@ class Example(BaseModel):
     trace_id: Optional[str] = None
 
     def __init__(self, **data):
-        super().__init__(**data)
         if 'example_id' not in data:
             data['example_id'] = str(uuid4())
         # Set timestamp if not provided
         if 'timestamp' not in data:
             data['timestamp'] = datetime.now().strftime("%Y%m%d_%H%M%S")
+        super().__init__(**data)
 
 
     def to_dict(self):
