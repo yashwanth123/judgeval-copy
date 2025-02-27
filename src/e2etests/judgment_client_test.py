@@ -88,7 +88,19 @@ class TestBasicOperations:
         assert all_datasets_stats[random_name2]["example_count"] == 2, f"{random_name2} should have 2 examples"
         assert all_datasets_stats[random_name2]["ground_truth_count"] == 2, f"{random_name2} should have 2 ground truths"
 
-    
+    def test_edit_dataset(self, client: JudgmentClient):
+        """Test dataset editing"""
+        dataset: EvalDataset = client.create_dataset()
+        dataset.add_example(Example(input="input 1", actual_output="output 1"))
+        dataset.add_example(Example(input="input 2", actual_output="output 2"))
+        dataset.add_ground_truth(GroundTruthExample(input="input 1", actual_output="output 1"))
+        dataset.add_ground_truth(GroundTruthExample(input="input 2", actual_output="output 2"))
+        client.push_dataset(alias="test_dataset_6", dataset=dataset, overwrite=False)
+
+        
+        
+
+
     def run_eval_helper(self, client: JudgmentClient, project_name: str, eval_run_name: str):
         """Helper function to run evaluation."""
         # Single step in our workflow, an outreach Sales Agent

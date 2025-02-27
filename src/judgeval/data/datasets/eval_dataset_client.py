@@ -1,5 +1,5 @@
 
-from typing import Optional
+from typing import Optional, List
 import requests
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -7,7 +7,8 @@ from judgeval.common.logger import debug, error, warning, info
 from judgeval.constants import (
     JUDGMENT_DATASETS_PUSH_API_URL,
     JUDGMENT_DATASETS_PULL_API_URL, 
-    JUDGMENT_DATASETS_PULL_ALL_API_URL
+    JUDGMENT_DATASETS_PULL_ALL_API_URL,
+    JUDGMENT_DATASETS_EDIT_API_URL,
 )
 from judgeval.data import Example
 from judgeval.data.datasets import EvalDataset
@@ -191,3 +192,53 @@ class EvalDatasetClient:
                 )
 
                 return payload
+
+    def edit_dataset(self, alias: str, examples: List[Example], ground_truths: List[GroundTruthExample]) -> bool:
+        """
+        Edits the dataset on Judgment platform by adding new examples and ground truths
+
+        Mock request:
+        {
+            "alias": alias,
+            "examples": [...],
+            "ground_truths": [...],
+            "judgment_api_key": self.judgment_api_key
+        }
+        """
+        with Progress(
+                SpinnerColumn(style="rgb(106,0,255)"),
+                TextColumn("[progress.description]{task.description}"),
+                transient=False,
+            ) as progress:
+            task_id = progress.add_task(
+                f"Editing dataset [rgb(106,0,255)]'{alias}'[/rgb(106,0,255)] on Judgment...",
+                total=100,
+            )
+            
+            content = {
+                "alias": alias,
+                "examples": [e.to_dict() for e in examples],
+                "ground_truths": [g.to_dict() for g in ground_truths],
+                "judgment_api_key": self.judgment_api_key
+            }
+
+            try:
+                response = requests.post(
+                    JUDGMENT_DATASETS_EDIT_API_URL,
+                    json=content
+                )
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                error(f"Error editing dataset: {str(e)}")
+                return False
+
+            progress.update(
+                task_id,
+                description=f"{progress.tasks[task_id].description} [rgb(25,227,160)]Done!)",
+            )
+
+            info(f"Successfully edited dataset '{alias}'")
+            return True
+            
+
+
