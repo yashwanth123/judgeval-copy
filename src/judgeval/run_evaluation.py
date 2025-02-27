@@ -31,6 +31,7 @@ from judgeval.common.logger import (
     example_logging_context
 )
 from judgeval.utils.alerts import AlertResult, AlertResultsClient
+from judgeval.rules import RulesEngine, Rule, AlertResult, AlertStatus
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
@@ -360,49 +361,62 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
     merged_results = check_missing_scorer_data(merged_results)
 
     info(f"Successfully merged {len(merged_results)} results")
-
     # Evaluate rules against local scoring results if rules exist
-    if evaluation_run.rules and local_results:
+    if evaluation_run.rules and merged_results:
         info(f"Evaluating {len(evaluation_run.rules)} rules against local scoring results")
         try:
+            # Convert list of rules to dictionary for RulesEngine
+            rules_dict = {f"rule_{i}": rule for i, rule in enumerate(evaluation_run.rules)}
+            
+            # Create RulesEngine instance
+            rules_engine = RulesEngine(rules=rules_dict)
+            
             # Create a dictionary with example_id as key for easier lookup
             results_by_example = {
                 result.example_id: result 
-                for result in local_results
+                for result in merged_results
             }
             
             all_alerts = []
             
-            # Evaluate each rule against each result
-            for rule in evaluation_run.rules:
-                debug(f"Evaluating rule: {rule.name}")
+            # Process each example with the rules engine
+            for example_id, result in results_by_example.items():
+                # Extract scores from scorers_data
+                scores = {}
+                for scorer_data in result.scorers_data or []:
+                    if hasattr(scorer_data, 'name') and hasattr(scorer_data, 'score'):
+                        scores[scorer_data.name] = scorer_data.score
                 
-                for example_id, result in results_by_example.items():
-                    # Extract scores from scorers_data
-                    scores = {}
-                    for scorer_data in result.scorers_data or []:
-                        if hasattr(scorer_data, 'name') and hasattr(scorer_data, 'score'):
-                            scores[scorer_data.name] = scorer_data.score
-                    
-                    # Skip if no scores to evaluate
-                    if not scores:
-                        continue
-                    
-                    # Evaluate rule conditions
-                    rule_result = rule.evaluate(scores)
-                    
-                    # Create alert object with example_id
+                # Skip if no scores to evaluate
+                if not scores:
+                    continue
+                
+                # Prepare example metadata
+                example_metadata = {
+                    "example_id": example_id,
+                    "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S")
+                }
+                
+                # Use RulesEngine to evaluate all rules at once
+                rule_results = rules_engine.evaluate_rules(scores, example_metadata)
+                
+                # Process rule results
+                for rule_id, alert_result in rule_results.items():
+                    # Convert our alert format to the server's expected format
                     alert = {
-                        "rule_name": rule.name,
-                        "status": "triggered" if rule_result["triggered"] else "not_triggered",
-                        "conditions_results": rule_result["conditions_results"],
-                        "example_id": example_id,
-                        "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S")
+                        "rule_name": alert_result.rule_name,
+                        "status": alert_result.status.value,  # Convert enum to string value
+                        "conditions_met": alert_result.conditions_results,  # Server expects 'conditions_met' not 'conditions_results'
+                        "metadata": {
+                            "example_id": alert_result.example_id,
+                            "timestamp": alert_result.timestamp,
+                            "judgment_api_key": evaluation_run.judgment_api_key
+                        }
                     }
                     all_alerts.append(alert)
                     
-                    if rule_result["triggered"]:
-                        debug(f"Rule '{rule.name}' triggered for example {example_id}")
+                    if alert_result.status == AlertStatus.TRIGGERED:
+                        debug(f"Rule '{alert_result.rule_name}' triggered for example {example_id}")
             
             # Log all alerts in a single request
             if all_alerts:
@@ -410,9 +424,9 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 try:
                     alert_response = requests.post(
                         f"{ROOT_API}/alerts/log/",
-                        json={
-                            "all_alerts": all_alerts,
-                            "judgment_api_key": evaluation_run.judgment_api_key
+                        json=all_alerts,  # Send list directly, not wrapped in object
+                        headers={
+                            "Content-Type": "application/json"
                         }
                     )
                     if alert_response.ok:

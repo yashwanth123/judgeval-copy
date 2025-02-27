@@ -165,7 +165,6 @@ class RulesEngine:
                     "passed": passed
                 })
                 passed_conditions.append(passed)
-            
             # Determine if alert should trigger
             triggered = all(passed_conditions) if rule.combine_type == "all" else any(passed_conditions)
             
