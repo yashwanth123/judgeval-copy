@@ -52,7 +52,7 @@ class Condition(BaseModel):
             return value != self.threshold
         return False
 
-class RuleConfig(BaseModel):
+class Rule(BaseModel):
     """
     Configuration for a single rule.
     
@@ -107,7 +107,7 @@ class RulesEngine:
     
     Example usage:
         rules = {
-            "quality_check": RuleConfig(
+            "quality_check": Rule(
                 name="Quality Check",
                 conditions=[
                     Condition(metric="faithfulness", operator=">=", threshold=0.7),
@@ -125,7 +125,7 @@ class RulesEngine:
         })
     """
     
-    def __init__(self, rules: Dict[str, RuleConfig]):
+    def __init__(self, rules: Dict[str, Rule]):
         """
         Initialize the RulesEngine with rules.
         
