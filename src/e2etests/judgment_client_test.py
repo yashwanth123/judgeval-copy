@@ -197,7 +197,6 @@ class TestAdvancedFeatures:
             input="What if these shoes don't fit?",
             actual_output='{"tool": "authentication"}',
             retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-            trace_id="2231abe3-e7e0-4909-8ab7-b4ab60b645c6"
         )
 
         example2 = Example(
@@ -239,7 +238,6 @@ class TestAdvancedFeatures:
             input="What if these shoes don't fit?",
             actual_output="We offer a 30-day full refund at no extra cost.",
             retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-            trace_id="2231abe3-e7e0-4909-8ab7-b4ab60b645c6"
         )
         
         scorer = FaithfulnessScorer(threshold=0.5)
