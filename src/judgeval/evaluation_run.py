@@ -6,6 +6,7 @@ from judgeval.scorers import JudgevalScorer, APIJudgmentScorer
 from judgeval.constants import ACCEPTABLE_MODELS
 from judgeval.common.logger import debug, error
 from judgeval.judges import JudgevalJudge
+from judgeval.rules import Rule
 
 class EvaluationRun(BaseModel):
     """
@@ -20,6 +21,7 @@ class EvaluationRun(BaseModel):
         aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
         metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
         judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
+        rules (Optional[List[Rule]]): Rules to evaluate against scoring results
     """
 
     # The user will specify whether they want log_results when they call run_eval
@@ -34,6 +36,7 @@ class EvaluationRun(BaseModel):
     # API Key will be "" until user calls client.run_eval(), then API Key will be set
     judgment_api_key: Optional[str] = ""
     override: Optional[bool] = False
+    rules: Optional[List[Rule]] = None
     
     def model_dump(self, **kwargs):
         data = super().model_dump(**kwargs)
@@ -44,6 +47,10 @@ class EvaluationRun(BaseModel):
             else {"score_type": scorer.score_type, "threshold": scorer.threshold}
             for scorer in self.scorers
         ]
+        
+        if self.rules:
+            data["rules"] = [rule.model_dump() for rule in self.rules]
+            
         return data
 
     @field_validator('log_results', mode='before')

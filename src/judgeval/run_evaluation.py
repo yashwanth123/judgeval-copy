@@ -230,7 +230,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
             metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
             judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
             log_results (bool): Whether to log the results to the Judgment API
-
+            rules (Optional[List[Rule]]): Rules to evaluate against scoring results
 
     Returns:
         List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
@@ -359,6 +359,9 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
     merged_results = check_missing_scorer_data(merged_results)
 
     info(f"Successfully merged {len(merged_results)} results")
+
+    # The rules will be evaluated on the server side, not here in the client
+    # We only need to include the rules in the EvaluationRun
 
     if evaluation_run.log_results:
         log_evaluation_results(merged_results, evaluation_run)
