@@ -131,7 +131,7 @@ async def bad_sql_generator(state: AgentState) -> AgentState:
         """,
         model="gpt-4o-mini"
     )
-    return {"messages": state["messages"] + [ChatMessage(content=actual_output, role="chatbot")]}
+    return {"messages": state["messages"] + [ChatMessage(content=ACTUAL_OUTPUT, role="text2sql")]}
 
 # Create the classifier node with a system prompt
 @judgment.observe(name="classify")
@@ -217,9 +217,8 @@ async def generate_response(state: AgentState) -> AgentState:
 
 async def main():
     with judgment.trace(
-        "JP_Morgan_Run_19",
-        project_name="JPMorgan",
-        overwrite=True
+        "JP_Morgan_Run_3",
+        project_name="JP_Morgan"
     ) as trace:
 
         # Initialize the graph
@@ -227,8 +226,8 @@ async def main():
 
         # Add classifier node
         # For failure test, pass in bad_classifier
-        graph_builder.add_node("classifier", classify)
-        # graph_builder.add_node("classifier", bad_classify)
+        # graph_builder.add_node("classifier", classify)
+        graph_builder.add_node("classifier", bad_classify)
         
         # Add conditional edges based on classification
         graph_builder.add_conditional_edges(
