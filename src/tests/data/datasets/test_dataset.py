@@ -134,7 +134,8 @@ def test_add_from_csv(mock_read_csv, dataset):
         'comments': [None, 'comment2'],
         'source_file': [None, 'file2'],
         'example': [True, False],
-        'trace_id': [None, '123']
+        'trace_id': [None, '123'],
+        'example_id': ['12345', '12345']
     })
     mock_read_csv.return_value = mock_df
 
@@ -242,7 +243,8 @@ def test_load_from_csv():
         tools_called=["tool1"],
         expected_tools=["tool1", "tool2"],
         name="test example",
-        trace_id="123"
+        trace_id="123",
+        example_id="12345"
     )
 
     gt1 = GroundTruthExample(
