@@ -88,7 +88,27 @@ class TestBasicOperations:
         assert all_datasets_stats[random_name2]["example_count"] == 2, f"{random_name2} should have 2 examples"
         assert all_datasets_stats[random_name2]["ground_truth_count"] == 2, f"{random_name2} should have 2 ground truths"
 
-    
+    def test_edit_dataset(self, client: JudgmentClient):
+        """Test dataset editing"""
+        dataset = client.pull_dataset(alias="test_dataset_7")
+        assert dataset, "Failed to pull dataset"
+
+        initial_example_count = len(dataset.examples)
+        initial_ground_truth_count = len(dataset.ground_truths)
+
+        client.edit_dataset(
+            alias="test_dataset_7",
+            examples=[Example(input="input 3", actual_output="output 3")],
+            ground_truths=[GroundTruthExample(input="input 3", actual_output="output 3")]
+        )
+        dataset = client.pull_dataset(alias="test_dataset_7")
+        assert dataset, "Failed to pull dataset"
+        assert len(dataset.examples) == initial_example_count + 1, \
+            f"Dataset should have {initial_example_count + 1} examples, but has {len(dataset.examples)}"
+        assert len(dataset.ground_truths) == initial_ground_truth_count + 1, \
+            f"Dataset should have {initial_ground_truth_count + 1} ground truths, but has {len(dataset.ground_truths)}"
+
+
     def run_eval_helper(self, client: JudgmentClient, project_name: str, eval_run_name: str):
         """Helper function to run evaluation."""
         # Single step in our workflow, an outreach Sales Agent
