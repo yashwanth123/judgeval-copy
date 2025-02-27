@@ -5,7 +5,7 @@ from tavily import TavilyClient
 
 from judgeval.common.tracer import Tracer
 
-judgment = Tracer()
+judgment = Tracer(project_name="travel_agent_demo")
 
 @judgment.observe(span_type="search_tool")
 def search_tavily(query):

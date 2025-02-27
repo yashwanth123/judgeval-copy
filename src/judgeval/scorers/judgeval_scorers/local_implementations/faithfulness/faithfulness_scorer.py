@@ -2,7 +2,7 @@
 Code for the local implementation of the Faithfulness metric.
 """
 from typing import List, Optional, Union
-
+from pprint import pprint
 from judgeval.constants import APIScorer
 from judgeval.data import (
     Example, 
@@ -114,11 +114,13 @@ class FaithfulnessScorer(JudgevalScorer):
         ):
             self.claims = await self._a_generate_claims(example.actual_output)
 
+
             if self.additional_metadata is None:
                 self.additional_metadata = {}
             self.additional_metadata["claims"] = self.claims
 
             self.verdicts = await self._a_generate_verdicts(example.retrieval_context)  
+
             self.additional_metadata["verdicts"] = [v.model_dump() for v in self.verdicts]  # Add verdicts generated to metadata
 
             self.score = self._calculate_score()
