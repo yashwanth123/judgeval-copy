@@ -24,6 +24,21 @@ from judgeval.scorers.judgeval_scorers.api_scorers.answer_correctness import Ans
 from judgeval.data import Example
 from judgeval.rules import Rule, Condition, Operator
 
+# Try to import utilities from judgeval package first, fall back to local helper if needed
+try:
+    from judgeval.scorers.utils import scorer_progress_meter, create_verbose_logs
+    print("Using scoring utilities from judgeval package")
+except ImportError:
+    try:
+        # Try to import from local helper module
+        from utils_helper import scorer_progress_meter, create_verbose_logs
+        print("Using local helper utilities")
+    except ImportError:
+        print("WARNING: Could not import scoring utilities. Please ensure either:")
+        print("1. The judgeval package is properly installed with scorer utilities, or")
+        print("2. The utils_helper.py file exists in the same directory as this script")
+        raise
+
 
 # Create sample examples for evaluation
 def create_examples() -> List[Example]:
@@ -64,7 +79,7 @@ def create_examples() -> List[Example]:
     ]
 
 
-# Simple Custom Scorer Implementation
+# Custom Scorer Implementation
 class SimpleKeywordScorer(JudgevalScorer):
     """
     A simple scorer that checks for keyword presence in the response.
@@ -73,7 +88,10 @@ class SimpleKeywordScorer(JudgevalScorer):
     def __init__(self, 
                  keywords: list[str], 
                  threshold: float = 0.5,
-                 include_reason: bool = True):
+                 include_reason: bool = True,
+                 async_mode: bool = True,
+                 strict_mode: bool = False,
+                 verbose_mode: bool = False):
         """
         Initialize the SimpleKeywordScorer.
         
@@ -81,80 +99,139 @@ class SimpleKeywordScorer(JudgevalScorer):
             keywords: List of keywords to look for
             threshold: Threshold for success (default 0.5)
             include_reason: Whether to include reason in output
+            async_mode: Whether to use async scoring
+            strict_mode: Whether to use strict scoring
+            verbose_mode: Whether to include verbose logs
         """
         super().__init__(
             score_type="Simple Keyword",
-            threshold=threshold,
-            include_reason=include_reason
+            threshold=1 if strict_mode else threshold,
+            include_reason=include_reason,
+            async_mode=async_mode,
+            strict_mode=strict_mode,
+            verbose_mode=verbose_mode
         )
         self.keywords = [k.lower() for k in keywords]
+        self.error = None
+        self.success = False
+        self.reason = None
+        self.score = 0.0
+        self.verbose_logs = None
     
-    def score_example(self, example: Example, **kwargs) -> Dict[str, Any]:
+    def score_example(self, example: Example, _show_indicator: bool = True) -> float:
         """
         Score an example based on keyword presence.
         
         Args:
             example: The example to evaluate
+            _show_indicator: Whether to show a progress indicator
             
         Returns:
-            Dictionary with score results
+            The calculated score
         """
-        try:
-            if not example.actual_output:
-                self.score = 0.0
-                self.reason = "Empty response"
+        with scorer_progress_meter(self, display_meter=_show_indicator):
+            try:
+                if not example.actual_output:
+                    self.score = 0.0
+                    self.reason = "Empty response"
+                    self.success = False
+                    return self.score
+                
+                response_lower = example.actual_output.lower()
+                
+                # Count keyword matches
+                matches = [keyword for keyword in self.keywords if keyword in response_lower]
+                match_count = len(matches)
+                
+                # Calculate score
+                if len(self.keywords) == 0:
+                    self.score = 1.0  # Perfect score if no keywords specified
+                else:
+                    self.score = match_count / len(self.keywords)
+                
+                self.reason = f"Found {match_count} out of {len(self.keywords)} keywords: {', '.join(matches) if matches else 'none'}"
+                self.success = self._success_check()
+                
+                self.verbose_logs = create_verbose_logs(
+                    self,
+                    steps=[
+                        f"Looking for keywords: {self.keywords}",
+                        f"Found keywords: {matches}",
+                        f"Score: {self.score}\nReason: {self.reason}",
+                    ],
+                )
+                
+                return self.score
+            except Exception as e:
+                self.error = str(e)
                 self.success = False
-                return {
-                    "success": False,
-                    "score": 0.0,
-                    "reason": "Empty response"
-                }
-            
-            response_lower = example.actual_output.lower()
-            
-            # Count keyword matches
-            matches = sum(1 for keyword in self.keywords if keyword in response_lower)
-            
-            # Calculate score
-            if len(self.keywords) == 0:
-                self.score = 1.0  # Perfect score if no keywords specified
-            else:
-                self.score = matches / len(self.keywords)
-            
-            self.reason = f"Found {matches} out of {len(self.keywords)} keywords"
-            self.success = self._success_check()
-            
-            return {
-                "success": self.success,
-                "score": self.score,
-                "reason": self.reason
-            }
-        except Exception as e:
-            self.error = str(e)
-            self.success = False
-            return {
-                "success": False,
-                "score": 0.0,
-                "error": self.error
-            }
+                print(f"Error in score_example for SimpleKeywordScorer: {e}")
+                raise
     
-    async def a_score_example(self, example: Example, **kwargs) -> Dict[str, Any]:
+    async def a_score_example(self, example: Example, _show_indicator: bool = True) -> float:
         """
-        Async version of score_example (just calls the sync version)
+        Async version of score_example.
+        
+        Args:
+            example: The example to evaluate
+            _show_indicator: Whether to show a progress indicator
+            
+        Returns:
+            The calculated score
         """
-        return self.score_example(example, **kwargs)
+        with scorer_progress_meter(self, async_mode=True, display_meter=_show_indicator):
+            try:
+                # For this simple implementation, we can just call the sync version
+                # In more complex scorers, you might want true async implementation
+                if not example.actual_output:
+                    self.score = 0.0
+                    self.reason = "Empty response"
+                    self.success = False
+                    return self.score
+                
+                response_lower = example.actual_output.lower()
+                
+                # Count keyword matches
+                matches = [keyword for keyword in self.keywords if keyword in response_lower]
+                match_count = len(matches)
+                
+                # Calculate score
+                if len(self.keywords) == 0:
+                    self.score = 1.0  # Perfect score if no keywords specified
+                else:
+                    self.score = match_count / len(self.keywords)
+                
+                self.reason = f"Found {match_count} out of {len(self.keywords)} keywords: {', '.join(matches) if matches else 'none'}"
+                self.success = self._success_check()
+                
+                self.verbose_logs = create_verbose_logs(
+                    self,
+                    steps=[
+                        f"Looking for keywords: {self.keywords}",
+                        f"Found keywords: {matches}",
+                        f"Score: {self.score}\nReason: {self.reason}",
+                    ],
+                )
+                
+                return self.score
+            except Exception as e:
+                self.error = str(e)
+                self.success = False
+                print(f"Error in a_score_example for SimpleKeywordScorer: {e}")
+                raise
     
     def _success_check(self) -> bool:
         """
         Check if the score meets the threshold
         """
-        return self.score >= self.threshold if hasattr(self, 'score') else False
+        if self.error is not None:
+            return False
+        return self.score >= self.threshold
     
     @property
     def __name__(self):
-        """Return a human-readable name for the scorer"""
-        return "Simple Keyword Scorer"
-
+        """Return the name of this scorer"""
+        return "Simple Keyword"
 
 def main():
     """Run the demo for rules-based alerts."""
@@ -255,7 +332,9 @@ def main():
                 
                 # Show condition results
                 print("    Condition Results:")
-                for cond in alert["conditions_results"]:
+                # Handle both field name variants - server uses conditions_result, client might use conditions_results
+                conditions = alert.get("conditions_result", alert.get("conditions_results", []))
+                for cond in conditions:
                     passed_str = "PASSED" if cond["passed"] else "FAILED"
                     print(f"      {cond['metric']}: {cond['value']:.2f} {cond['operator']} {cond['threshold']:.2f} - {passed_str}")
                 

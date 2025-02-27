@@ -30,7 +30,7 @@ from judgeval.common.logger import (
     error, 
     example_logging_context
 )
-from judgeval.utils.alerts import AlertResult, AlertResultsClient
+from judgeval.utils.alerts import AlertResultsClient
 from judgeval.rules import RulesEngine, Rule, AlertResult, AlertStatus
 
 
@@ -332,7 +332,6 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                     ]
                 
                 api_results.append(ScoringResult(**filtered_result))
-
     # Run local evals
     if local_scorers:  # List[JudgevalScorer]
         info("Starting local evaluation")
@@ -355,13 +354,13 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
         )
         local_results = results
         info(f"Local evaluation complete with {len(local_results)} results")
-
     # Aggregate the ScorerData from the API and local evaluations
     debug("Merging API and local results")
     merged_results: List[ScoringResult] = merge_results(api_results, local_results)
     merged_results = check_missing_scorer_data(merged_results)
 
     info(f"Successfully merged {len(merged_results)} results")
+
     # Evaluate rules against local scoring results if rules exist
     if evaluation_run.rules and merged_results:
         info(f"Evaluating {len(evaluation_run.rules)} rules against local scoring results")
@@ -372,16 +371,12 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
             # Create RulesEngine instance
             rules_engine = RulesEngine(rules=rules_dict)
             
-            results_by_example = {
-                result.example_id: result 
-                for result in merged_results
-            }
+            # Prepare data structures for parallel processing
+            example_scores = {}
+            example_metadata = {}
             
-            all_alerts = []
-            
-            # Process each example with the rules engine
-            for example_id, result in results_by_example.items():
-                # Extract scores from scorers_data
+            # Extract scores and prepare metadata for each example
+            for result in merged_results:
                 scores = {}
                 for scorer_data in result.scorers_data or []:
                     if hasattr(scorer_data, 'name') and hasattr(scorer_data, 'score'):
@@ -392,26 +387,38 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                     continue
                 
                 # Prepare example metadata
-                example_metadata = {
-                    "example_id": example_id,
-                    "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S")
+                metadata = {
+                    "example_id": result.example_id,
+                    "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+                    "judgment_api_key": evaluation_run.judgment_api_key
                 }
                 
-                # Use RulesEngine to evaluate all rules at once
-                rule_results = rules_engine.evaluate_rules(scores, example_metadata)
-                
-                # Process rule results
+                example_scores[result.example_id] = scores
+                example_metadata[result.example_id] = metadata
+            
+            # Use parallel evaluation (adjust max_concurrent as needed)
+            all_rule_results = asyncio.run(
+                rules_engine.evaluate_rules_parallel(
+                    example_scores=example_scores,
+                    example_metadata=example_metadata,
+                    max_concurrent=50  # Adjust based on system capabilities
+                )
+            )
+            
+            # Process all alerts
+            all_alerts = []
+            for example_id, rule_results in all_rule_results.items():
                 for rule_id, alert_result in rule_results.items():
-                    # Convert our alert format to the server's expected format
+                    # Add API key to alert metadata if not already present
+                    if "judgment_api_key" not in alert_result.metadata:
+                        alert_result.metadata["judgment_api_key"] = evaluation_run.judgment_api_key
+                    
+                    # Convert alert format to server's expected format
                     alert = {
                         "rule_name": alert_result.rule_name,
                         "status": alert_result.status.value,  # Convert enum to string value
-                        "conditions_met": alert_result.conditions_results,  # Server expects 'conditions_met' not 'conditions_results'
-                        "metadata": {
-                            "example_id": alert_result.example_id,
-                            "timestamp": alert_result.timestamp,
-                            "judgment_api_key": evaluation_run.judgment_api_key
-                        }
+                        "conditions_result": alert_result.conditions_result,
+                        "metadata": alert_result.metadata  # Use the metadata directly
                     }
                     all_alerts.append(alert)
                     
@@ -424,9 +431,10 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 try:
                     alert_response = requests.post(
                         f"{ROOT_API}/alerts/log/",
-                        json=all_alerts,  # Send list directly, not wrapped in object
+                        json=all_alerts,
                         headers={
-                            "Content-Type": "application/json"
+                            "Content-Type": "application/json",
+                            "X-API-Key": evaluation_run.judgment_api_key  # Add API key in the header
                         }
                     )
                     if alert_response.ok:

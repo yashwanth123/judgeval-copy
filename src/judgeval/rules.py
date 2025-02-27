@@ -2,10 +2,13 @@
 Rules system for Judgeval that enables alerts based on metric thresholds.
 """
 
-from typing import Dict, List, Optional, Union, Any, Set
+from typing import Dict, List, Optional, Union, Any, Set, Tuple
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 from datetime import datetime
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import time
 
 class AlertStatus(str, Enum):
     """Status of an alert evaluation."""
@@ -86,20 +89,30 @@ class AlertResult(BaseModel):
         {
             "status": "triggered",
             "rule_name": "Quality Check",
-            "conditions_results": [
+            "conditions_result": [
                 {"metric": "faithfulness", "value": 0.6, "threshold": 0.7, "passed": False},
                 {"metric": "relevancy", "value": 0.9, "threshold": 0.8, "passed": True}
             ],
-            "example_id": "example_123",
-            "timestamp": "20240321_123456"
+            "metadata": {
+                "example_id": "example_123",
+                "timestamp": "20240321_123456"
+            }
         }
     """
     status: AlertStatus
     rule_name: str
-    conditions_results: List[Dict[str, Any]]
-    # Essential example metadata
-    example_id: Optional[str] = None
-    timestamp: Optional[str] = None
+    conditions_result: List[Dict[str, Any]]
+    metadata: Dict[str, Any] = {}
+    
+    @property
+    def example_id(self) -> Optional[str]:
+        """Get example_id from metadata for backward compatibility"""
+        return self.metadata.get("example_id")
+        
+    @property
+    def timestamp(self) -> Optional[str]:
+        """Get timestamp from metadata for backward compatibility"""
+        return self.metadata.get("timestamp")
 
 class RulesEngine:
     """
@@ -144,7 +157,7 @@ class RulesEngine:
             example_metadata: Optional dictionary containing example metadata (example_id, timestamp)
         """
         results = {}
-        
+
         for rule_id, rule in self.rules.items():
             # Evaluate each condition
             condition_results = []
@@ -165,6 +178,7 @@ class RulesEngine:
                     "passed": passed
                 })
                 passed_conditions.append(passed)
+            
             # Determine if alert should trigger
             triggered = all(passed_conditions) if rule.combine_type == "all" else any(passed_conditions)
             
@@ -172,16 +186,91 @@ class RulesEngine:
             alert_result = AlertResult(
                 status=AlertStatus.TRIGGERED if triggered else AlertStatus.NOT_TRIGGERED,
                 rule_name=rule.name,
-                conditions_results=condition_results
+                conditions_result=condition_results
             )
             
             # Add example metadata if provided
             if example_metadata:
                 if "example_id" in example_metadata:
-                    alert_result.example_id = example_metadata["example_id"]
+                    alert_result.metadata["example_id"] = example_metadata["example_id"]
                 if "timestamp" in example_metadata:
-                    alert_result.timestamp = example_metadata["timestamp"]
+                    alert_result.metadata["timestamp"] = example_metadata["timestamp"]
             
             results[rule_id] = alert_result
             
-        return results 
+        return results
+    
+    async def evaluate_rules_parallel(self, 
+                               example_scores: Dict[str, Dict[str, float]], 
+                               example_metadata: Dict[str, Dict[str, Any]],
+                               max_concurrent: int = 100) -> Dict[str, Dict[str, AlertResult]]:
+        """
+        Evaluate all rules against multiple examples in parallel.
+        
+        Args:
+            example_scores: Dictionary mapping example_ids to their score dictionaries
+            example_metadata: Dictionary mapping example_ids to their metadata
+            max_concurrent: Maximum number of concurrent evaluations
+            
+        Returns:
+            Dictionary mapping example_ids to dictionaries of rule_ids and their alert results
+        """
+        # Create semaphore to limit concurrent executions
+        semaphore = asyncio.Semaphore(max_concurrent)
+        results = {}
+        tasks = []
+        
+        # Create a task for each example
+        for example_id, scores in example_scores.items():
+            metadata = example_metadata.get(example_id, {})
+            task = self._evaluate_with_semaphore(
+                semaphore=semaphore,
+                example_id=example_id,
+                scores=scores,
+                metadata=metadata
+            )
+            tasks.append(task)
+        
+        # Run all tasks and collect results
+        example_results = await asyncio.gather(*tasks)
+        
+        # Organize results by example_id
+        for example_id, result in example_results:
+            results[example_id] = result
+            
+        return results
+    
+    async def _evaluate_with_semaphore(self, 
+                                semaphore: asyncio.Semaphore, 
+                                example_id: str, 
+                                scores: Dict[str, float], 
+                                metadata: Dict[str, Any]) -> Tuple[str, Dict[str, AlertResult]]:
+        """
+        Helper method to evaluate rules for an example with semaphore control.
+        
+        Args:
+            semaphore: Semaphore to control concurrency
+            example_id: ID of the example being evaluated
+            scores: Dictionary of scores for this example
+            metadata: Metadata for this example
+            
+        Returns:
+            Tuple of (example_id, rule_results)
+        """
+        async with semaphore:
+            # Run the evaluation in a thread pool to avoid blocking the event loop
+            # for CPU-bound operations
+            with ThreadPoolExecutor() as executor:
+                start_time = time.perf_counter()
+                rule_results = await asyncio.get_event_loop().run_in_executor(
+                    executor, 
+                    self.evaluate_rules,
+                    scores,
+                    metadata
+                )
+                end_time = time.perf_counter()
+                
+                # Could log performance metrics here if needed
+                # debug(f"Rule evaluation for example {example_id} took {end_time - start_time:.4f} seconds")
+                
+                return (example_id, rule_results) 
