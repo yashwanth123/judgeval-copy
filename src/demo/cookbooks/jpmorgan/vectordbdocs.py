@@ -160,5 +160,13 @@ incorrect_financial_data = [{
         Netflix: NFLX.B
         """,
         "category": "stocks"
-    }
+    },
+        {
+        "information": """
+        stock_transactions table:
+        appl buy 100 100 2024-01-01
+        appl sell 50 150 2024-01-02
+        """,
+        "category": "stocks"
+    },
 ]
