@@ -24,7 +24,7 @@ class EvalDatasetClient:
     def create_dataset(self) -> EvalDataset:
         return EvalDataset(judgment_api_key=self.judgment_api_key)
     
-    def push(self, dataset: EvalDataset, alias: str,overwrite: Optional[bool] = False) -> bool:
+    def push(self, dataset: EvalDataset, alias: str, overwrite: Optional[bool] = False) -> bool:
         debug(f"Pushing dataset with alias '{alias}' (overwrite={overwrite})")
         if overwrite:
             warning(f"Overwrite enabled for alias '{alias}'")

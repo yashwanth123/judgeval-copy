@@ -90,15 +90,23 @@ class TestBasicOperations:
 
     def test_edit_dataset(self, client: JudgmentClient):
         """Test dataset editing"""
-        dataset: EvalDataset = client.create_dataset()
-        dataset.add_example(Example(input="input 1", actual_output="output 1"))
-        dataset.add_example(Example(input="input 2", actual_output="output 2"))
-        dataset.add_ground_truth(GroundTruthExample(input="input 1", actual_output="output 1"))
-        dataset.add_ground_truth(GroundTruthExample(input="input 2", actual_output="output 2"))
-        client.push_dataset(alias="test_dataset_6", dataset=dataset, overwrite=False)
+        dataset = client.pull_dataset(alias="test_dataset_7")
+        assert dataset, "Failed to pull dataset"
 
-        
-        
+        initial_example_count = len(dataset.examples)
+        initial_ground_truth_count = len(dataset.ground_truths)
+
+        client.edit_dataset(
+            alias="test_dataset_7",
+            examples=[Example(input="input 3", actual_output="output 3")],
+            ground_truths=[GroundTruthExample(input="input 3", actual_output="output 3")]
+        )
+        dataset = client.pull_dataset(alias="test_dataset_7")
+        assert dataset, "Failed to pull dataset"
+        assert len(dataset.examples) == initial_example_count + 1, \
+            f"Dataset should have {initial_example_count + 1} examples, but has {len(dataset.examples)}"
+        assert len(dataset.ground_truths) == initial_ground_truth_count + 1, \
+            f"Dataset should have {initial_ground_truth_count + 1} ground truths, but has {len(dataset.ground_truths)}"
 
 
     def run_eval_helper(self, client: JudgmentClient, project_name: str, eval_run_name: str):
