@@ -58,7 +58,6 @@ class EvalDatasetClient:
                     "ground_truths": [g.to_dict() for g in dataset.ground_truths],
                     "examples": [e.to_dict() for e in dataset.examples],
                     "overwrite": overwrite,
-                    "organization_id": dataset.organization_id
                 }
             try:
                 response = requests.post(
@@ -66,7 +65,8 @@ class EvalDatasetClient:
                     json=content,
                     headers={
                         "Content-Type": "application/json",
-                        "Authorization": f"Bearer {self.judgment_api_key}"
+                        "Authorization": f"Bearer {self.judgment_api_key}",
+                        "X-Organization-Id": self.organization_id
                     }
                 )
                 if response.status_code == 500:
@@ -121,7 +121,6 @@ class EvalDatasetClient:
                 )
                 request_body = {
                     "alias": alias,
-                    "organization_id": self.organization_id
                 }
 
                 try:
@@ -130,7 +129,8 @@ class EvalDatasetClient:
                         json=request_body,
                         headers={
                             "Content-Type": "application/json",
-                            "Authorization": f"Bearer {self.judgment_api_key}"
+                            "Authorization": f"Bearer {self.judgment_api_key}",
+                            "X-Organization-Id": self.organization_id
                         }
                     )
                     response.raise_for_status()
@@ -179,7 +179,6 @@ class EvalDatasetClient:
                     total=100,
                 )
                 request_body = {
-                    "organization_id": self.organization_id
                 }
 
                 try:
@@ -188,7 +187,8 @@ class EvalDatasetClient:
                         json=request_body,
                         headers={
                             "Content-Type": "application/json",
-                            "Authorization": f"Bearer {self.judgment_api_key}"
+                            "Authorization": f"Bearer {self.judgment_api_key}",
+                            "X-Organization-Id": self.organization_id
                         }
                     )
                     response.raise_for_status()

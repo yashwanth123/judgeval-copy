@@ -31,7 +31,6 @@ class EvalRunRequestBody(BaseModel):
     eval_name: str
     project_name: str
     judgment_api_key: str
-    organization_id: str
 
 
 class JudgmentClient:
@@ -80,7 +79,7 @@ class JudgmentClient:
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,
-                judgment_api_key=self.judgment_api_key,
+                judgment_api_key=self.judgment_api_key, 
                 organization_id=self.organization_id
             )
             return run_eval(eval, override)
@@ -189,12 +188,12 @@ class JudgmentClient:
         """
         eval_run_request_body = EvalRunRequestBody(project_name=project_name, 
                                                    eval_name=eval_run_name, 
-                                                   judgment_api_key=self.judgment_api_key,
-                                                   organization_id=self.organization_id)
+                                                   judgment_api_key=self.judgment_api_key)
         eval_run = requests.post(JUDGMENT_EVAL_FETCH_API_URL,
                                  headers={
                                     "Content-Type": "application/json",
-                                    "Authorization": f"Bearer {self.judgment_api_key}"
+                                    "Authorization": f"Bearer {self.judgment_api_key}",
+                                    "X-Organization-Id": self.organization_id
                                  },
                                  json=eval_run_request_body.model_dump())
         if eval_run.status_code != requests.codes.ok:
@@ -222,13 +221,13 @@ class JudgmentClient:
         """
         eval_run_request_body = EvalRunRequestBody(project_name=project_name, 
                                                    eval_name=eval_run_name, 
-                                                   judgment_api_key=self.judgment_api_key,
-                                                   organization_id=self.organization_id)
+                                                   judgment_api_key=self.judgment_api_key)
         response = requests.delete(JUDGMENT_EVAL_DELETE_API_URL, 
                         json=eval_run_request_body.model_dump(),
                         headers={
                             "Content-Type": "application/json",
-                            "Authorization": f"Bearer {self.judgment_api_key}"
+                            "Authorization": f"Bearer {self.judgment_api_key}",
+                            "X-Organization-Id": self.organization_id
                         })
         if response.status_code != requests.codes.ok:
             raise ValueError(f"Error deleting eval results: {response.json()}")
@@ -248,11 +247,11 @@ class JudgmentClient:
                         json={
                             "project_name": project_name,
                             "judgment_api_key": self.judgment_api_key,
-                            "organization_id": self.organization_id
                         },
                         headers={
                             "Content-Type": "application/json",
-                            "Authorization": f"Bearer {self.judgment_api_key}"
+                            "Authorization": f"Bearer {self.judgment_api_key}",
+                            "X-Organization-Id": self.organization_id
                         })
         if response.status_code != requests.codes.ok:
             raise ValueError(f"Error deleting eval results: {response.json()}")
@@ -290,7 +289,6 @@ class JudgmentClient:
         """
         request_body = {
             "slug": slug,
-            "organization_id": self.organization_id
         }
         
         response = requests.post(
@@ -298,7 +296,8 @@ class JudgmentClient:
             json=request_body,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}"
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
             }
         )
         
@@ -332,7 +331,6 @@ class JudgmentClient:
             "name": scorer.name,
             "conversation": scorer.conversation,
             "options": scorer.options,
-            "organization_id": self.organization_id,
             "slug": slug
         }
         
@@ -341,7 +339,8 @@ class JudgmentClient:
             json=request_body,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}"
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
             }
         )
         

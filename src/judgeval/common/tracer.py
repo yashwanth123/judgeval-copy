@@ -200,11 +200,11 @@ class TraceManagerClient:
             JUDGMENT_TRACES_FETCH_API_URL,
             json={
                 "trace_id": trace_id,
-                "organization_id": self.organization_id,
             },
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}"
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
             }
         )
 
@@ -247,12 +247,12 @@ class TraceManagerClient:
             JUDGMENT_TRACES_DELETE_API_URL,
             json={
                 "judgment_api_key": self.judgment_api_key,
-                "organization_id": self.organization_id,
                 "trace_ids": [trace_id],
             },
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}"
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
             }
         )
 
@@ -268,12 +268,12 @@ class TraceManagerClient:
         response = requests.delete(
             JUDGMENT_TRACES_DELETE_API_URL,
             json={
-                "organization_id": self.organization_id,
                 "trace_ids": trace_ids,
             },
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}"
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
             }
         )
 
@@ -373,6 +373,7 @@ class TraceClient:
             raise ValueError(f"Failed to load scorers: {str(e)}")
         
         eval_run = EvaluationRun(
+            organization_id=self.tracer.organization_id,
             log_results=log_results,
             project_name=self.project_name,
             eval_name=f"{self.name.capitalize()}-"

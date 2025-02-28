@@ -397,9 +397,10 @@ class TestTraceOperations:
                 f"{SERVER_URL}/traces/fetch_by_time_period/",
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {API_KEY}"
+                    "Authorization": f"Bearer {API_KEY}",
+                    "X-Organization-Id": ORGANIZATION_ID
                 },
-                json={"hours": hours, "organization_id": ORGANIZATION_ID}
+                json={"hours": hours}
             )
             assert response.status_code == 200
             data = response.json()
@@ -412,9 +413,10 @@ class TestTraceOperations:
                 f"{SERVER_URL}/traces/fetch_by_time_period/",
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {API_KEY}"
+                    "Authorization": f"Bearer {API_KEY}",
+                    "X-Organization-Id": ORGANIZATION_ID
                 },
-                json={"hours": hours, "organization_id": ORGANIZATION_ID}
+                json={"hours": hours}
             )
             assert response.status_code == 400
 
@@ -424,8 +426,9 @@ class TestTraceOperations:
             f"{SERVER_URL}/traces/fetch_by_time_period/",
             headers={
                 "Content-Type": "application/json",
+                "X-Organization-Id": ORGANIZATION_ID
             },
-            json={"hours": 12, "organization_id": ORGANIZATION_ID}
+            json={"hours": 12}
         )
         assert response.status_code in [401, 403]
         

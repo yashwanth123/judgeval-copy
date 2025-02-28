@@ -50,7 +50,8 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
         response = requests.post(
             JUDGMENT_EVAL_API_URL, headers={
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {evaluation_run.judgment_api_key}"
+            "Authorization": f"Bearer {evaluation_run.judgment_api_key}",
+            "X-Organization-Id": evaluation_run.organization_id
         }, 
         json=payload)
         response_data = response.json()
@@ -158,13 +159,13 @@ def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_k
             f"{ROOT_API}/eval-run-name-exists/",
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {judgment_api_key}"
+                "Authorization": f"Bearer {judgment_api_key}",
+                "X-Organization-Id": organization_id
             },
             json={
                 "eval_name": eval_name,
                 "project_name": project_name,
                 "judgment_api_key": judgment_api_key,
-                "organization_id": organization_id
             }
         )
         
@@ -200,12 +201,11 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
             JUDGMENT_EVAL_LOG_API_URL,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {evaluation_run.judgment_api_key}"
+                "Authorization": f"Bearer {evaluation_run.judgment_api_key}",
+                "X-Organization-Id": evaluation_run.organization_id
             },
             json={
                 "results": [result.to_dict() for result in merged_results],
-                "judgment_api_key": evaluation_run.judgment_api_key,
-                "organization_id": evaluation_run.organization_id,
                 "project_name": evaluation_run.project_name,
                 "eval_name": evaluation_run.eval_name,
             }
@@ -315,6 +315,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 aggregator=evaluation_run.aggregator,
                 metadata=evaluation_run.metadata,
                 judgment_api_key=evaluation_run.judgment_api_key,
+                organization_id=evaluation_run.organization_id,
                 log_results=evaluation_run.log_results
             )
             debug("Sending request to Judgment API")    
