@@ -32,7 +32,7 @@ large-scale evaluations. [Contact us](mailto:contact@judgmentlabs.ai) if you're 
 sensitive data that has to reside in your private VPCs.
 </Note>
 
-# Create your first evaluation
+# Create Your First Evaluation
 
 ```python sample_eval.py
 from judgeval import JudgmentClient
@@ -67,6 +67,48 @@ is a scorer that checks if the output is hallucinated relative to the retrieved 
 <Tip>
 To learn more about using the Judgment Client to run evaluations, click [here](/api_reference/judgment_client).
 </Tip>
+
+# Create Your First Trace
+
+Beyond experimentation, `judgeval` supports monitoring your LLM systems in **production**. 
+Using our `tracing` module, you can **track your LLM system outputs from end to end**, allowing you to visualize the flow of your LLM system. 
+Additionally, you can **enable evaluations to run in real-time** using Judgment's state-of-the-art judge models. 
+
+```python trace_example.py
+from judgeval.common.tracer import Tracer, wrap
+from openai import OpenAI
+
+client = wrap(OpenAI())
+judgment = Tracer(project_name="my_project")
+
+@judgment.observe(span_type="tool")
+def my_tool():
+    return "Hello world!"
+
+@judgment.observe(span_type="function")
+def main():
+    res = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": f"{my_tool()}"}]
+    )
+    return res.choices[0].message.content
+```
+
+
+<div style={{display: 'flex', justifyContent: 'center'}}>
+  ![Alt text](/images/trace_screenshot.png "Image of a RAG pipeline trace")
+</div>
+
+There are many benefits of monitoring your LLM systems in production with `judgeval`, including:
+- Detecting hallucinations and other quality issues **before they reach your customers**
+- Automatically creating experimental datasets from your **real-world production cases** for future improvement/optimization
+- Track and create alerts on **any metric** (e.g. latency, cost, hallucination, etc.)
+
+<Tip>
+To learn more about `judgeval`'s tracing module, click [here](/tracing/introduction).
+</Tip>
+
+
 
 # Create Your First Scorer
 `judgeval` offers three kinds of LLM scorers for your evaluation needs: ready-made, classifier scorers, and custom scorers.
@@ -263,23 +305,4 @@ A `Project` keeps track of `Evaluation Run`s in your project. Each `Evaluation R
 <Tip>
 You can try different models (e.g. `gpt-4o`, `claude-3-5-sonnet`, etc.) and prompt templates in each `Evaluation Run` to find the 
 optimal setup for your LLM system. 
-</Tip>
-
-## Monitoring LLM Systems in Production
-
-Beyond experimenting and measuring historical performance, `judgeval` supports monitoring your LLM systems in **production**. 
-Using our `tracing` module, you can **track your LLM system outputs from end to end**, allowing you to visualize the flow of your LLM system. 
-Additionally, you can **enable evaluations to run in real-time** using Judgment's state-of-the-art judge models. 
-
-<div style={{display: 'flex', justifyContent: 'center'}}>
-  ![Alt text](/images/trace_screenshot.png "Image of a RAG pipeline trace")
-</div>
-
-There are many benefits of monitoring your LLM systems in production with `judgeval`, including:
-- Detecting hallucinations and other quality issues **before they reach your customers**
-- Automatically creating experimental datasets from your **real-world production cases** for future improvement/optimization
-- Track and create alerts on **any metric** (e.g. latency, cost, hallucination, etc.)
-
-<Tip>
-To learn more about `judgeval`'s tracing module, click [here](/tracing/introduction).
 </Tip>
