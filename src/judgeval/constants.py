@@ -1,8 +1,6 @@
 """
 Constant variables used throughout source code
 """
-from dotenv import load_dotenv
-load_dotenv()
 
 from enum import Enum
 import litellm
