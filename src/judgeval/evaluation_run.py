@@ -47,7 +47,7 @@ class EvaluationRun(BaseModel):
             else {"score_type": scorer.score_type, "threshold": scorer.threshold}
             for scorer in self.scorers
         ]
-        
+
         if self.rules:
             data["rules"] = [rule.model_dump() for rule in self.rules]
             
