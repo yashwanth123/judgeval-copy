@@ -187,6 +187,10 @@ class JudgmentClient:
                                                    eval_name=eval_run_name, 
                                                    judgment_api_key=self.judgment_api_key)
         eval_run = requests.post(JUDGMENT_EVAL_FETCH_API_URL,
+                                 headers={
+                                    "Content-Type": "application/json",
+                                    "Authorization": f"Bearer {self.judgment_api_key}"
+                                 },
                                  json=eval_run_request_body.model_dump())
         if eval_run.status_code != requests.codes.ok:
             raise ValueError(f"Error fetching eval results: {eval_run.json()}")
@@ -218,6 +222,7 @@ class JudgmentClient:
                         json=eval_run_request_body.model_dump(),
                         headers={
                             "Content-Type": "application/json",
+                            "Authorization": f"Bearer {self.judgment_api_key}"
                         })
         if response.status_code != requests.codes.ok:
             raise ValueError(f"Error deleting eval results: {response.json()}")
@@ -240,6 +245,7 @@ class JudgmentClient:
                         },
                         headers={
                             "Content-Type": "application/json",
+                            "Authorization": f"Bearer {self.judgment_api_key}"
                         })
         if response.status_code != requests.codes.ok:
             raise ValueError(f"Error deleting eval results: {response.json()}")
@@ -251,7 +257,11 @@ class JudgmentClient:
         """
         response = requests.post(
             f"{ROOT_API}/validate_api_key/",
-            json={"api_key": self.judgment_api_key}
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}",
+            },
+            json={}  # Empty body now
         )
         if response.status_code == 200:
             return True, response.json()
@@ -273,12 +283,16 @@ class JudgmentClient:
         """
         request_body = {
             "slug": slug,
-            "judgment_api_key": self.judgment_api_key
+            # "judgment_api_key": self.judgment_api_key
         }
         
         response = requests.post(
             f"{ROOT_API}/fetch_scorer/",
-            json=request_body
+            json=request_body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}"
+            }
         )
         
         if response.status_code == 500:
@@ -311,13 +325,17 @@ class JudgmentClient:
             "name": scorer.name,
             "conversation": scorer.conversation,
             "options": scorer.options,
-            "judgment_api_key": self.judgment_api_key,
+            # "judgment_api_key": self.judgment_api_key, 
             "slug": slug
         }
         
         response = requests.post(
             f"{ROOT_API}/save_scorer/",
-            json=request_body
+            json=request_body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}"
+            }
         )
         
         if response.status_code == 500:
