@@ -140,7 +140,7 @@ def check_missing_scorer_data(results: List[ScoringResult]) -> List[ScoringResul
     return results
 
 
-def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_key: str) -> None:
+def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_key: str, organization_id: str) -> None:
     """
     Checks if an evaluation run name already exists for a given project.
 
@@ -164,6 +164,7 @@ def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_k
                 "eval_name": eval_name,
                 "project_name": project_name,
                 "judgment_api_key": judgment_api_key,
+                "organization_id": organization_id
             }
         )
         
@@ -204,6 +205,7 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
             json={
                 "results": [result.to_dict() for result in merged_results],
                 "judgment_api_key": evaluation_run.judgment_api_key,
+                "organization_id": evaluation_run.organization_id,
                 "project_name": evaluation_run.project_name,
                 "eval_name": evaluation_run.eval_name,
             }
@@ -254,7 +256,8 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
         check_eval_run_name_exists(
             evaluation_run.eval_name,
             evaluation_run.project_name,
-            evaluation_run.judgment_api_key
+            evaluation_run.judgment_api_key,
+            evaluation_run.organization_id
         )
     
     # Set example IDs if not already set

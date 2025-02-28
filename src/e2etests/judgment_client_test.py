@@ -37,6 +37,7 @@ load_dotenv()
 # Constants
 SERVER_URL = os.getenv("JUDGMENT_API_URL", "http://localhost:8000")
 API_KEY = os.getenv("JUDGMENT_API_KEY")
+ORGANIZATION_ID = os.getenv("ORGANIZATION_ID")
 
 if not API_KEY:
     pytest.skip("JUDGMENT_API_KEY not set", allow_module_level=True)
@@ -45,7 +46,7 @@ if not API_KEY:
 @pytest.fixture(scope="session")
 def client() -> JudgmentClient:
     """Create a single JudgmentClient instance for all tests."""
-    return JudgmentClient(judgment_api_key=API_KEY)
+    return JudgmentClient(judgment_api_key=API_KEY, organization_id=ORGANIZATION_ID)
 
 @pytest.fixture
 def random_name() -> str:
@@ -398,7 +399,7 @@ class TestTraceOperations:
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {API_KEY}"
                 },
-                json={"hours": hours}
+                json={"hours": hours, "organization_id": ORGANIZATION_ID}
             )
             assert response.status_code == 200
             data = response.json()
@@ -413,7 +414,7 @@ class TestTraceOperations:
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {API_KEY}"
                 },
-                json={"hours": hours}
+                json={"hours": hours, "organization_id": ORGANIZATION_ID}
             )
             assert response.status_code == 400
 
@@ -424,7 +425,7 @@ class TestTraceOperations:
             headers={
                 "Content-Type": "application/json",
             },
-            json={"hours": 12}
+            json={"hours": 12, "organization_id": ORGANIZATION_ID}
         )
         assert response.status_code in [401, 403]
         

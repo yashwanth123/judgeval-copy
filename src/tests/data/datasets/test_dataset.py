@@ -37,11 +37,11 @@ def sample_ground_truth():
 
 @pytest.fixture
 def dataset():
-    return EvalDataset(judgment_api_key="test_key")
+    return EvalDataset(judgment_api_key="test_key", organization_id="test_org")
 
 @pytest.fixture
 def eval_dataset_client():
-    return EvalDatasetClient(judgment_api_key="test_key")
+    return EvalDatasetClient(judgment_api_key="test_key", organization_id="test_org")
 
 def test_init():
     dataset = EvalDataset(judgment_api_key="test_key")

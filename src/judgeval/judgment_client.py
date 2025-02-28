@@ -31,12 +31,14 @@ class EvalRunRequestBody(BaseModel):
     eval_name: str
     project_name: str
     judgment_api_key: str
+    organization_id: str
 
 
 class JudgmentClient:
-    def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY")):
+    def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"), organization_id: str = os.getenv("ORGANIZATION_ID")):
         self.judgment_api_key = judgment_api_key
-        self.eval_dataset_client = EvalDatasetClient(judgment_api_key)
+        self.organization_id = organization_id
+        self.eval_dataset_client = EvalDatasetClient(judgment_api_key, organization_id)
         
         # Verify API key is valid
         result, response = self._validate_api_key()
@@ -78,7 +80,8 @@ class JudgmentClient:
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,
-                judgment_api_key=self.judgment_api_key
+                judgment_api_key=self.judgment_api_key,
+                organization_id=self.organization_id
             )
             return run_eval(eval, override)
         except ValueError as e:
@@ -115,7 +118,8 @@ class JudgmentClient:
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,
-                judgment_api_key=self.judgment_api_key
+                judgment_api_key=self.judgment_api_key,
+                organization_id=self.organization_id
             )
             return run_eval(evaluation_run)
         except ValueError as e:
@@ -185,7 +189,8 @@ class JudgmentClient:
         """
         eval_run_request_body = EvalRunRequestBody(project_name=project_name, 
                                                    eval_name=eval_run_name, 
-                                                   judgment_api_key=self.judgment_api_key)
+                                                   judgment_api_key=self.judgment_api_key,
+                                                   organization_id=self.organization_id)
         eval_run = requests.post(JUDGMENT_EVAL_FETCH_API_URL,
                                  headers={
                                     "Content-Type": "application/json",
@@ -217,7 +222,8 @@ class JudgmentClient:
         """
         eval_run_request_body = EvalRunRequestBody(project_name=project_name, 
                                                    eval_name=eval_run_name, 
-                                                   judgment_api_key=self.judgment_api_key)
+                                                   judgment_api_key=self.judgment_api_key,
+                                                   organization_id=self.organization_id)
         response = requests.delete(JUDGMENT_EVAL_DELETE_API_URL, 
                         json=eval_run_request_body.model_dump(),
                         headers={
@@ -241,7 +247,8 @@ class JudgmentClient:
         response = requests.delete(JUDGMENT_EVAL_DELETE_PROJECT_API_URL, 
                         json={
                             "project_name": project_name,
-                            "judgment_api_key": self.judgment_api_key
+                            "judgment_api_key": self.judgment_api_key,
+                            "organization_id": self.organization_id
                         },
                         headers={
                             "Content-Type": "application/json",
@@ -283,7 +290,7 @@ class JudgmentClient:
         """
         request_body = {
             "slug": slug,
-            # "judgment_api_key": self.judgment_api_key
+            "organization_id": self.organization_id
         }
         
         response = requests.post(
@@ -325,7 +332,7 @@ class JudgmentClient:
             "name": scorer.name,
             "conversation": scorer.conversation,
             "options": scorer.options,
-            # "judgment_api_key": self.judgment_api_key, 
+            "organization_id": self.organization_id,
             "slug": slug
         }
         

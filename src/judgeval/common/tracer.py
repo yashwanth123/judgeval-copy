@@ -188,8 +188,9 @@ class TraceManagerClient:
     - Saving a trace
     - Deleting a trace
     """
-    def __init__(self, judgment_api_key: str):
+    def __init__(self, judgment_api_key: str, organization_id: str):
         self.judgment_api_key = judgment_api_key
+        self.organization_id = organization_id
 
     def fetch_trace(self, trace_id: str):
         """
@@ -199,7 +200,7 @@ class TraceManagerClient:
             JUDGMENT_TRACES_FETCH_API_URL,
             json={
                 "trace_id": trace_id,
-                # "judgment_api_key": self.judgment_api_key,
+                "organization_id": self.organization_id,
             },
             headers={
                 "Content-Type": "application/json",
@@ -246,6 +247,7 @@ class TraceManagerClient:
             JUDGMENT_TRACES_DELETE_API_URL,
             json={
                 "judgment_api_key": self.judgment_api_key,
+                "organization_id": self.organization_id,
                 "trace_ids": [trace_id],
             },
             headers={
@@ -266,7 +268,7 @@ class TraceManagerClient:
         response = requests.delete(
             JUDGMENT_TRACES_DELETE_API_URL,
             json={
-                # "judgment_api_key": self.judgment_api_key,
+                "organization_id": self.organization_id,
                 "trace_ids": trace_ids,
             },
             headers={
@@ -294,7 +296,7 @@ class TraceClient:
         self.span_type = None
         self._current_span: Optional[TraceEntry] = None
         self.overwrite = overwrite
-        self.trace_manager_client = TraceManagerClient(tracer.api_key)  # Manages DB operations for trace data
+        self.trace_manager_client = TraceManagerClient(tracer.api_key, tracer.organization_id)  # Manages DB operations for trace data
         
     @contextmanager
     def span(self, name: str, span_type: SpanType = "span"):
@@ -546,7 +548,8 @@ class TraceClient:
         # Create trace document
         trace_data = {
             "trace_id": self.trace_id,
-            "api_key": self.tracer.api_key,
+            "judgment_api_key": self.tracer.api_key,
+            "organization_id": os.getenv("ORGANIZATION_ID"),
             "name": self.name,
             "project_name": self.project_name,
             "created_at": datetime.fromtimestamp(self.start_time).isoformat(),
@@ -612,14 +615,18 @@ class Tracer:
             cls._instance = super(Tracer, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, api_key: str = os.getenv("JUDGMENT_API_KEY"), project_name: str = "default_project"):
+    def __init__(self, api_key: str = os.getenv("JUDGMENT_API_KEY"), project_name: str = "default_project", organization_id: str = os.getenv("ORGANIZATION_ID")):
         if not hasattr(self, 'initialized'):
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
             
+            if not organization_id:
+                raise ValueError("Tracer must be configured with an Organization ID")
+            
             self.api_key: str = api_key
             self.project_name: str = project_name
             self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
+            self.organization_id: str = organization_id
             self.depth: int = 0
             self._current_trace: Optional[str] = None
             self.initialized: bool = True

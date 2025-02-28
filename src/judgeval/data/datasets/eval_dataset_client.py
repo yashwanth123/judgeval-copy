@@ -18,8 +18,9 @@ from judgeval.data.datasets.ground_truth import GroundTruthExample
 
 
 class EvalDatasetClient:
-    def __init__(self, judgment_api_key: str):
+    def __init__(self, judgment_api_key: str, organization_id: str):
         self.judgment_api_key = judgment_api_key
+        self.organization_id = organization_id
 
     def create_dataset(self) -> EvalDataset:
         return EvalDataset(judgment_api_key=self.judgment_api_key)
@@ -57,7 +58,7 @@ class EvalDatasetClient:
                     "ground_truths": [g.to_dict() for g in dataset.ground_truths],
                     "examples": [e.to_dict() for e in dataset.examples],
                     "overwrite": overwrite,
-                    # "judgment_api_key": dataset.judgment_api_key
+                    "organization_id": dataset.organization_id
                 }
             try:
                 response = requests.post(
@@ -120,7 +121,7 @@ class EvalDatasetClient:
                 )
                 request_body = {
                     "alias": alias,
-                    # "judgment_api_key": self.judgment_api_key
+                    "organization_id": self.organization_id
                 }
 
                 try:
@@ -178,7 +179,7 @@ class EvalDatasetClient:
                     total=100,
                 )
                 request_body = {
-                    # "judgment_api_key": self.judgment_api_key
+                    "organization_id": self.organization_id
                 }
 
                 try:

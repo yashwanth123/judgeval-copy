@@ -131,7 +131,7 @@ async def make_poem(input: str) -> str:
 @pytest.fixture
 def trace_manager_client():
     """Fixture to initialize TraceManagerClient."""
-    return TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
+    return TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"), organization_id=os.getenv("ORGANIZATION_ID"))
 
 @pytest.mark.asyncio
 async def test_token_counting(trace_manager_client):
@@ -188,11 +188,11 @@ async def test_trace_delete(trace_manager_client):
 
 @pytest.mark.asyncio
 async def test_trace_delete_batch(trace_manager_client):
-    with judgment.trace("TEST_RUN", project_name="TEST", overwrite=True) as trace:
+    with judgment.trace("TEST_RUN2", project_name="TEST", overwrite=True) as trace:
         pass
     trace.save()
 
-    with judgment.trace("TEST_RUN2", project_name="TEST2", overwrite=True) as trace2:
+    with judgment.trace("TEST_RUN3", project_name="TEST2", overwrite=True) as trace2:
         pass
     trace2.save()
 
@@ -221,7 +221,7 @@ async def run_selected_tests(test_names: list[str]):
         test_names (list[str]): List of test function names to run (without 'test_' prefix)
     """
 
-    trace_manager_client = TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"))
+    trace_manager_client = TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"), organization_id=os.getenv("ORGANIZATION_ID"))
     print("Client initialized successfully")
     print("*" * 40)
     
