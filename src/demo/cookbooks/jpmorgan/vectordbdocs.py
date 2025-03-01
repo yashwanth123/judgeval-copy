@@ -14,6 +14,8 @@ financial_data = [{
     The current market price is $55 per share.
     
     Unrealized PnL = (55 – 50) × 100 = 5 × 100 = $500
+    
+    **IMPORTANT NOTE:** It's okay to use whatever prices you want to do these calculations.
     """,
     "category": "pnl"
 },
