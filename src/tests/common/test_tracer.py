@@ -33,7 +33,7 @@ def tracer(mocker):
     mock_judgment_client = mocker.Mock(spec=JudgmentClient)
     mocker.patch('judgeval.common.tracer.JudgmentClient', return_value=mock_judgment_client)
     
-    yield Tracer(api_key=str(uuid4()))
+    yield Tracer(api_key=str(uuid4()), organization_id="test_org")
 
 @pytest.fixture
 def trace_client(tracer):
@@ -50,8 +50,8 @@ def test_tracer_singleton(mocker):
     mock_judgment_client = mocker.Mock(spec=JudgmentClient)
     mocker.patch('judgeval.common.tracer.JudgmentClient', return_value=mock_judgment_client)
     
-    tracer1 = Tracer(api_key=str(uuid4()))
-    tracer2 = Tracer(api_key=str(uuid4()))
+    tracer1 = Tracer(api_key=str(uuid4()), organization_id="test_org")
+    tracer2 = Tracer(api_key=str(uuid4()), organization_id="test_org")
     assert tracer1 is tracer2
     assert tracer1.api_key == tracer2.api_key
 
@@ -261,7 +261,7 @@ def test_tracer_invalid_api_key(mocker):
     mock_post.return_value = mock_post_response
     
     with pytest.raises(JudgmentAPIError, match="Issue with passed in Judgment API key: API key is invalid"):
-        Tracer(api_key="invalid_key")
+        Tracer(api_key="invalid_key", organization_id="test_org")
 
 def test_observe_decorator(tracer):
     """Test the @tracer.observe decorator"""

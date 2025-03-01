@@ -24,6 +24,7 @@ class EvaluationRun(BaseModel):
 
     # The user will specify whether they want log_results when they call run_eval
     log_results: bool = False  # NOTE: log_results has to be set first because it is used to validate project_name and eval_name
+    organization_id: Optional[str] = None
     project_name: Optional[str] = None
     eval_name: Optional[str] = None
     examples: List[Example]
