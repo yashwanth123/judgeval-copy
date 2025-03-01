@@ -227,7 +227,8 @@ class TraceManagerClient:
             json=trace_data,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}"
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
             }
         )
         
@@ -246,7 +247,6 @@ class TraceManagerClient:
         response = requests.delete(
             JUDGMENT_TRACES_DELETE_API_URL,
             json={
-                "judgment_api_key": self.judgment_api_key,
                 "trace_ids": [trace_id],
             },
             headers={
