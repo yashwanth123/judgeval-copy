@@ -190,8 +190,9 @@ class TraceManagerClient:
     - Saving a trace
     - Deleting a trace
     """
-    def __init__(self, judgment_api_key: str):
+    def __init__(self, judgment_api_key: str, organization_id: str):
         self.judgment_api_key = judgment_api_key
+        self.organization_id = organization_id
 
     def fetch_trace(self, trace_id: str):
         """
@@ -201,11 +202,11 @@ class TraceManagerClient:
             JUDGMENT_TRACES_FETCH_API_URL,
             json={
                 "trace_id": trace_id,
-                # "judgment_api_key": self.judgment_api_key,
             },
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}"
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
             }
         )
 
@@ -228,7 +229,8 @@ class TraceManagerClient:
             json=trace_data,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}"
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
             }
         )
         
@@ -247,12 +249,12 @@ class TraceManagerClient:
         response = requests.delete(
             JUDGMENT_TRACES_DELETE_API_URL,
             json={
-                "judgment_api_key": self.judgment_api_key,
                 "trace_ids": [trace_id],
             },
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}"
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
             }
         )
 
@@ -268,12 +270,12 @@ class TraceManagerClient:
         response = requests.delete(
             JUDGMENT_TRACES_DELETE_API_URL,
             json={
-                # "judgment_api_key": self.judgment_api_key,
                 "trace_ids": trace_ids,
             },
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}"
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
             }
         )
 
@@ -308,7 +310,7 @@ class TraceClient:
         self.start_time = time.time()
         self.span_type = None
         self._current_span: Optional[TraceEntry] = None
-        self.trace_manager_client = TraceManagerClient(tracer.api_key)  # Manages DB operations for trace data
+        self.trace_manager_client = TraceManagerClient(tracer.api_key, tracer.organization_id)  # Manages DB operations for trace data
         
     @contextmanager
     def span(self, name: str, span_type: SpanType = "span"):
@@ -386,6 +388,7 @@ class TraceClient:
         
         # Combine the trace-level rules with any evaluation-specific rules)
         eval_run = EvaluationRun(
+            organization_id=self.tracer.organization_id,
             log_results=log_results,
             project_name=self.project_name,
             eval_name=f"{self.name.capitalize()}-"
@@ -563,7 +566,6 @@ class TraceClient:
         # Create trace document
         trace_data = {
             "trace_id": self.trace_id,
-            "api_key": self.tracer.api_key,
             "name": self.name,
             "project_name": self.project_name,
             "created_at": datetime.fromtimestamp(self.start_time).isoformat(),
@@ -595,25 +597,6 @@ class TraceClient:
         
         self.trace_manager_client.save_trace(trace_data, empty_save)
 
-
-        # Save trace data by making POST request to API
-        response = requests.post(
-            JUDGMENT_TRACES_SAVE_API_URL,
-            json=trace_data,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.tracer.api_key}"  # Bearer token format
-            }
-        )
-        
-        if response.status_code == HTTPStatus.BAD_REQUEST:
-            raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
-        elif response.status_code != HTTPStatus.OK:
-            raise ValueError(f"Failed to save trace data: {response.text}")
-        
-        if not empty_save and "ui_results_url" in response.json():
-            rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
-        
         return self.trace_id, trace_data
 
     def delete(self):
@@ -632,14 +615,18 @@ class Tracer:
         api_key: str = os.getenv("JUDGMENT_API_KEY"), 
         project_name: str = "default_project",
         rules: Optional[List[Rule]] = None  # Added rules parameter
-    ):
+    , organization_id: str = os.getenv("ORGANIZATION_ID")):
         if not hasattr(self, 'initialized'):
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
             
+            if not organization_id:
+                raise ValueError("Tracer must be configured with an Organization ID")
+            
             self.api_key: str = api_key
             self.project_name: str = project_name
             self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
+            self.organization_id: str = organization_id
             self.depth: int = 0
             self._current_trace: Optional[str] = None
             self.rules: List[Rule] = rules or []  # Store rules at tracer level

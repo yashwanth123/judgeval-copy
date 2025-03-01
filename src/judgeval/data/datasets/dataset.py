@@ -17,9 +17,10 @@ class EvalDataset:
     _alias: Union[str, None] = field(default=None)
     _id: Union[str, None] = field(default=None)
     judgment_api_key: str = field(default="")
-
+    organization_id: str = field(default="")
     def __init__(self, 
                  judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"),  
+                 organization_id: str = os.getenv("ORGANIZATION_ID"),
                  ground_truths: List[GroundTruthExample] = [], 
                  examples: List[Example] = [],
                  ):
@@ -31,7 +32,7 @@ class EvalDataset:
         self._alias = None
         self._id = None
         self.judgment_api_key = judgment_api_key
-        
+        self.organization_id = organization_id
 
     def add_from_json(self, file_path: str) -> None:
         debug(f"Loading dataset from JSON file: {file_path}")
