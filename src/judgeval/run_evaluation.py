@@ -428,16 +428,15 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                     # Add API key to alert metadata if not already present
                     if "judgment_api_key" not in alert_result.metadata:
                         alert_result.metadata["judgment_api_key"] = evaluation_run.judgment_api_key
-                    
-                    # Convert alert format to server's expected format
-                    alert = {
-                        "rule_name": alert_result.rule_name,
-                        "rule_id": alert_result.rule_id,
-                        "status": alert_result.status.value,  # Convert enum to string value
-                        "conditions_result": alert_result.conditions_result,
-                        "metadata": alert_result.metadata  # Use the metadata directly
-                    }
-                    all_alerts.append(alert)
+                    if alert_result.metadata:
+                        # Convert alert format to server's expected format
+                        alert = {
+                            "rule_name": alert_result.rule_name,
+                            "rule_id": alert_result.rule_id,
+                            "status": alert_result.status.value,  # Convert enum to string value
+                            "conditions_result": alert_result.conditions_result,
+                            "metadata": alert_result.metadata  # Use the metadata directly
+                        }
                     
                     if alert_result.status == AlertStatus.TRIGGERED:
                         debug(f"Rule '{alert_result.rule_name}' triggered for example {example_id}")
