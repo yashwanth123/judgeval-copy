@@ -9,6 +9,7 @@ from datetime import datetime
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import time
+import uuid  # Add import for uuid module
 
 class AlertStatus(str, Enum):
     """Status of an alert evaluation."""
@@ -70,6 +71,7 @@ class Rule(BaseModel):
             "combine_type": "all"  # "all" or "any"
         }
     """
+    rule_id: str = Field(default_factory=lambda: str(uuid.uuid4()))  # Random UUID string as default value
     name: str
     description: Optional[str] = None
     conditions: List[Condition]
@@ -100,6 +102,7 @@ class AlertResult(BaseModel):
         }
     """
     status: AlertStatus
+    rule_id: Optional[str] = None  # The unique identifier of the rule
     rule_name: str
     conditions_result: List[Dict[str, Any]]
     metadata: Dict[str, Any] = {}
@@ -185,6 +188,7 @@ class RulesEngine:
             # Create alert result with example metadata
             alert_result = AlertResult(
                 status=AlertStatus.TRIGGERED if triggered else AlertStatus.NOT_TRIGGERED,
+                rule_id=rule.rule_id,  # Include the rule's unique identifier
                 rule_name=rule.name,
                 conditions_result=condition_results
             )
