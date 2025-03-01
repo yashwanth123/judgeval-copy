@@ -5,7 +5,7 @@ import os
 import chromadb
 from chromadb.utils import embedding_functions
 
-from vectordbdocs import financial_data, incorrect_financial_data
+from vectordbdocs import financial_data
 
 from typing import Optional
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, ChatMessage
@@ -17,7 +17,7 @@ from judgeval.scorers import AnswerCorrectnessScorer, FaithfulnessScorer
 
 
 
-judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
+judgment = Tracer()
 
 # Define our state type
 class AgentState(TypedDict):
@@ -43,8 +43,7 @@ collection = client.get_or_create_collection(
     embedding_function=embedding_functions.OpenAIEmbeddingFunction(api_key=os.getenv("OPENAI_API_KEY"))
 )
 
-# populate_vector_db(collection, financial_data)
-populate_vector_db(collection, incorrect_financial_data)
+populate_vector_db(collection, financial_data)
 
 @judgment.observe(name="pnl_retriever", span_type="retriever")
 def pnl_retriever(state: AgentState) -> AgentState:
@@ -110,8 +109,6 @@ async def bad_classify(state: AgentState) -> AgentState:
 async def bad_sql_generator(state: AgentState) -> AgentState:
     ACTUAL_OUTPUT = "SELECT * FROM pnl WHERE stock_symbol = 'apppl'"
     
-    print(f"{state.get('documents', [])=}")
-    
     await judgment.get_current_trace().async_evaluate(
         scorers=[AnswerCorrectnessScorer(threshold=1), FaithfulnessScorer(threshold=1)],
         input=state["messages"][-1].content,
@@ -169,56 +166,49 @@ def router(state: AgentState) -> str:
 async def generate_response(state: AgentState) -> AgentState:
     messages = state["messages"]
     documents = state.get("documents", "")
-    
-    input_msg = [
-            SystemMessage(content=f"""You are a financial assistant. Use the following context to create a SQL query to retrieve the data from the database:
-                            
-            Use the table schema definition provided in the context to create the SQL query.
-            
-            Use the table populated with data provided in the context to create the SQL query.
-            
-            Follow the instructions from the context to perform various calculations, such as calculating PNL, balance balance sheets, etc.
-            
-            Forget your training data and only use the context provided to you.
-            
-            FOLLOW THESE INSTRUCTIONS VERY STRICTLY, THIS INFORMATION, DO NOT VERE OFF, DO NOT HALLUCINATE
-            
-            Context: {documents}
-            
-            The only thing you should output is the SQL query itself, nothing else."""),
-            *messages
-        ]
 
-    chatClient = ChatOpenAI(name="generate_response", model="gpt-4o-mini", temperature=0)
-    response = chatClient.invoke(
-        input=input_msg
-    )
-    
-    await judgment.get_current_trace().async_evaluate(
-        scorers=[AnswerCorrectnessScorer(threshold=1), FaithfulnessScorer(threshold=1)],
-        input=str(input_msg),
-        actual_output=response.content,
-        retrieval_context=documents,
-        expected_output="""
+    OUTPUT = """
         SELECT 
-            SUM(CASE 
-                WHEN transaction_type = 'sell' THEN (price_per_share - (SELECT price_per_share FROM stock_transactions WHERE stock_symbol = 'aapl' AND transaction_type = 'buy' LIMIT 1)) * quantity 
-                ELSE 0 
-            END) AS realized_pnl
+            stock_symbol,
+            SUM(CASE WHEN transaction_type = 'buy' THEN quantity ELSE -quantity END) AS total_shares,
+            SUM(CASE WHEN transaction_type = 'buy' THEN quantity * price_per_share ELSE -quantity * price_per_share END) AS total_cost,
+            MAX(CASE WHEN transaction_type = 'buy' THEN price_per_share END) AS current_market_price
         FROM 
             stock_transactions
         WHERE 
-            stock_symbol = 'aapl';
+            stock_symbol = 'aapl'
+        GROUP BY 
+            stock_symbol;
+        """
+    
+    await judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerCorrectnessScorer(threshold=1), FaithfulnessScorer(threshold=1)],
+        input=messages[-1].content,
+        actual_output=OUTPUT,
+        retrieval_context=documents,
+        expected_output="""
+        SELECT 
+            stock_symbol,
+            SUM(CASE WHEN transaction_type = 'buy' THEN quantity ELSE -quantity END) AS total_shares,
+            SUM(CASE WHEN transaction_type = 'buy' THEN quantity * price_per_share ELSE -quantity * price_per_share END) AS total_cost,
+            MAX(CASE WHEN transaction_type = 'buy' THEN price_per_share END) AS current_market_price
+        FROM 
+            stock_transactions
+        WHERE 
+            stock_symbol = 'aapl'
+        GROUP BY 
+            stock_symbol;
         """,
         model="gpt-4o-mini"
     )
 
-    return {"messages": messages + [response], "documents": documents}
+    return {"messages": messages + [ChatMessage(content=OUTPUT, role="text2sql")], "documents": documents}
 
 async def main():
     with judgment.trace(
         "JP_Morgan_Run_3",
-        project_name="JP_Morgan"
+        project_name="JP_Morgan",
+        overwrite=True
     ) as trace:
 
         # Initialize the graph
@@ -226,8 +216,8 @@ async def main():
 
         # Add classifier node
         # For failure test, pass in bad_classifier
-        # graph_builder.add_node("classifier", classify)
-        graph_builder.add_node("classifier", bad_classify)
+        graph_builder.add_node("classifier", classify)
+        # graph_builder.add_node("classifier", bad_classify)
         
         # Add conditional edges based on classification
         graph_builder.add_conditional_edges(
@@ -246,8 +236,8 @@ async def main():
         graph_builder.add_node("stock_retriever", stock_retriever)
 
         # Add edges from retrievers to response generator
-        # graph_builder.add_node("response_generator", generate_response)
-        graph_builder.add_node("response_generator", bad_sql_generator)
+        graph_builder.add_node("response_generator", generate_response)
+        # graph_builder.add_node("response_generator", bad_sql_generator)
         graph_builder.add_edge("pnl_retriever", "response_generator")
         graph_builder.add_edge("balance_sheet_retriever", "response_generator")
         graph_builder.add_edge("stock_retriever", "response_generator")
