@@ -48,7 +48,7 @@ JUDGMENT_TRACES_SAVE_API_URL = f"{ROOT_API}/traces/save/"
 JUDGMENT_TRACES_DELETE_API_URL = f"{ROOT_API}/traces/delete/"
 
 # RabbitMQ
-RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq-networklb-faa155df16ec9085.elb.us-west-1.amazonaws.com")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", 5672)
 RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE", "task_queue")
 # Models
