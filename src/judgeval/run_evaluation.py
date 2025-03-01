@@ -30,7 +30,6 @@ from judgeval.common.logger import (
     error, 
     example_logging_context
 )
-from judgeval.utils.alerts import AlertResultsClient
 from judgeval.rules import RulesEngine, Rule, AlertResult, AlertStatus
 
 
@@ -433,6 +432,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                     # Convert alert format to server's expected format
                     alert = {
                         "rule_name": alert_result.rule_name,
+                        "rule_id": alert_result.rule_id,
                         "status": alert_result.status.value,  # Convert enum to string value
                         "conditions_result": alert_result.conditions_result,
                         "metadata": alert_result.metadata  # Use the metadata directly

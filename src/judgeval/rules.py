@@ -62,6 +62,7 @@ class Rule(BaseModel):
     
     Example:
         {
+            "rule_id": "123e4567-e89b-12d3-a456-426614174000",
             "name": "Quality Check",
             "description": "Check if quality metrics meet thresholds",
             "conditions": [
@@ -95,6 +96,7 @@ class AlertResult(BaseModel):
                 {"metric": "faithfulness", "value": 0.6, "threshold": 0.7, "passed": False},
                 {"metric": "relevancy", "value": 0.9, "threshold": 0.8, "passed": True}
             ],
+            "rule_id": "123e4567-e89b-12d3-a456-426614174000",
             "metadata": {
                 "example_id": "example_123",
                 "timestamp": "20240321_123456"
