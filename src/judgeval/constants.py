@@ -31,7 +31,7 @@ class APIScorer(str, Enum):
             if member.value == value.lower():
                 return member
 
-ROOT_API = os.getenv("JUDGMENT_API_URL", "http://127.0.0.1:8000/")
+ROOT_API = os.getenv("JUDGMENT_API_URL", "https://api.judgmentlabs.ai")
 # API URLs
 JUDGMENT_EVAL_API_URL = f"{ROOT_API}/evaluate/"
 JUDGMENT_DATASETS_PUSH_API_URL = f"{ROOT_API}/datasets/push/"
