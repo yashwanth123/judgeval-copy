@@ -549,8 +549,6 @@ class TraceClient:
         # Create trace document
         trace_data = {
             "trace_id": self.trace_id,
-            "judgment_api_key": self.tracer.api_key,
-            "organization_id": os.getenv("ORGANIZATION_ID"),
             "name": self.name,
             "project_name": self.project_name,
             "created_at": datetime.fromtimestamp(self.start_time).isoformat(),
