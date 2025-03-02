@@ -178,21 +178,34 @@ class RulesEngine:
             for condition in rule.conditions:
                 value = scores.get(condition.metric)
                 if value is None:
-                    passed = False
+                    # Skip this condition instead of evaluating it as false
+                    condition_results.append({
+                        "metric": condition.metric,
+                        "value": None,
+                        "threshold": condition.threshold,
+                        "operator": condition.operator,
+                        "passed": None,  # Using None to indicate the condition was skipped
+                        "skipped": True  # Add a flag to indicate this condition was skipped
+                    })
+                    continue  # Skip adding to passed_conditions
                 else:
                     passed = condition.evaluate(value)
-                    
-                condition_results.append({
-                    "metric": condition.metric,
-                    "value": value,
-                    "threshold": condition.threshold,
-                    "operator": condition.operator,
-                    "passed": passed
-                })
-                passed_conditions.append(passed)
+                    condition_results.append({
+                        "metric": condition.metric,
+                        "value": value,
+                        "threshold": condition.threshold,
+                        "operator": condition.operator,
+                        "passed": passed,
+                        "skipped": False  # Indicate this condition was evaluated
+                    })
+                    passed_conditions.append(passed)
             
-            # Determine if alert should trigger
-            triggered = all(passed_conditions) if rule.combine_type == "all" else any(passed_conditions)
+            # Determine if alert should trigger - only consider conditions that weren't skipped
+            if not passed_conditions:
+                # If all conditions were skipped, the rule doesn't trigger
+                triggered = False
+            else:
+                triggered = all(passed_conditions) if rule.combine_type == "all" else any(passed_conditions)
             
             # Create alert result with example metadata
             alert_result = AlertResult(

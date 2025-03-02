@@ -591,7 +591,11 @@ class TraceClient:
                 routing_key=RABBITMQ_QUEUE,
                 body=json.dumps(trace_data),
                 properties=pika.BasicProperties(
-                    delivery_mode=pika.DeliveryMode.Transient  # Changed from Persistent to Transient
+                    delivery_mode=pika.DeliveryMode.Transient,  # Changed from Persistent to Transient
+                    headers={
+                        'api_key': self.tracer.api_key,
+                        'organization_id': self.tracer.organization_id
+                    }
                 ))
             connection.close()
         
