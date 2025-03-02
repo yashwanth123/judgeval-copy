@@ -41,7 +41,10 @@ class Condition(BaseModel):
     threshold: float
 
     def evaluate(self, value: float) -> bool:
-        """Evaluate this condition against a value."""
+        """
+        Evaluate the condition against a value.
+        Returns True if the condition passes, False otherwise.
+        """
         if self.operator == Operator.GT:
             return value > self.threshold
         elif self.operator == Operator.GTE:
@@ -54,7 +57,27 @@ class Condition(BaseModel):
             return value == self.threshold
         elif self.operator == Operator.NEQ:
             return value != self.threshold
-        return False
+        else:
+            raise ValueError(f"Unsupported operator: {self.operator}")
+
+class NotificationConfig(BaseModel):
+    """
+    Configuration for notifications when a rule is triggered.
+    
+    Example:
+        {
+            "enabled": true,
+            "communication_methods": ["slack", "email"],
+            "message_template": "Rule '{rule_name}' was triggered with score {score}",
+            "email_addresses": ["user1@example.com", "user2@example.com"],
+            "send_at": 1632150000  # Unix timestamp (specific date/time)
+        }
+    """
+    enabled: bool = True
+    communication_methods: List[str] = []
+    message_template: Optional[str] = None
+    email_addresses: Optional[List[str]] = None
+    send_at: Optional[int] = None  # Unix timestamp for scheduled notifications
 
 class Rule(BaseModel):
     """
@@ -75,11 +98,7 @@ class Rule(BaseModel):
                 "communication_methods": ["slack", "email"],
                 "message_template": "Quality check failed: {condition_results}",
                 "email_addresses": ["user1@example.com", "user2@example.com"],
-                "delay": 3600,  # Wait 1 hour (3600 seconds) before sending
-                "fixed_time": 1632150000,  # Unix timestamp (specific date/time)
-                "delay_minutes": 30,  # Alternative: wait 30 minutes (takes precedence over delay)
-                "delay_hours": 2,    # Alternative: wait 2 hours
-                "delay_days": 1      # Alternative: wait 1 day
+                "send_at": 1632150000  # Unix timestamp (specific date/time)
             }
         }
     """
@@ -88,7 +107,7 @@ class Rule(BaseModel):
     description: Optional[str] = None
     conditions: List[Condition]
     combine_type: str = Field(..., pattern="^(all|any)$")  # all = AND, any = OR
-    notification: Optional[Dict[str, Any]] = None  # Configuration for notifications
+    notification: Optional[NotificationConfig] = None  # Configuration for notifications
 
     @field_validator('conditions')
     def validate_conditions_not_empty(cls, v):
@@ -126,7 +145,7 @@ class AlertResult(BaseModel):
     rule_name: str
     conditions_result: List[Dict[str, Any]]
     metadata: Dict[str, Any] = {}
-    notification: Optional[Dict[str, Any]] = None  # Configuration for notifications
+    notification: Optional[NotificationConfig] = None  # Configuration for notifications
     
     @property
     def example_id(self) -> Optional[str]:
@@ -140,12 +159,15 @@ class AlertResult(BaseModel):
 
 class RulesEngine:
     """
-    Engine for evaluating rules and managing alerts.
+    Engine for creating and evaluating rules against metrics.
     
-    Example usage:
+    Example:
+        ```python
+        # Define rules
         rules = {
-            "quality_check": Rule(
+            "1": Rule(
                 name="Quality Check",
+                description="Check if quality metrics meet thresholds",
                 conditions=[
                     Condition(metric="faithfulness", operator=">=", threshold=0.7),
                     Condition(metric="relevancy", operator=">=", threshold=0.8)
@@ -154,27 +176,38 @@ class RulesEngine:
             )
         }
         
+        # Create rules engine
         engine = RulesEngine(rules)
-        scores = {"faithfulness": 0.8, "relevancy": 0.9}
-        alerts = engine.evaluate_rules(scores, example_metadata={
-            "example_id": "example_123",
-            "timestamp": "20240321_123456"
-        })
+        
+        # Configure notifications
+        engine.configure_notification(
+            rule_id="1",
+            enabled=True,
+            communication_methods=["slack", "email"],
+            message_template="Quality check failed for example {example_id}",
+            email_addresses=["user@example.com"]
+        )
+        
+        # Evaluate rules
+        scores = {"faithfulness": 0.65, "relevancy": 0.85}
+        results = engine.evaluate_rules(scores, {"example_id": "example_123"})
+        ```
     """
     
     def __init__(self, rules: Dict[str, Rule]):
         """
-        Initialize the RulesEngine with rules.
+        Initialize the rules engine.
         
         Args:
-            rules: Dictionary mapping rule IDs to rule configurations
+            rules: Dictionary mapping rule IDs to Rule objects
         """
         self.rules = rules
-    
+
     def configure_notification(self, rule_id: str, enabled: bool = True, 
                               communication_methods: List[str] = None, 
                               message_template: str = None,
-                              email_addresses: List[str] = None) -> None:
+                              email_addresses: List[str] = None,
+                              send_at: Optional[int] = None) -> None:
         """
         Configure notification settings for a specific rule.
         
@@ -184,6 +217,7 @@ class RulesEngine:
             communication_methods: List of notification methods (e.g., ["slack", "email"])
             message_template: Template string for the notification message
             email_addresses: List of email addresses to send notifications to
+            send_at: Optional Unix timestamp for when to send the notification
         """
         if rule_id not in self.rules:
             raise ValueError(f"Rule ID '{rule_id}' not found")
@@ -191,24 +225,28 @@ class RulesEngine:
         rule = self.rules[rule_id]
         
         # Create notification configuration if it doesn't exist
-        if not hasattr(rule, "notification") or rule.notification is None:
-            rule.notification = {}
+        if rule.notification is None:
+            rule.notification = NotificationConfig()
             
         # Set notification parameters
-        rule.notification["enabled"] = enabled
+        rule.notification.enabled = enabled
         
         if communication_methods is not None:
-            rule.notification["communication_methods"] = communication_methods
+            rule.notification.communication_methods = communication_methods
             
         if message_template is not None:
-            rule.notification["message_template"] = message_template
+            rule.notification.message_template = message_template
             
         if email_addresses is not None:
-            rule.notification["email_addresses"] = email_addresses
+            rule.notification.email_addresses = email_addresses
+            
+        if send_at is not None:
+            rule.notification.send_at = send_at
     
     def configure_all_notifications(self, enabled: bool = True, 
                                    communication_methods: List[str] = None,
-                                   email_addresses: List[str] = None) -> None:
+                                   email_addresses: List[str] = None,
+                                   send_at: Optional[int] = None) -> None:
         """
         Configure notification settings for all rules.
         
@@ -216,6 +254,7 @@ class RulesEngine:
             enabled: Whether notifications are enabled
             communication_methods: List of notification methods (e.g., ["slack", "email"])
             email_addresses: List of email addresses to send notifications to
+            send_at: Optional Unix timestamp for when to send the notification
         """
         for rule_id, rule in self.rules.items():
             # Create a custom message template based on the rule name
@@ -226,7 +265,8 @@ class RulesEngine:
                 enabled=enabled,
                 communication_methods=communication_methods,
                 message_template=message_template,
-                email_addresses=email_addresses
+                email_addresses=email_addresses,
+                send_at=send_at
             )
     
     def evaluate_rules(self, scores: Dict[str, float], example_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, AlertResult]:
@@ -270,20 +310,18 @@ class RulesEngine:
                 # If rule has a notification config and the alert is triggered, include it in the result
                 notification_config = rule.notification
             
+            # Set the alert status based on whether the rule was triggered
+            status = AlertStatus.TRIGGERED if triggered else AlertStatus.NOT_TRIGGERED
+            
+            # Create the alert result
             alert_result = AlertResult(
-                status=AlertStatus.TRIGGERED if triggered else AlertStatus.NOT_TRIGGERED,
-                rule_id=rule.rule_id,  # Include the rule's unique identifier
+                status=status,
+                rule_id=rule.rule_id,
                 rule_name=rule.name,
                 conditions_result=condition_results,
-                notification=notification_config
+                notification=notification_config,
+                metadata=example_metadata or {}
             )
-            
-            # Add example metadata if provided
-            if example_metadata:
-                if "example_id" in example_metadata:
-                    alert_result.metadata["example_id"] = example_metadata["example_id"]
-                if "timestamp" in example_metadata:
-                    alert_result.metadata["timestamp"] = example_metadata["timestamp"]
             
             results[rule_id] = alert_result
             
