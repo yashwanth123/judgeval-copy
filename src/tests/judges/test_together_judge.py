@@ -84,7 +84,7 @@ def test_together_judge_with_schema(mocker):
 
 def test_together_judge_initialization():
     """Test that TogetherJudge initializes with correct parameters"""
-    model_name = "QWEN"
+    model_name = "Qwen/Qwen2.5-72B-Instruct-Turbo"
     judge = TogetherJudge(model=model_name)
     
     assert judge.model == model_name

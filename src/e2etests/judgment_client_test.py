@@ -136,7 +136,7 @@ class TestBasicOperations:
         client.run_evaluation(
             examples=[example1, example2],
             scorers=[scorer, scorer2],
-            model="QWEN",
+            model="Qwen/Qwen2.5-72B-Instruct-Turbo",
             metadata={"batch": "test"},
             project_name=project_name,
             eval_run_name=eval_run_name,
@@ -207,7 +207,7 @@ class TestBasicOperations:
                 project_name="test_project",
                 examples=[example, example1, example2],
                 scorers=[scorer, scorer1],
-                model="QWEN",
+                model="Qwen/Qwen2.5-72B-Instruct-Turbo",
                 override=True
             )
 
@@ -283,7 +283,7 @@ class TestAdvancedFeatures:
         res = client.run_evaluation(
             examples=[example1, example2],
             scorers=[scorer],
-            model="QWEN",
+            model="Qwen/Qwen2.5-72B-Instruct-Turbo",
             metadata={"batch": "test"},
             project_name=PROJECT_NAME,
             eval_run_name=EVAL_RUN_NAME,
@@ -311,7 +311,7 @@ class TestAdvancedFeatures:
         client.run_evaluation(
             examples=[example1],
             scorers=[scorer],
-            model="QWEN",
+            model="Qwen/Qwen2.5-72B-Instruct-Turbo",
             metadata={"batch": "test"},
             project_name=PROJECT_NAME,
             eval_run_name=EVAL_RUN_NAME,
@@ -323,7 +323,7 @@ class TestAdvancedFeatures:
         client.run_evaluation(
             examples=[example1],
             scorers=[scorer],
-            model="QWEN",
+            model="Qwen/Qwen2.5-72B-Instruct-Turbo",
             metadata={"batch": "test"},
             project_name=PROJECT_NAME,
             eval_run_name=EVAL_RUN_NAME,
@@ -336,7 +336,7 @@ class TestAdvancedFeatures:
             client.run_evaluation(
                 examples=[example1],
                 scorers=[scorer],
-                model="QWEN",
+                model="Qwen/Qwen2.5-72B-Instruct-Turbo",
                 metadata={"batch": "test"},
                 project_name=PROJECT_NAME,
                 eval_run_name=EVAL_RUN_NAME,
@@ -352,7 +352,7 @@ class TestAdvancedFeatures:
             client.run_evaluation(
                 examples=[example1],
                 scorers=[scorer],
-                model="QWEN",
+                model="Qwen/Qwen2.5-72B-Instruct-Turbo",
                 metadata={"batch": "test"},
                 project_name=PROJECT_NAME,
                 eval_run_name=EVAL_RUN_NAME,
@@ -385,7 +385,7 @@ class TestAdvancedFeatures:
         res = client.evaluate_dataset(
             dataset=dataset,
             scorers=[FaithfulnessScorer(threshold=0.5)],
-            model="QWEN",
+            model="Qwen/Qwen2.5-72B-Instruct-Turbo",
             metadata={"batch": "test"},
         )
         assert res, "Dataset evaluation failed"
@@ -421,7 +421,7 @@ class TestAdvancedFeatures:
         res = client.run_evaluation(
             examples=[example1],
             scorers=[faithfulness_scorer, classifier_scorer_custom],
-            model="QWEN",
+            model="Qwen/Qwen2.5-72B-Instruct-Turbo",
             log_results=True,
             eval_run_name="ToneScorerTest",
             project_name="ToneScorerTest",

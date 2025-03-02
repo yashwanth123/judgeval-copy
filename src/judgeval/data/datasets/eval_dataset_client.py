@@ -233,13 +233,17 @@ class EvalDatasetClient:
                 "alias": alias,
                 "examples": [e.to_dict() for e in examples],
                 "ground_truths": [g.to_dict() for g in ground_truths],
-                "judgment_api_key": self.judgment_api_key
             }
 
             try:
                 response = requests.post(
                     JUDGMENT_DATASETS_EDIT_API_URL,
-                    json=content
+                    json=content, 
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {self.judgment_api_key}",
+                        "X-Organization-Id": self.organization_id
+                    }
                 )
                 response.raise_for_status()
             except requests.exceptions.RequestException as e:
@@ -267,7 +271,8 @@ class EvalDatasetClient:
                     json={"alias": alias},
                     headers={
                         "Content-Type": "application/json",
-                        "Authorization": f"Bearer {self.judgment_api_key}"
+                        "Authorization": f"Bearer {self.judgment_api_key}",
+                        "X-Organization-Id": self.organization_id
                     },
                     stream=True
                 )

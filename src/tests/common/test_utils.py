@@ -45,7 +45,7 @@ def mock_apis(mocker):
 # Together API Tests
 def test_fetch_together_api_response_success(mock_apis):
     together_mock, _, _ = mock_apis
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     response = fetch_together_api_response(model, TEST_MESSAGES)
     
@@ -59,7 +59,7 @@ def test_fetch_together_api_response_invalid_model(mock_apis):
 @pytest.mark.asyncio
 async def test_afetch_together_api_response_success(mock_apis):
     _, async_together_mock, _ = mock_apis
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     response = await afetch_together_api_response(model, TEST_MESSAGES)
     
@@ -111,7 +111,7 @@ async def test_afetch_custom_litellm_api_response(mock_apis):
 # Multiple Calls Tests
 def test_query_together_api_multiple_calls(mock_apis, mocker):
     together_mock, _, _ = mock_apis
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     responses = query_together_api_multiple_calls(
         [model] * 2,
@@ -126,7 +126,7 @@ def test_query_together_api_multiple_calls(mock_apis, mocker):
 def test_query_together_api_multiple_calls_with_error(mock_apis):
     together_mock, _, _ = mock_apis
     together_mock.chat.completions.create.side_effect = Exception("API Error")
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     responses = query_together_api_multiple_calls(
         [model],
@@ -139,7 +139,7 @@ def test_query_together_api_multiple_calls_with_error(mock_apis):
 @pytest.mark.asyncio
 async def test_aquery_together_api_multiple_calls(mock_apis):
     _, async_together_mock, _ = mock_apis
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     responses = await aquery_together_api_multiple_calls(
         [model] * 2,
@@ -154,7 +154,7 @@ async def test_aquery_together_api_multiple_calls(mock_apis):
 # High-level Interface Tests
 def test_get_chat_completion_together(mock_apis):
     together_mock, _, _ = mock_apis
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     response = get_chat_completion(model, TEST_MESSAGES)
     
@@ -163,7 +163,7 @@ def test_get_chat_completion_together(mock_apis):
 
 def test_get_chat_completion_batched(mock_apis):
     together_mock, _, _ = mock_apis
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     responses = get_chat_completion(model, TEST_BATCHED_MESSAGES, batched=True)
     
@@ -174,7 +174,7 @@ def test_get_chat_completion_batched(mock_apis):
 @pytest.mark.asyncio
 async def test_aget_chat_completion(mock_apis):
     _, async_together_mock, _ = mock_apis
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     response = await aget_chat_completion(model, TEST_MESSAGES)
     
@@ -184,7 +184,7 @@ async def test_aget_chat_completion(mock_apis):
 # Multiple Models Tests
 def test_get_completion_multiple_models(mock_apis):
     together_mock, _, litellm_mock = mock_apis
-    together_model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    together_model = TOGETHER_SUPPORTED_MODELS[0]
     litellm_model = list(LITELLM_SUPPORTED_MODELS)[0]
     
     responses = get_completion_multiple_models(
@@ -201,7 +201,7 @@ def test_get_completion_multiple_models(mock_apis):
 @pytest.mark.asyncio
 async def test_aget_completion_multiple_models(mock_apis):
     _, async_together_mock, litellm_mock = mock_apis
-    together_model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    together_model = TOGETHER_SUPPORTED_MODELS[0]
     litellm_model = list(LITELLM_SUPPORTED_MODELS)[0]
     
     responses = await aget_completion_multiple_models(
@@ -232,13 +232,13 @@ def test_get_completion_multiple_models_invalid_model(mock_apis):
 
 def test_response_format_handling(mock_apis):
     together_mock, _, _ = mock_apis
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     response_format = dict()
     
     fetch_together_api_response(model, TEST_MESSAGES, response_format)
     
     together_mock.chat.completions.create.assert_called_once_with(
-        model=TOGETHER_SUPPORTED_MODELS.get(model),
+        model=model,
         messages=TEST_MESSAGES,
         response_format=response_format
     )
@@ -251,19 +251,19 @@ def test_fetch_together_api_response_value_errors():
     
     # Test with empty messages
     with pytest.raises(ValueError, match="Messages cannot be empty"):
-        ChatCompletionRequest(model=list(TOGETHER_SUPPORTED_MODELS.keys())[0], messages=[])
+        ChatCompletionRequest(model=TOGETHER_SUPPORTED_MODELS[0], messages=[])
     
     # Test with invalid message format
     with pytest.raises(ValueError, match="Message missing required 'role' field"):
         ChatCompletionRequest(
-            model=list(TOGETHER_SUPPORTED_MODELS.keys())[0], 
+            model=TOGETHER_SUPPORTED_MODELS[0], 
             messages=[{"invalid": "format"}]
         )
     
     # Test with None messages
     with pytest.raises(ValueError, match="Input should be a valid list"):
         ChatCompletionRequest(
-            model=list(TOGETHER_SUPPORTED_MODELS.keys())[0], 
+            model=TOGETHER_SUPPORTED_MODELS[0], 
             messages=None
         )
 
@@ -276,21 +276,21 @@ async def test_afetch_together_api_response_value_errors():
     # Test with empty messages
     with pytest.raises(ValueError, match="Messages cannot be empty"):
         ChatCompletionRequest(
-            model=list(TOGETHER_SUPPORTED_MODELS.keys())[0], 
+            model=TOGETHER_SUPPORTED_MODELS[0], 
             messages=[]
         )
     
     # Test with invalid message format
     with pytest.raises(ValueError, match="Message missing required 'role' field"):
         ChatCompletionRequest(
-            model=list(TOGETHER_SUPPORTED_MODELS.keys())[0], 
+            model=TOGETHER_SUPPORTED_MODELS[0], 
             messages=[{"invalid": "format"}]
         )
     
     # Test with None messages
     with pytest.raises(ValueError, match="Input should be a valid list"):
         ChatCompletionRequest(
-            model=list(TOGETHER_SUPPORTED_MODELS.keys())[0], 
+            model=TOGETHER_SUPPORTED_MODELS[0], 
             messages=None
         )
 
@@ -367,7 +367,7 @@ def test_fetch_custom_litellm_api_response_value_errors():
 
 # Multiple Calls ValueError Tests
 def test_query_together_api_multiple_calls_value_errors():
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     # Length mismatch
     with pytest.raises(ValueError, match="Number of models, messages, and response formats must be the same"):
@@ -378,12 +378,12 @@ def test_query_together_api_multiple_calls_value_errors():
         query_together_api_multiple_calls([], [], [])
     
     # Invalid model in list
-    with pytest.raises(ValueError, match="not in the list of supported TogetherAI models"):
+    with pytest.raises(ValueError, match="Model .* is not in the list of supported models"):
         query_together_api_multiple_calls(["invalid_model"], [TEST_MESSAGES], [None])
 
 @pytest.mark.asyncio
 async def test_aquery_together_api_multiple_calls_value_errors():
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     # Length mismatch
     with pytest.raises(ValueError, match="Number of models, messages, and response formats must be the same"):
@@ -394,7 +394,7 @@ async def test_aquery_together_api_multiple_calls_value_errors():
         await aquery_together_api_multiple_calls([], [], [])
     
     # Invalid model in list
-    with pytest.raises(ValueError, match="not in the list of supported TogetherAI models"):
+    with pytest.raises(ValueError, match="Model .* is not in the list of supported models"):
         await aquery_together_api_multiple_calls(["invalid_model"], [TEST_MESSAGES], [None])
 
 # High-level Interface ValueError Tests
@@ -405,15 +405,15 @@ def test_get_chat_completion_value_errors():
     
     # Empty messages
     with pytest.raises(ValueError, match="Messages cannot be empty"):
-        get_chat_completion(list(TOGETHER_SUPPORTED_MODELS.keys())[0], [])
+        get_chat_completion(TOGETHER_SUPPORTED_MODELS[0], [])
     
     # None messages
     with pytest.raises(ValueError, match="Messages cannot be empty"):
-        get_chat_completion(list(TOGETHER_SUPPORTED_MODELS.keys())[0], None)
+        get_chat_completion(TOGETHER_SUPPORTED_MODELS[0], None)
     
     # Invalid batched messages format
     with pytest.raises(ValueError, match="Message missing required 'role' field"):
-        get_chat_completion(list(TOGETHER_SUPPORTED_MODELS.keys())[0], [[{"invalid": "format"}]], batched=True)
+        get_chat_completion(TOGETHER_SUPPORTED_MODELS[0], [[{"invalid": "format"}]], batched=True)
 
 @pytest.mark.asyncio
 async def test_aget_chat_completion_value_errors():
@@ -423,22 +423,22 @@ async def test_aget_chat_completion_value_errors():
     
     # Empty messages
     with pytest.raises(ValueError, match="Messages cannot be empty"):
-        await aget_chat_completion(list(TOGETHER_SUPPORTED_MODELS.keys())[0], [])
+        await aget_chat_completion(TOGETHER_SUPPORTED_MODELS[0], [])
     
     # None messages
     with pytest.raises(TypeError, match="Messages must be a list"):
-        await aget_chat_completion(list(TOGETHER_SUPPORTED_MODELS.keys())[0], None)
+        await aget_chat_completion(TOGETHER_SUPPORTED_MODELS[0], None)
     
     # Invalid batched messages format
     with pytest.raises(TypeError, match="Each batch item must be a list of messages"):
-        await aget_chat_completion(list(TOGETHER_SUPPORTED_MODELS.keys())[0], [{"invalid": "format"}], batched=True)
+        await aget_chat_completion(TOGETHER_SUPPORTED_MODELS[0], [{"invalid": "format"}], batched=True)
 
 # Multiple Models ValueError Tests
 def test_get_completion_multiple_models_value_errors():
     # Length mismatch
     with pytest.raises(ValueError, match="Number of models and messages must be the same"):
         get_completion_multiple_models(
-            [list(TOGETHER_SUPPORTED_MODELS.keys())[0]],
+            [TOGETHER_SUPPORTED_MODELS[0]],
             [TEST_MESSAGES, TEST_MESSAGES]
         )
     
@@ -452,14 +452,14 @@ def test_get_completion_multiple_models_value_errors():
     
     # None messages
     with pytest.raises(TypeError, match="Each batch item must be a list of messages"):
-        get_completion_multiple_models([list(TOGETHER_SUPPORTED_MODELS.keys())[0]], [None])
+        get_completion_multiple_models([TOGETHER_SUPPORTED_MODELS[0]], [None])
 
 @pytest.mark.asyncio
 async def test_aget_completion_multiple_models_value_errors():
     # Length mismatch
     with pytest.raises(ValueError, match="Number of models and messages must be the same"):
         await aget_completion_multiple_models(
-            [list(TOGETHER_SUPPORTED_MODELS.keys())[0]],
+            [TOGETHER_SUPPORTED_MODELS[0]],
             [TEST_MESSAGES, TEST_MESSAGES]
         )
     
@@ -473,13 +473,12 @@ async def test_aget_completion_multiple_models_value_errors():
     
     # None messages
     with pytest.raises(TypeError, match="Each batch item must be a list of messages"):
-        await aget_completion_multiple_models([list(TOGETHER_SUPPORTED_MODELS.keys())[0]], [None])
+        await aget_completion_multiple_models([TOGETHER_SUPPORTED_MODELS[0]], [None])
 
 # Response Format ValueError Tests
 def test_response_format_value_errors():
-    model = list(TOGETHER_SUPPORTED_MODELS.keys())[0]
+    model = TOGETHER_SUPPORTED_MODELS[0]
     
     # Invalid response format type
     with pytest.raises(TypeError, match="Response format must be a dictionary or pydantic model"):
         fetch_together_api_response(model, TEST_MESSAGES, response_format="invalid")
-
