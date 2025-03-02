@@ -50,7 +50,7 @@ async def get_flights(destination):
     judgment.get_current_trace().async_evaluate(
         scorers=[AnswerRelevancyScorer(threshold=0.5)],
         input=prompt,
-        actual_output=flights_search,
+        actual_output=str(flights_search["results"]),
         model="gpt-4",
     )
     return flights_search
@@ -63,7 +63,7 @@ async def get_weather(destination, start_date, end_date):
     judgment.get_current_trace().async_evaluate(
         scorers=[AnswerRelevancyScorer(threshold=0.5)],
         input=prompt,
-        actual_output=weather_search,
+        actual_output=str(weather_search["results"]),
         model="gpt-4",
     )
     return weather_search
