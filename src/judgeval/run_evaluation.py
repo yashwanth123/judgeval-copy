@@ -513,13 +513,13 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
     info(f"Successfully merged {len(merged_results)} results")
 
     # Evaluate rules against local scoring results if rules exist
-    if evaluation_run.rules and local_results:
-        run_rules(
-            local_results=local_results, 
-            rules=evaluation_run.rules, 
-            judgment_api_key=evaluation_run.judgment_api_key,
-            organization_id=evaluation_run.organization_id
-        )
+    # if evaluation_run.rules and merged_results:
+    #     run_rules(
+    #         local_results=merged_results, 
+    #         rules=evaluation_run.rules, 
+    #         judgment_api_key=evaluation_run.judgment_api_key,
+    #         organization_id=evaluation_run.organization_id
+    #     )
     
     if evaluation_run.log_results:
         log_evaluation_results(merged_results, evaluation_run)
