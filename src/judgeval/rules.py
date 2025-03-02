@@ -69,7 +69,18 @@ class Rule(BaseModel):
                 {"metric": "faithfulness", "operator": ">=", "threshold": 0.7},
                 {"metric": "relevancy", "operator": ">=", "threshold": 0.8}
             ],
-            "combine_type": "all"  # "all" or "any"
+            "combine_type": "all",  # "all" or "any"
+            "notification": {
+                "enabled": true,
+                "communication_methods": ["slack", "email"],
+                "message_template": "Quality check failed: {condition_results}",
+                "email_addresses": ["user1@example.com", "user2@example.com"],
+                "delay": 3600,  # Wait 1 hour (3600 seconds) before sending
+                "fixed_time": 1632150000,  # Unix timestamp (specific date/time)
+                "delay_minutes": 30,  # Alternative: wait 30 minutes (takes precedence over delay)
+                "delay_hours": 2,    # Alternative: wait 2 hours
+                "delay_days": 1      # Alternative: wait 1 day
+            }
         }
     """
     rule_id: str = Field(default_factory=lambda: str(uuid.uuid4()))  # Random UUID string as default value
@@ -77,6 +88,7 @@ class Rule(BaseModel):
     description: Optional[str] = None
     conditions: List[Condition]
     combine_type: str = Field(..., pattern="^(all|any)$")  # all = AND, any = OR
+    notification: Optional[Dict[str, Any]] = None  # Configuration for notifications
 
     @field_validator('conditions')
     def validate_conditions_not_empty(cls, v):
@@ -100,6 +112,12 @@ class AlertResult(BaseModel):
             "metadata": {
                 "example_id": "example_123",
                 "timestamp": "20240321_123456"
+            },
+            "notification": {
+                "enabled": true,
+                "communication_methods": ["slack", "email"],
+                "message_template": "Rule {rule_name} was triggered with score {score}",
+                "email_addresses": ["user1@example.com", "user2@example.com"]
             }
         }
     """
@@ -108,6 +126,7 @@ class AlertResult(BaseModel):
     rule_name: str
     conditions_result: List[Dict[str, Any]]
     metadata: Dict[str, Any] = {}
+    notification: Optional[Dict[str, Any]] = None  # Configuration for notifications
     
     @property
     def example_id(self) -> Optional[str]:
@@ -152,6 +171,64 @@ class RulesEngine:
         """
         self.rules = rules
     
+    def configure_notification(self, rule_id: str, enabled: bool = True, 
+                              communication_methods: List[str] = None, 
+                              message_template: str = None,
+                              email_addresses: List[str] = None) -> None:
+        """
+        Configure notification settings for a specific rule.
+        
+        Args:
+            rule_id: ID of the rule to configure notifications for
+            enabled: Whether notifications are enabled for this rule
+            communication_methods: List of notification methods (e.g., ["slack", "email"])
+            message_template: Template string for the notification message
+            email_addresses: List of email addresses to send notifications to
+        """
+        if rule_id not in self.rules:
+            raise ValueError(f"Rule ID '{rule_id}' not found")
+            
+        rule = self.rules[rule_id]
+        
+        # Create notification configuration if it doesn't exist
+        if not hasattr(rule, "notification") or rule.notification is None:
+            rule.notification = {}
+            
+        # Set notification parameters
+        rule.notification["enabled"] = enabled
+        
+        if communication_methods is not None:
+            rule.notification["communication_methods"] = communication_methods
+            
+        if message_template is not None:
+            rule.notification["message_template"] = message_template
+            
+        if email_addresses is not None:
+            rule.notification["email_addresses"] = email_addresses
+    
+    def configure_all_notifications(self, enabled: bool = True, 
+                                   communication_methods: List[str] = None,
+                                   email_addresses: List[str] = None) -> None:
+        """
+        Configure notification settings for all rules.
+        
+        Args:
+            enabled: Whether notifications are enabled
+            communication_methods: List of notification methods (e.g., ["slack", "email"])
+            email_addresses: List of email addresses to send notifications to
+        """
+        for rule_id, rule in self.rules.items():
+            # Create a custom message template based on the rule name
+            message_template = f"Rule '{rule.name}' was triggered"
+            
+            self.configure_notification(
+                rule_id=rule_id,
+                enabled=enabled,
+                communication_methods=communication_methods,
+                message_template=message_template,
+                email_addresses=email_addresses
+            )
+    
     def evaluate_rules(self, scores: Dict[str, float], example_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, AlertResult]:
         """
         Evaluate all rules against a set of scores.
@@ -188,11 +265,17 @@ class RulesEngine:
             triggered = all(passed_conditions) if rule.combine_type == "all" else any(passed_conditions)
             
             # Create alert result with example metadata
+            notification_config = None
+            if triggered and rule.notification:
+                # If rule has a notification config and the alert is triggered, include it in the result
+                notification_config = rule.notification
+            
             alert_result = AlertResult(
                 status=AlertStatus.TRIGGERED if triggered else AlertStatus.NOT_TRIGGERED,
                 rule_id=rule.rule_id,  # Include the rule's unique identifier
                 rule_name=rule.name,
-                conditions_result=condition_results
+                conditions_result=condition_results,
+                notification=notification_config
             )
             
             # Add example metadata if provided
