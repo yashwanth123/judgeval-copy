@@ -255,7 +255,7 @@ scorer = FaithfulnessScorer(threshold=0.5)
 results = client.evaluate_dataset(
     dataset=dataset,
     scorers=[scorer],
-    model="QWEN",
+    model="Qwen/Qwen2.5-72B-Instruct-Turbo",
 )
 ```
 
