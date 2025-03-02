@@ -31,7 +31,7 @@ class Condition(BaseModel):
     
     Example:
         {
-            "metric": "faithfulness",
+            "metric": "faithfulness" (note that metric can only be APIScorer, not JudgevalScorer)
             "operator": ">=",
             "threshold": 0.7
         }
@@ -83,6 +83,13 @@ class Rule(BaseModel):
         if not v:
             raise ValueError("Conditions list cannot be empty")
         return v
+
+    @field_validator('combine_type')
+    def validate_combine_type(cls, v):
+        if v not in ["all", "any"]:
+            raise ValueError(f"combine_type must be 'all' or 'any', got: {v}")
+        return v
+
 
 class AlertResult(BaseModel):
     """
