@@ -337,9 +337,9 @@ def run_rules(local_results: List[ScoringResult], rules: List[Rule], judgment_ap
                         alert["notification"] = alert_result.notification
                         debug(f"Including notification config in alert data")
                 
-                if alert_result.status == AlertStatus.TRIGGERED:
-                    debug(f"Rule '{alert_result.rule_name}' triggered for example {example_id}")
-                    all_alerts.append(alert)
+                # Remove condition - store all alerts regardless of status
+                debug(f"Rule '{alert_result.rule_name}' resulted in status {alert_result.status} for example {example_id}")
+                all_alerts.append(alert)
         
         # Log all alerts in a single request
         if all_alerts:
