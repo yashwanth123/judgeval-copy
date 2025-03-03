@@ -189,7 +189,7 @@ def anime_web_node(state: ChatState) -> ChatState:
     """
     Fetch recent anime news articles using the Tavily web search tool.
     """
-    TAVILY_API_KEY = "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"
+    TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
     os.environ["TAVILY_API_KEY"] = TAVILY_API_KEY
 
     query = state.get("refined_query", state["query"])
