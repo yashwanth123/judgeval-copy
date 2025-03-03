@@ -622,6 +622,8 @@ class TraceClient:
             channel = connection.channel()
             
             channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
+            trace_data["judgment_api_key"] = self.tracer.api_key
+            trace_data["organization_id"] = self.tracer.organization_id
             channel.basic_publish(
                 exchange='',
                 routing_key=RABBITMQ_QUEUE,
