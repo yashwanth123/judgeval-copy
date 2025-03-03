@@ -51,7 +51,11 @@ class Condition(BaseModel):
         if isinstance(self.metric, ScorerWrapper):
             # Handle ScorerWrapper case specifically
             return self.metric.scorer.score_type if hasattr(self.metric.scorer, 'score_type') else str(self.metric.scorer)
-        else:
+        elif hasattr(self.metric, 'score_type'):
+            # Handle APIJudgmentScorer and JudgevalScorer which have score_type
+            return self.metric.score_type
+        elif hasattr(self.metric, '__name__'):
+            # Handle cases where metric has a __name__ attribute
             return self.metric.__name__
         # Fallback to string representation
         return str(self.metric)

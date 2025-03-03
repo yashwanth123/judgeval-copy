@@ -398,7 +398,6 @@ class TraceClient:
                 new_rule = rule.model_copy()
                 new_rule.conditions = processed_conditions
                 loaded_rules.append(new_rule)
-        print(loaded_rules)
         try:
             # Load appropriate implementations for all scorers
             loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = []
@@ -415,6 +414,10 @@ class TraceClient:
             if not loaded_scorers:
                 warnings.warn("No valid scorers available for evaluation")
                 return
+            
+            # Prevent using JudgevalScorer with rules - only APIJudgmentScorer allowed with rules
+            if loaded_rules and any(isinstance(scorer, JudgevalScorer) for scorer in loaded_scorers):
+                raise ValueError("Cannot use Judgeval scorers (only API scorers) when using rules. Please either remove rules or use only APIJudgmentScorer types.")
             
         except Exception as e:
             warnings.warn(f"Failed to load scorers: {str(e)}")

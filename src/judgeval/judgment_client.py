@@ -94,6 +94,10 @@ class JudgmentClient:
                 except Exception as e:
                     raise ValueError(f"Failed to load implementation for scorer {scorer}: {str(e)}")
 
+            # Prevent using JudgevalScorer with rules - only APIJudgmentScorer allowed with rules
+            if rules and any(isinstance(scorer, JudgevalScorer) for scorer in loaded_scorers):
+                raise ValueError("Cannot use Judgeval scorers (only API scorers) when using rules. Please either remove rules or use only APIJudgmentScorer types.")
+
             # Convert ScorerWrapper in rules to their implementations
             loaded_rules = None
             if rules:
@@ -181,6 +185,10 @@ class JudgmentClient:
                         loaded_scorers.append(scorer)
                 except Exception as e:
                     raise ValueError(f"Failed to load implementation for scorer {scorer}: {str(e)}")
+
+            # Prevent using JudgevalScorer with rules - only APIJudgmentScorer allowed with rules
+            if rules and any(isinstance(scorer, JudgevalScorer) for scorer in loaded_scorers):
+                raise ValueError("Cannot use Judgeval scorers (only API scorers) when using rules. Please either remove rules or use only APIJudgmentScorer types.")
 
             # Convert ScorerWrapper in rules to their implementations
             loaded_rules = None
