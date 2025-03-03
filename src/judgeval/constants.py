@@ -67,3 +67,6 @@ ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys
 
 ## System settings
 MAX_WORKER_THREADS = 10
+
+# Maximum number of concurrent operations for evaluation runs
+MAX_CONCURRENT_EVALUATIONS = 50  # Adjust based on system capabilities

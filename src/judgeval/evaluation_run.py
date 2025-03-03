@@ -50,7 +50,8 @@ class EvaluationRun(BaseModel):
         ]
 
         if self.rules:
-            data["rules"] = [rule.model_dump() for rule in self.rules]
+            # Process rules to ensure proper serialization
+              data["rules"] = [rule.model_dump() for rule in self.rules]
             
         return data
 

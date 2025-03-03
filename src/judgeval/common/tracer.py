@@ -376,15 +376,52 @@ class TraceClient:
             additional_metadata=additional_metadata,
             trace_id=self.trace_id
         )
-        
+        loaded_rules = None
+        if self.rules:
+            loaded_rules = []
+            for rule in self.rules:
+                processed_conditions = []
+                for condition in rule.conditions:
+                    # Convert metric if it's a ScorerWrapper
+                    try:
+                        if isinstance(condition.metric, ScorerWrapper):
+                            condition_copy = condition.model_copy()
+                            condition_copy.metric = condition.metric.load_implementation(use_judgment=True)
+                            processed_conditions.append(condition_copy)
+                        else:
+                            processed_conditions.append(condition)
+                    except Exception as e:
+                        warnings.warn(f"Failed to convert ScorerWrapper in rule '{rule.name}', condition metric '{condition.metric_name}': {str(e)}")
+                        processed_conditions.append(condition)  # Keep original condition as fallback
+                
+                # Create new rule with processed conditions
+                new_rule = rule.model_copy()
+                new_rule.conditions = processed_conditions
+                loaded_rules.append(new_rule)
         try:
             # Load appropriate implementations for all scorers
-            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
-                scorer.load_implementation(use_judgment=True) if isinstance(scorer, ScorerWrapper) else scorer
-                for scorer in scorers
-            ]
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = []
+            for scorer in scorers:
+                try:
+                    if isinstance(scorer, ScorerWrapper):
+                        loaded_scorers.append(scorer.load_implementation(use_judgment=True))
+                    else:
+                        loaded_scorers.append(scorer)
+                except Exception as e:
+                    warnings.warn(f"Failed to load implementation for scorer {scorer}: {str(e)}")
+                    # Skip this scorer
+            
+            if not loaded_scorers:
+                warnings.warn("No valid scorers available for evaluation")
+                return
+            
+            # Prevent using JudgevalScorer with rules - only APIJudgmentScorer allowed with rules
+            if loaded_rules and any(isinstance(scorer, JudgevalScorer) for scorer in loaded_scorers):
+                raise ValueError("Cannot use Judgeval scorers (only API scorers) when using rules. Please either remove rules or use only APIJudgmentScorer types.")
+            
         except Exception as e:
-            raise ValueError(f"Failed to load scorers: {str(e)}")
+            warnings.warn(f"Failed to load scorers: {str(e)}")
+            return
         
         # Combine the trace-level rules with any evaluation-specific rules)
         eval_run = EvaluationRun(
@@ -393,16 +430,15 @@ class TraceClient:
             project_name=self.project_name,
             eval_name=f"{self.name.capitalize()}-"
                 f"{self._current_span}-"
-                f"[{','.join(scorer.load_implementation().score_type.capitalize() for scorer in scorers)}]",
+                f"[{','.join(scorer.score_type.capitalize() for scorer in loaded_scorers)}]",
             examples=[example],
             scorers=loaded_scorers,
             model=model,
             metadata={},
             judgment_api_key=self.tracer.api_key,
             override=self.overwrite,
-            rules=self.rules  # Use the combined rules
+            rules=loaded_rules # Use the combined rules
         )
-        
         
         self.add_eval_run(eval_run, start_time)  # Pass start_time to record_evaluation
             
@@ -586,12 +622,18 @@ class TraceClient:
             channel = connection.channel()
             
             channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
+            trace_data["judgment_api_key"] = self.tracer.api_key
+            trace_data["organization_id"] = self.tracer.organization_id
             channel.basic_publish(
                 exchange='',
                 routing_key=RABBITMQ_QUEUE,
                 body=json.dumps(trace_data),
                 properties=pika.BasicProperties(
-                    delivery_mode=pika.DeliveryMode.Transient  # Changed from Persistent to Transient
+                    delivery_mode=pika.DeliveryMode.Transient,  # Changed from Persistent to Transient
+                    headers={
+                        'api_key': self.tracer.api_key,
+                        'organization_id': self.tracer.organization_id
+                    }
                 ))
             connection.close()
         

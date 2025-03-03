@@ -6,7 +6,7 @@ from uuid import uuid4
 from dotenv import load_dotenv
 
 from judgeval.tracer import Tracer, wrap
-from judgeval.scorers import AnswerRelevancyScorer, FaithfulnessScorer
+from judgeval.scorers import AnswerRelevancyScorer, FaithfulnessScorer, AnswerCorrectnessScorer
 from judgeval.rules import Rule, Condition, Operator
 
 # Initialize clients
@@ -16,10 +16,10 @@ rules = [
             name="All Conditions Check",
             description="Check if all conditions are met",
             conditions=[
-                # Use the scorer name as the metric ID, not the score_type
-                Condition(metric="Faithfulness", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="Answer Relevancy", operator=Operator.GTE, threshold=0.8),
-                Condition(metric="Answer Correctness", operator=Operator.GTE, threshold=0.9)
+                # Use scorer objects instead of strings
+                Condition(metric=FaithfulnessScorer(threshold=0.7), operator=Operator.GTE, threshold=0.7),
+                Condition(metric=AnswerRelevancyScorer(threshold=0.8), operator=Operator.GTE, threshold=0.8),
+                Condition(metric=AnswerCorrectnessScorer(threshold=0.9), operator=Operator.GTE, threshold=0.9)
             ],
             combine_type="all"  # Require all conditions to trigger
         ),
@@ -27,31 +27,13 @@ rules = [
             name="Any Condition Check",
             description="Check if any condition is met",
             conditions=[
-                Condition(metric="Faithfulness", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="Answer Relevancy", operator=Operator.GTE, threshold=0.8),
-                Condition(metric="Answer Correctness", operator=Operator.GTE, threshold=0.9)
+                Condition(metric=FaithfulnessScorer(threshold=0.7), operator=Operator.GTE, threshold=0.7),
+                Condition(metric=AnswerRelevancyScorer(threshold=0.8), operator=Operator.GTE, threshold=0.8),
+                Condition(metric=AnswerCorrectnessScorer(threshold=0.9), operator=Operator.GTE, threshold=0.9)
             ],
             combine_type="any"  # Require any condition to trigger
-        ),
-        # New rule for custom scorer
-        Rule(
-            name="Keyword Check",
-            description="Check if response contains enough keywords",
-            conditions=[
-                Condition(metric="Simple Keyword", operator=Operator.GTE, threshold=0.6)
-            ],
-            combine_type="all"
-        ),
-        # Combined rule with custom and API scorers
-        Rule(
-            name="Comprehensive Quality Check",
-            description="Check for both keyword presence and correctness",
-            conditions=[
-                Condition(metric="Simple Keyword", operator=Operator.GTE, threshold=0.6),
-                Condition(metric="Answer Correctness", operator=Operator.GTE, threshold=0.8)
-            ],
-            combine_type="all"
         )
+        # Removed rules that used SimpleKeywordScorer
     ]
 
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"), project_name="restaurant_bot", rules=rules)

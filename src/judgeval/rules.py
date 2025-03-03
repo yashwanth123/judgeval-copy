@@ -3,13 +3,16 @@ Rules system for Judgeval that enables alerts based on metric thresholds.
 """
 
 from typing import Dict, List, Optional, Union, Any, Set, Tuple
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from enum import Enum
 from datetime import datetime
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import time
 import uuid  # Add import for uuid module
+
+from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
+from judgeval.scorers.judgeval_scorers import ScorerWrapper  # Import from the correct module
 
 class AlertStatus(str, Enum):
     """Status of an alert evaluation."""
@@ -31,14 +34,31 @@ class Condition(BaseModel):
     
     Example:
         {
-            "metric": "faithfulness",
+            "metric": FaithfulnessScorer(threshold=0.7)  # Must be a scorer object: APIJudgmentScorer, JudgevalScorer, or ScorerWrapper
             "operator": ">=",
             "threshold": 0.7
         }
     """
-    metric: str
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    
+    metric: Union[APIJudgmentScorer, JudgevalScorer, ScorerWrapper]  
     operator: Operator
     threshold: float
+
+    @property
+    def metric_name(self) -> str:
+        """Get the name of the metric for lookups in scores dictionary."""
+        if isinstance(self.metric, ScorerWrapper):
+            # Handle ScorerWrapper case specifically
+            return self.metric.scorer.score_type if hasattr(self.metric.scorer, 'score_type') else str(self.metric.scorer)
+        elif hasattr(self.metric, 'score_type'):
+            # Handle APIJudgmentScorer and JudgevalScorer which have score_type
+            return self.metric.score_type
+        elif hasattr(self.metric, '__name__'):
+            # Handle cases where metric has a __name__ attribute
+            return self.metric.__name__
+        # Fallback to string representation
+        return str(self.metric)
 
     def evaluate(self, value: float) -> bool:
         """
@@ -89,8 +109,8 @@ class Rule(BaseModel):
             "name": "Quality Check",
             "description": "Check if quality metrics meet thresholds",
             "conditions": [
-                {"metric": "faithfulness", "operator": ">=", "threshold": 0.7},
-                {"metric": "relevancy", "operator": ">=", "threshold": 0.8}
+                {"metric": FaithfulnessScorer(threshold=0.7), "operator": ">=", "threshold": 0.7},
+                {"metric": AnswerRelevancyScorer(threshold=0.8), "operator": ">=", "threshold": 0.8}
             ],
             "combine_type": "all",  # "all" or "any"
             "notification": {
@@ -108,12 +128,138 @@ class Rule(BaseModel):
     conditions: List[Condition]
     combine_type: str = Field(..., pattern="^(all|any)$")  # all = AND, any = OR
     notification: Optional[NotificationConfig] = None  # Configuration for notifications
+    
+
+    def model_dump(self, **kwargs):
+        """
+        Custom serialization that properly handles condition serialization.
+        """
+        data = super().model_dump(**kwargs)
+        
+        # Special handling for conditions with complex metric objects
+        if "conditions" in data:
+            for i, condition in enumerate(data["conditions"]):
+                if "metric" in condition:
+                    # Get the actual metric object
+                    metric_obj = self.conditions[i].metric
+                    
+                    # Create standardized metric representation needed by server API
+                    metric_data = {
+                        "score_type": "",
+                        "threshold": 0.0
+                    }
+                    
+                    # First try to use object's own serialization methods
+                    if hasattr(metric_obj, "to_dict"):
+                        orig_data = metric_obj.to_dict()
+                        # Copy any existing fields
+                        for key, value in orig_data.items():
+                            metric_data[key] = value
+                    elif hasattr(metric_obj, "model_dump"):
+                        orig_data = metric_obj.model_dump()
+                        # Copy any existing fields
+                        for key, value in orig_data.items():
+                            metric_data[key] = value
+                    
+                    # If we already have data from original serialization methods but missing required fields
+                    if 'name' in metric_data and 'score_type' not in metric_data:
+                        metric_data['score_type'] = metric_data['name']
+                        
+                    # Ensure required fields have values by checking various sources
+                    if not metric_data['score_type']:
+                        # Try to get score_type from different possible attributes
+                        if hasattr(metric_obj, 'score_type'):
+                            metric_data['score_type'] = metric_obj.score_type
+                        elif hasattr(metric_obj, 'name'):
+                            metric_data['score_type'] = metric_obj.name
+                        else:
+                            # Last resort: use string representation
+                            metric_data['score_type'] = str(metric_obj)
+                    
+                    # Make sure threshold is set
+                    if not metric_data.get('threshold') and metric_data.get('threshold') != 0.0:
+                        if hasattr(metric_obj, 'threshold'):
+                            metric_data['threshold'] = metric_obj.threshold
+                        else:
+                            # Use condition threshold if metric doesn't have one
+                            metric_data['threshold'] = self.conditions[i].threshold
+                    
+                    # Update the condition with our properly serialized metric
+                    condition["metric"] = metric_data
+        
+        return data
+
+    def model_dump(self, **kwargs):
+        """
+        Custom serialization that properly handles condition serialization.
+        """
+        data = super().model_dump(**kwargs)
+        
+        # Special handling for conditions with complex metric objects
+        if "conditions" in data:
+            for i, condition in enumerate(data["conditions"]):
+                if "metric" in condition:
+                    # Get the actual metric object
+                    metric_obj = self.conditions[i].metric
+                    
+                    # Create standardized metric representation needed by server API
+                    metric_data = {
+                        "score_type": "",
+                        "threshold": 0.0
+                    }
+                    
+                    # First try to use object's own serialization methods
+                    if hasattr(metric_obj, "to_dict"):
+                        orig_data = metric_obj.to_dict()
+                        # Copy any existing fields
+                        for key, value in orig_data.items():
+                            metric_data[key] = value
+                    elif hasattr(metric_obj, "model_dump"):
+                        orig_data = metric_obj.model_dump()
+                        # Copy any existing fields
+                        for key, value in orig_data.items():
+                            metric_data[key] = value
+                    
+                    # If we already have data from original serialization methods but missing required fields
+                    if 'name' in metric_data and 'score_type' not in metric_data:
+                        metric_data['score_type'] = metric_data['name']
+                        
+                    # Ensure required fields have values by checking various sources
+                    if not metric_data['score_type']:
+                        # Try to get score_type from different possible attributes
+                        if hasattr(metric_obj, 'score_type'):
+                            metric_data['score_type'] = metric_obj.score_type
+                        elif hasattr(metric_obj, 'name'):
+                            metric_data['score_type'] = metric_obj.name
+                        else:
+                            # Last resort: use string representation
+                            metric_data['score_type'] = str(metric_obj)
+                    
+                    # Make sure threshold is set
+                    if not metric_data.get('threshold') and metric_data.get('threshold') != 0.0:
+                        if hasattr(metric_obj, 'threshold'):
+                            metric_data['threshold'] = metric_obj.threshold
+                        else:
+                            # Use condition threshold if metric doesn't have one
+                            metric_data['threshold'] = self.conditions[i].threshold
+                    
+                    # Update the condition with our properly serialized metric
+                    condition["metric"] = metric_data
+        
+        return data
 
     @field_validator('conditions')
     def validate_conditions_not_empty(cls, v):
         if not v:
             raise ValueError("Conditions list cannot be empty")
         return v
+
+    @field_validator('combine_type')
+    def validate_combine_type(cls, v):
+        if v not in ["all", "any"]:
+            raise ValueError(f"combine_type must be 'all' or 'any', got: {v}")
+        return v
+
 
 class AlertResult(BaseModel):
     """
@@ -169,8 +315,8 @@ class RulesEngine:
                 name="Quality Check",
                 description="Check if quality metrics meet thresholds",
                 conditions=[
-                    Condition(metric="faithfulness", operator=">=", threshold=0.7),
-                    Condition(metric="relevancy", operator=">=", threshold=0.8)
+                    Condition(metric=FaithfulnessScorer(threshold=0.7), operator=">=", threshold=0.7),
+                    Condition(metric=AnswerRelevancyScorer(threshold=0.8), operator=">=", threshold=0.8)
                 ],
                 combine_type="all"
             )
@@ -286,23 +432,38 @@ class RulesEngine:
             passed_conditions = []
             
             for condition in rule.conditions:
-                value = scores.get(condition.metric)
+                # Get the metric name for lookup
+                metric_name = condition.metric_name
+                value = scores.get(metric_name)
                 if value is None:
-                    passed = False
+                    # Skip this condition instead of evaluating it as false
+                    condition_results.append({
+                        "metric": metric_name,
+                        "value": None,
+                        "threshold": condition.threshold,
+                        "operator": condition.operator,
+                        "passed": None,  # Using None to indicate the condition was skipped
+                        "skipped": True  # Add a flag to indicate this condition was skipped
+                    })
+                    continue  # Skip adding to passed_conditions
                 else:
                     passed = condition.evaluate(value)
-                    
-                condition_results.append({
-                    "metric": condition.metric,
-                    "value": value,
-                    "threshold": condition.threshold,
-                    "operator": condition.operator,
-                    "passed": passed
-                })
-                passed_conditions.append(passed)
+                    condition_results.append({
+                        "metric": metric_name,
+                        "value": value,
+                        "threshold": condition.threshold,
+                        "operator": condition.operator,
+                        "passed": passed,
+                        "skipped": False  # Indicate this condition was evaluated
+                    })
+                    passed_conditions.append(passed)
             
-            # Determine if alert should trigger
-            triggered = all(passed_conditions) if rule.combine_type == "all" else any(passed_conditions)
+            # Determine if alert should trigger - only consider conditions that weren't skipped
+            if not passed_conditions:
+                # If all conditions were skipped, the rule doesn't trigger
+                triggered = False
+            else:
+                triggered = all(passed_conditions) if rule.combine_type == "all" else any(passed_conditions)
             
             # Create alert result with example metadata
             notification_config = None

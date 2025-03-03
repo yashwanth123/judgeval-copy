@@ -5,7 +5,7 @@ Classes for representing examples in a dataset.
 
 from typing import TypeVar, Optional, Any, Dict, List
 from uuid import uuid4
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 from datetime import datetime
 import time
@@ -40,6 +40,13 @@ class Example(BaseModel):
     timestamp: Optional[str] = None
     trace_id: Optional[str] = None
 
+    @field_validator('input', 'actual_output', mode='before')
+    def convert_to_str(cls, value):
+        try:
+            return str(value)
+        except Exception:
+            return repr(value)
+    
     def __init__(self, **data):
         if 'example_id' not in data:
             data['example_id'] = str(uuid4())

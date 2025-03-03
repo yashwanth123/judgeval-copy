@@ -20,6 +20,7 @@ from judgeval.constants import (
     ROOT_API,
     JUDGMENT_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
+    MAX_CONCURRENT_EVALUATIONS
 )
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.evaluation_run import EvaluationRun
@@ -229,6 +230,7 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
         raise ValueError(f"Failed to save evaluation results to DB: {str(e)}")
 
 
+
 def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[ScoringResult]:
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
@@ -365,7 +367,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 show_indicator=True,
                 _use_bar_indicator=True,
                 throttle_value=0,
-                max_concurrent=100,
+                max_concurrent=MAX_CONCURRENT_EVALUATIONS,
             )
         )
         local_results = results
@@ -377,91 +379,14 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
 
     info(f"Successfully merged {len(merged_results)} results")
 
-    # Evaluate rules against local scoring results if rules exist
-    if evaluation_run.rules and merged_results:
-        info(f"Evaluating {len(evaluation_run.rules)} rules against local scoring results")
-        try:
-            # Convert list of rules to dictionary for RulesEngine
-            rules_dict = {f"rule_{i}": rule for i, rule in enumerate(evaluation_run.rules)}
-            
-            # Create RulesEngine instance
-            rules_engine = RulesEngine(rules=rules_dict)
-            
-            # Prepare data structures for parallel processing
-            example_scores = {}
-            example_metadata = {}
-            
-            # Extract scores and prepare metadata for each example
-            for result in merged_results:
-                scores = {}
-                for scorer_data in result.scorers_data or []:
-                    if hasattr(scorer_data, 'name') and hasattr(scorer_data, 'score'):
-                        scores[scorer_data.name] = scorer_data.score
-                
-                # Skip if no scores to evaluate
-                if not scores:
-                    continue
-                
-                # Prepare example metadata
-                metadata = {
-                    "example_id": result.example_id,
-                    "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
-                    "judgment_api_key": evaluation_run.judgment_api_key
-                }
-                
-                example_scores[result.example_id] = scores
-                example_metadata[result.example_id] = metadata
-            
-            # Use parallel evaluation (adjust max_concurrent as needed)
-            all_rule_results = asyncio.run(
-                rules_engine.evaluate_rules_parallel(
-                    example_scores=example_scores,
-                    example_metadata=example_metadata,
-                    max_concurrent=50  # Adjust based on system capabilities
-                )
-            )
-            
-            # Process all alerts
-            all_alerts = []
-            for example_id, rule_results in all_rule_results.items():
-                for rule_id, alert_result in rule_results.items():
-                    # Add API key to alert metadata if not already present
-                    if "judgment_api_key" not in alert_result.metadata:
-                        alert_result.metadata["judgment_api_key"] = evaluation_run.judgment_api_key
-                    if alert_result.metadata:
-                        # Convert alert format to server's expected format
-                        alert = {
-                            "rule_name": alert_result.rule_name,
-                            "rule_id": alert_result.rule_id,
-                            "status": alert_result.status.value,  # Convert enum to string value
-                            "conditions_result": alert_result.conditions_result,
-                            "metadata": alert_result.metadata  # Use the metadata directly
-                        }
-                    
-                    if alert_result.status == AlertStatus.TRIGGERED:
-                        debug(f"Rule '{alert_result.rule_name}' triggered for example {example_id}")
-            
-            # Log all alerts in a single request
-            if all_alerts:
-                info(f"Logging {len(all_alerts)} alerts to the database")
-                try:
-                    alert_response = requests.post(
-                        f"{ROOT_API}/alerts/log/",
-                        json=all_alerts,
-                        headers={
-                            "Content-Type": "application/json",
-                            "X-API-Key": evaluation_run.judgment_api_key  # Add API key in the header
-                        }
-                    )
-                    if alert_response.ok:
-                        debug(f"Successfully logged {len(all_alerts)} alerts")
-                    else:
-                        error(f"Error logging alerts: {alert_response.status_code} - {alert_response.text}")
-                except Exception as e:
-                    error(f"Error posting alerts to API: {str(e)}")
-        except Exception as e:
-            error(f"Error evaluating rules: {str(e)}")
-            # Don't fail the entire evaluation if rule evaluation fails
+    # Evaluate rules against local scoring results if rules exist (this cant be done just yet)
+    # if evaluation_run.rules and merged_results:
+    #     run_rules(
+    #         local_results=merged_results, 
+    #         rules=evaluation_run.rules, 
+    #         judgment_api_key=evaluation_run.judgment_api_key,
+    #         organization_id=evaluation_run.organization_id
+    #     )
     
     if evaluation_run.log_results:
         log_evaluation_results(merged_results, evaluation_run)
