@@ -37,7 +37,7 @@ def test_ac_scorer():
     res = client.run_evaluation(
         examples=[example],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -50,7 +50,7 @@ def test_ac_scorer():
     res = client.run_evaluation(
         examples=[example],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -82,7 +82,7 @@ def test_ar_scorer():
     res = client.run_evaluation(
         examples=[example_1, example_2],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -100,7 +100,7 @@ def test_ar_scorer():
     res = client.run_evaluation(
         examples=[example_1, example_2],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -149,7 +149,7 @@ def test_cp_scorer():
     res = client.run_evaluation(
         examples=[example_1, example_2],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -167,7 +167,7 @@ def test_cp_scorer():
     res = client.run_evaluation(
         examples=[example_1, example_2],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -205,7 +205,7 @@ def test_cr_scorer():
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -221,7 +221,7 @@ def test_cr_scorer():
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -257,13 +257,15 @@ def test_crelevancy_scorer():
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
         use_judgment=True,
         override=True,
     )
+
+    print(res)
 
     print_debug_on_failure(res[0])
 
@@ -273,7 +275,7 @@ def test_crelevancy_scorer():
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -320,7 +322,7 @@ def test_faithfulness_scorer():
     res = client.run_evaluation(
         examples=[faithful_example, contradictory_example],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -338,7 +340,7 @@ def test_faithfulness_scorer():
     res = client.run_evaluation(
         examples=[faithful_example, contradictory_example],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -381,7 +383,7 @@ def test_hallucination_scorer():
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -398,7 +400,7 @@ def test_hallucination_scorer():
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -428,7 +430,7 @@ def test_summarization_scorer():
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,
@@ -445,7 +447,7 @@ def test_summarization_scorer():
     res = client.run_evaluation(
         examples=[example_1],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name=PROJECT_NAME,
         eval_run_name=EVAL_RUN_NAME,

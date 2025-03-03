@@ -6,7 +6,7 @@ from unittest.mock import patch
 @pytest.fixture(autouse=True)
 def mock_model_lists():
     with patch('judgeval.judges.utils.LITELLM_SUPPORTED_MODELS', ["gpt-4"]):
-        with patch('judgeval.judges.utils.TOGETHER_SUPPORTED_MODELS', ["LLAMA3_70B_INSTRUCT_TURBO", "QWEN"]):
+        with patch('judgeval.judges.utils.TOGETHER_SUPPORTED_MODELS', ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "Qwen/Qwen2.5-72B-Instruct-Turbo"]):
             yield
 
 def test_create_judge_invalid_type():
@@ -40,7 +40,7 @@ def test_create_judge_existing_judge():
 
 def test_create_judge_valid_model_list():
     # Test creating a MixtureOfJudges with valid models
-    models = ["QWEN", "LLAMA3_70B_INSTRUCT_TURBO"]  # Assuming these are in LITELLM_SUPPORTED_MODELS
+    models = ["Qwen/Qwen2.5-72B-Instruct-Turbo", "meta-llama/Llama-3.3-70B-Instruct-Turbo"]  # Assuming these are in LITELLM_SUPPORTED_MODELS
     judge, is_native = create_judge(model=models)
     assert isinstance(judge, MixtureOfJudges)
     assert judge.models == models
@@ -55,8 +55,8 @@ def test_create_judge_litellm_model():
 
 def test_create_judge_together_model():
     # Test creating a TogetherJudge with a valid Together model
-    judge, is_native = create_judge(model="LLAMA3_70B_INSTRUCT_TURBO")  # Assuming this is in TOGETHER_SUPPORTED_MODELS
+    judge, is_native = create_judge(model="meta-llama/Llama-3.3-70B-Instruct-Turbo")  # Assuming this is in TOGETHER_SUPPORTED_MODELS
     assert isinstance(judge, TogetherJudge)
-    assert judge.model == "LLAMA3_70B_INSTRUCT_TURBO"
+    assert judge.model == "meta-llama/Llama-3.3-70B-Instruct-Turbo"
     assert is_native is True
 

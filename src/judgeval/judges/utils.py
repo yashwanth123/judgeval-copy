@@ -39,7 +39,7 @@ def create_judge(
                     Please either set the `use_judgment` flag to True or use 
                     non-Judgment models."""
                 )
-            if m not in LITELLM_SUPPORTED_MODELS and m not in TOGETHER_SUPPORTED_MODELS:
+            if m not in ACCEPTABLE_MODELS:
                 raise InvalidJudgeModelError(f"Invalid judge model chosen: {m}")
         return MixtureOfJudges(models=model), True
     # If model is a string, check that it corresponds to a valid model

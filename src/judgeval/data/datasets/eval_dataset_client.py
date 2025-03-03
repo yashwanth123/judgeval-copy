@@ -233,7 +233,6 @@ class EvalDatasetClient:
                 "alias": alias,
                 "examples": [e.to_dict() for e in examples],
                 "ground_truths": [g.to_dict() for g in ground_truths],
-                "judgment_api_key": self.judgment_api_key
             }
 
             try:

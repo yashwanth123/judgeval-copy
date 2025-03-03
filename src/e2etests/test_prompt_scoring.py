@@ -103,7 +103,7 @@ def main():
             "conversation": [{"role": "system", "content": "Is the response positive (Y/N)? The response is: {{actual_output}}."}],
             "options": {"Y": 1, "N": 0},
             "example": pos_example.model_dump(),
-            "model": "QWEN",
+            "model": "Qwen/Qwen2.5-72B-Instruct-Turbo",
             "judgment_api_key": os.getenv("JUDGMENT_API_KEY")
         }
     )
@@ -114,7 +114,7 @@ def main():
     results = client.run_evaluation(
         examples=[pos_example, neg_example],
         scorers=[scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         project_name="sentiment_test",
         eval_run_name=f"sentiment_run_{generate_random_slug()}",  # Unique run name
         log_results=True,
