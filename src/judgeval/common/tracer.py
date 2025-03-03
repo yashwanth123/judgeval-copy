@@ -656,8 +656,8 @@ class Tracer:
         self, 
         api_key: str = os.getenv("JUDGMENT_API_KEY"), 
         project_name: str = "default_project",
-        rules: Optional[List[Rule]] = None  # Added rules parameter
-    , organization_id: str = os.getenv("ORGANIZATION_ID")):
+        rules: Optional[List[Rule]] = None,  # Added rules parameter
+        organization_id: str = os.getenv("JUDGMENT_ORG_ID")):
         if not hasattr(self, 'initialized'):
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")

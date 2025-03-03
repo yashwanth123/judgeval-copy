@@ -131,7 +131,7 @@ async def make_poem(input: str) -> str:
 @pytest.fixture
 def trace_manager_client():
     """Fixture to initialize TraceManagerClient."""
-    return TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"), organization_id=os.getenv("ORGANIZATION_ID"))
+    return TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"), organization_id=os.getenv("JUDGMENT_ORG_ID"))
 
 @pytest.mark.asyncio
 async def test_token_counting(trace_manager_client):
@@ -221,7 +221,7 @@ async def run_selected_tests(test_names: list[str]):
         test_names (list[str]): List of test function names to run (without 'test_' prefix)
     """
 
-    trace_manager_client = TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"), organization_id=os.getenv("ORGANIZATION_ID"))
+    trace_manager_client = TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"), organization_id=os.getenv("JUDGMENT_ORG_ID"))
     print("Client initialized successfully")
     print("*" * 40)
     

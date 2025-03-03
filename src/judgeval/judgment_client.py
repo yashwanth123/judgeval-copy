@@ -36,7 +36,7 @@ class EvalRunRequestBody(BaseModel):
 
 
 class JudgmentClient:
-    def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"), organization_id: str = os.getenv("ORGANIZATION_ID")):
+    def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"), organization_id: str = os.getenv("JUDGMENT_ORG_ID")):
         self.judgment_api_key = judgment_api_key
         self.organization_id = organization_id
         self.eval_dataset_client = EvalDatasetClient(judgment_api_key, organization_id)
