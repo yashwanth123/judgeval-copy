@@ -46,7 +46,6 @@ class AnswerRelevancyScorer(JudgevalScorer):
         )
         self.model, self.using_native_model = create_judge(model)
         self.evaluation_model = self.model.get_model_name()
-        print(self.model)
 
     def score_example(
         self,

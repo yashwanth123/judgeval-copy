@@ -51,7 +51,6 @@ JUDGMENT_TRACES_DELETE_API_URL = f"{ROOT_API}/traces/delete/"
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq-networklb-faa155df16ec9085.elb.us-west-1.amazonaws.com")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", 5672)
 RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE", "task_queue")
-
 # Models
 TOGETHER_SUPPORTED_MODELS = {
     "QWEN": "Qwen/Qwen2-72B-Instruct",
@@ -68,3 +67,6 @@ ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS.keys
 
 ## System settings
 MAX_WORKER_THREADS = 10
+
+# Maximum number of concurrent operations for evaluation runs
+MAX_CONCURRENT_EVALUATIONS = 50  # Adjust based on system capabilities

@@ -20,6 +20,7 @@ from judgeval.constants import (
     ROOT_API,
     JUDGMENT_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
+    MAX_CONCURRENT_EVALUATIONS
 )
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.evaluation_run import EvaluationRun
@@ -30,6 +31,7 @@ from judgeval.common.logger import (
     error, 
     example_logging_context
 )
+from judgeval.rules import RulesEngine, Rule, AlertResult, AlertStatus
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
@@ -228,6 +230,7 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
         raise ValueError(f"Failed to save evaluation results to DB: {str(e)}")
 
 
+
 def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[ScoringResult]:
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
@@ -245,7 +248,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
             metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
             judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
             log_results (bool): Whether to log the results to the Judgment API
-
+            rules (Optional[List[Rule]]): Rules to evaluate against scoring results
 
     Returns:
         List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
@@ -316,7 +319,8 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 metadata=evaluation_run.metadata,
                 judgment_api_key=evaluation_run.judgment_api_key,
                 organization_id=evaluation_run.organization_id,
-                log_results=evaluation_run.log_results
+                log_results=evaluation_run.log_results,
+                rules=evaluation_run.rules
             )
             debug("Sending request to Judgment API")    
             response_data: List[Dict] = execute_api_eval(api_evaluation_run)  # Dicts are `ScoringResult` objs
@@ -346,7 +350,6 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                     ]
                 
                 api_results.append(ScoringResult(**filtered_result))
-
     # Run local evals
     if local_scorers:  # List[JudgevalScorer]
         info("Starting local evaluation")
@@ -364,12 +367,11 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 show_indicator=True,
                 _use_bar_indicator=True,
                 throttle_value=0,
-                max_concurrent=100,
+                max_concurrent=MAX_CONCURRENT_EVALUATIONS,
             )
         )
         local_results = results
         info(f"Local evaluation complete with {len(local_results)} results")
-
     # Aggregate the ScorerData from the API and local evaluations
     debug("Merging API and local results")
     merged_results: List[ScoringResult] = merge_results(api_results, local_results)
@@ -377,6 +379,15 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
 
     info(f"Successfully merged {len(merged_results)} results")
 
+    # Evaluate rules against local scoring results if rules exist (this cant be done just yet)
+    # if evaluation_run.rules and merged_results:
+    #     run_rules(
+    #         local_results=merged_results, 
+    #         rules=evaluation_run.rules, 
+    #         judgment_api_key=evaluation_run.judgment_api_key,
+    #         organization_id=evaluation_run.organization_id
+    #     )
+    
     if evaluation_run.log_results:
         log_evaluation_results(merged_results, evaluation_run)
 
