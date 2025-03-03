@@ -41,11 +41,13 @@ from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL, JUDGMENT_TRACES_FET
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer, ScorerWrapper
+from judgeval.rules import Rule
+from judgeval.evaluation_run import EvaluationRun
+from judgeval.judges import JudgevalJudge
 
 from rich import print as rprint
 
 from judgeval.data.result import ScoringResult
-from judgeval.evaluation_run import EvaluationRun
 
 # Define type aliases for better code readability and maintainability
 ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic]  # Supported API clients
@@ -285,17 +287,29 @@ class TraceManagerClient:
 
 class TraceClient:
     """Client for managing a single trace context"""
-    def __init__(self, tracer, trace_id: str, name: str, project_name: str = "default_project", overwrite: bool = False):
-        self.tracer = tracer
-        self.trace_id = trace_id
+    
+    def __init__(
+        self,
+        tracer: Optional["Tracer"],
+        trace_id: Optional[str] = None,
+        name: str = "default",
+        project_name: str = "default_project",
+        overwrite: bool = False,
+        rules: Optional[List[Rule]] = None,
+    ):
         self.name = name
+        self.trace_id = trace_id or str(uuid.uuid4())
         self.project_name = project_name
+        self.overwrite = overwrite
+        self.tracer = tracer
+        # Initialize rules with either provided rules or an empty list
+        self.rules = rules or []
+        
         self.client: JudgmentClient = tracer.client
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
         self.span_type = None
         self._current_span: Optional[TraceEntry] = None
-        self.overwrite = overwrite
         self.trace_manager_client = TraceManagerClient(tracer.api_key, tracer.organization_id)  # Manages DB operations for trace data
         
     @contextmanager
@@ -348,7 +362,7 @@ class TraceClient:
         expected_tools: Optional[List[str]] = None,
         additional_metadata: Optional[Dict[str, Any]] = None,
         model: Optional[str] = None,
-        log_results: Optional[bool] = True,
+        log_results: Optional[bool] = True
     ):
         start_time = time.time()  # Record start time
         example = Example(
@@ -362,29 +376,68 @@ class TraceClient:
             additional_metadata=additional_metadata,
             trace_id=self.trace_id
         )
-        
+        loaded_rules = None
+        if self.rules:
+            loaded_rules = []
+            for rule in self.rules:
+                processed_conditions = []
+                for condition in rule.conditions:
+                    # Convert metric if it's a ScorerWrapper
+                    try:
+                        if isinstance(condition.metric, ScorerWrapper):
+                            condition_copy = condition.model_copy()
+                            condition_copy.metric = condition.metric.load_implementation(use_judgment=True)
+                            processed_conditions.append(condition_copy)
+                        else:
+                            processed_conditions.append(condition)
+                    except Exception as e:
+                        warnings.warn(f"Failed to convert ScorerWrapper in rule '{rule.name}', condition metric '{condition.metric_name}': {str(e)}")
+                        processed_conditions.append(condition)  # Keep original condition as fallback
+                
+                # Create new rule with processed conditions
+                new_rule = rule.model_copy()
+                new_rule.conditions = processed_conditions
+                loaded_rules.append(new_rule)
         try:
             # Load appropriate implementations for all scorers
-            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
-                scorer.load_implementation(use_judgment=True) if isinstance(scorer, ScorerWrapper) else scorer
-                for scorer in scorers
-            ]
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = []
+            for scorer in scorers:
+                try:
+                    if isinstance(scorer, ScorerWrapper):
+                        loaded_scorers.append(scorer.load_implementation(use_judgment=True))
+                    else:
+                        loaded_scorers.append(scorer)
+                except Exception as e:
+                    warnings.warn(f"Failed to load implementation for scorer {scorer}: {str(e)}")
+                    # Skip this scorer
+            
+            if not loaded_scorers:
+                warnings.warn("No valid scorers available for evaluation")
+                return
+            
+            # Prevent using JudgevalScorer with rules - only APIJudgmentScorer allowed with rules
+            if loaded_rules and any(isinstance(scorer, JudgevalScorer) for scorer in loaded_scorers):
+                raise ValueError("Cannot use Judgeval scorers (only API scorers) when using rules. Please either remove rules or use only APIJudgmentScorer types.")
+            
         except Exception as e:
-            raise ValueError(f"Failed to load scorers: {str(e)}")
+            warnings.warn(f"Failed to load scorers: {str(e)}")
+            return
         
+        # Combine the trace-level rules with any evaluation-specific rules)
         eval_run = EvaluationRun(
             organization_id=self.tracer.organization_id,
             log_results=log_results,
             project_name=self.project_name,
             eval_name=f"{self.name.capitalize()}-"
                 f"{self._current_span}-"
-                f"[{','.join(scorer.load_implementation().score_type.capitalize() for scorer in scorers)}]",
+                f"[{','.join(scorer.score_type.capitalize() for scorer in loaded_scorers)}]",
             examples=[example],
             scorers=loaded_scorers,
             model=model,
             metadata={},
             judgment_api_key=self.tracer.api_key,
-            override=self.overwrite
+            override=self.overwrite,
+            rules=loaded_rules # Use the combined rules
         )
         
         self.add_eval_run(eval_run, start_time)  # Pass start_time to record_evaluation
@@ -562,7 +615,6 @@ class TraceClient:
             "empty_save": empty_save,
             "overwrite": overwrite
         }
-        
         # Execute asynchrous evaluation in the background
         if not empty_save:  # Only send to RabbitMQ if the trace is not empty
             connection = pika.BlockingConnection(
@@ -570,13 +622,18 @@ class TraceClient:
             channel = connection.channel()
             
             channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
-            
+            trace_data["judgment_api_key"] = self.tracer.api_key
+            trace_data["organization_id"] = self.tracer.organization_id
             channel.basic_publish(
                 exchange='',
                 routing_key=RABBITMQ_QUEUE,
                 body=json.dumps(trace_data),
                 properties=pika.BasicProperties(
-                    delivery_mode=pika.DeliveryMode.Transient  # Changed from Persistent to Transient
+                    delivery_mode=pika.DeliveryMode.Transient,  # Changed from Persistent to Transient
+                    headers={
+                        'api_key': self.tracer.api_key,
+                        'organization_id': self.tracer.organization_id
+                    }
                 ))
             connection.close()
         
@@ -595,7 +652,12 @@ class Tracer:
             cls._instance = super(Tracer, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, api_key: str = os.getenv("JUDGMENT_API_KEY"), project_name: str = "default_project", organization_id: str = os.getenv("ORGANIZATION_ID")):
+    def __init__(
+        self, 
+        api_key: str = os.getenv("JUDGMENT_API_KEY"), 
+        project_name: str = "default_project",
+        rules: Optional[List[Rule]] = None  # Added rules parameter
+    , organization_id: str = os.getenv("ORGANIZATION_ID")):
         if not hasattr(self, 'initialized'):
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
@@ -609,6 +671,7 @@ class Tracer:
             self.organization_id: str = organization_id
             self.depth: int = 0
             self._current_trace: Optional[str] = None
+            self.rules: List[Rule] = rules or []  # Store rules at tracer level
             self.initialized: bool = True
         elif hasattr(self, 'project_name') and self.project_name != project_name:
             warnings.warn(
@@ -619,11 +682,25 @@ class Tracer:
             )
         
     @contextmanager
-    def trace(self, name: str, project_name: str = None, overwrite: bool = False) -> Generator[TraceClient, None, None]:
+    def trace(
+        self, 
+        name: str, 
+        project_name: str = None, 
+        overwrite: bool = False,
+        rules: Optional[List[Rule]] = None  # Added rules parameter
+    ) -> Generator[TraceClient, None, None]:
         """Start a new trace context using a context manager"""
         trace_id = str(uuid.uuid4())
         project = project_name if project_name is not None else self.project_name
-        trace = TraceClient(self, trace_id, name, project_name=project, overwrite=overwrite)
+
+        trace = TraceClient(
+            self, 
+            trace_id, 
+            name, 
+            project_name=project, 
+            overwrite=overwrite,
+            rules=self.rules  # Pass combined rules to the trace client
+        )
         prev_trace = self._current_trace
         self._current_trace = trace
         
@@ -669,7 +746,7 @@ class Tracer:
                     trace_id = str(uuid.uuid4())
                     trace_name = str(uuid.uuid4())
                     project = project_name if project_name is not None else self.project_name
-                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite)
+                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules)
                     self._current_trace = trace
                     # Only save empty trace for the root call
                     trace.save(empty_save=True, overwrite=overwrite)

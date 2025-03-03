@@ -238,7 +238,7 @@ class EvalDatasetClient:
             try:
                 response = requests.post(
                     JUDGMENT_DATASETS_EDIT_API_URL,
-                    json=content, 
+                    json=content,
                     headers={
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {self.judgment_api_key}",
