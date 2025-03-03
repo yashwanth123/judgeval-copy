@@ -84,10 +84,41 @@ class JudgmentClient:
         """
         try:
             # Load appropriate implementations for all scorers
-            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
-                scorer.load_implementation(use_judgment=use_judgment) if isinstance(scorer, ScorerWrapper) else scorer
-                for scorer in scorers
-            ]
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = []
+            for scorer in scorers:
+                try:
+                    if isinstance(scorer, ScorerWrapper):
+                        loaded_scorers.append(scorer.load_implementation(use_judgment=use_judgment))
+                    else:
+                        loaded_scorers.append(scorer)
+                except Exception as e:
+                    raise ValueError(f"Failed to load implementation for scorer {scorer}: {str(e)}")
+
+            # Convert ScorerWrapper in rules to their implementations
+            loaded_rules = None
+            if rules:
+                loaded_rules = []
+                for rule in rules:
+                    try:
+                        processed_conditions = []
+                        for condition in rule.conditions:
+                            # Convert metric if it's a ScorerWrapper
+                            if isinstance(condition.metric, ScorerWrapper):
+                                try:
+                                    condition_copy = condition.model_copy()
+                                    condition_copy.metric = condition.metric.load_implementation(use_judgment=use_judgment)
+                                    processed_conditions.append(condition_copy)
+                                except Exception as e:
+                                    raise ValueError(f"Failed to convert ScorerWrapper to implementation in rule '{rule.name}', condition metric '{condition.metric}': {str(e)}")
+                            else:
+                                processed_conditions.append(condition)
+                        
+                        # Create new rule with processed conditions
+                        new_rule = rule.model_copy()
+                        new_rule.conditions = processed_conditions
+                        loaded_rules.append(new_rule)
+                    except Exception as e:
+                        raise ValueError(f"Failed to process rule '{rule.name}': {str(e)}")
 
             eval = EvaluationRun(
                 log_results=log_results,
@@ -99,12 +130,14 @@ class JudgmentClient:
                 aggregator=aggregator,
                 metadata=metadata,
                 judgment_api_key=self.judgment_api_key,
-                rules=rules, 
+                rules=loaded_rules,
                 organization_id=self.organization_id
             )
             return run_eval(eval, override)
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
+        except Exception as e:
+            raise Exception(f"An unexpected error occurred during evaluation: {str(e)}")
     
     def evaluate_dataset(
         self, 
@@ -139,10 +172,41 @@ class JudgmentClient:
         """
         try:
             # Load appropriate implementations for all scorers
-            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
-                scorer.load_implementation(use_judgment=use_judgment) if isinstance(scorer, ScorerWrapper) else scorer
-                for scorer in scorers
-            ]
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = []
+            for scorer in scorers:
+                try:
+                    if isinstance(scorer, ScorerWrapper):
+                        loaded_scorers.append(scorer.load_implementation(use_judgment=use_judgment))
+                    else:
+                        loaded_scorers.append(scorer)
+                except Exception as e:
+                    raise ValueError(f"Failed to load implementation for scorer {scorer}: {str(e)}")
+
+            # Convert ScorerWrapper in rules to their implementations
+            loaded_rules = None
+            if rules:
+                loaded_rules = []
+                for rule in rules:
+                    try:
+                        processed_conditions = []
+                        for condition in rule.conditions:
+                            # Convert metric if it's a ScorerWrapper
+                            if isinstance(condition.metric, ScorerWrapper):
+                                try:
+                                    condition_copy = condition.model_copy()
+                                    condition_copy.metric = condition.metric.load_implementation(use_judgment=use_judgment)
+                                    processed_conditions.append(condition_copy)
+                                except Exception as e:
+                                    raise ValueError(f"Failed to convert ScorerWrapper to implementation in rule '{rule.name}', condition metric '{condition.metric}': {str(e)}")
+                            else:
+                                processed_conditions.append(condition)
+                        
+                        # Create new rule with processed conditions
+                        new_rule = rule.model_copy()
+                        new_rule.conditions = processed_conditions
+                        loaded_rules.append(new_rule)
+                    except Exception as e:
+                        raise ValueError(f"Failed to process rule '{rule.name}': {str(e)}")
 
             evaluation_run = EvaluationRun(
                 log_results=log_results,
@@ -154,12 +218,14 @@ class JudgmentClient:
                 aggregator=aggregator,
                 metadata=metadata,
                 judgment_api_key=self.judgment_api_key,
-                rules=rules,
+                rules=loaded_rules,
                 organization_id=self.organization_id
             )
             return run_eval(evaluation_run)
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
+        except Exception as e:
+            raise Exception(f"An unexpected error occurred during evaluation: {str(e)}")
 
     def create_dataset(self) -> EvalDataset:
         return self.eval_dataset_client.create_dataset()

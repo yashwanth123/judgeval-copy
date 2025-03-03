@@ -5,6 +5,56 @@ Tests for the Rule Engine's ability to skip missing metrics.
 import pytest
 from uuid import uuid4
 from judgeval.rules import Rule, Condition, Operator, AlertStatus, RulesEngine
+from judgeval.scorers import APIJudgmentScorer
+
+
+# Mock Scorer objects for testing
+class MockFaithfulnessScorer(APIJudgmentScorer):
+    def __init__(self):
+        super().__init__(
+            score_type="faithfulness",
+            threshold=0.7,
+            strict_mode=True
+        )
+
+class MockRelevancyScorer(APIJudgmentScorer):
+    def __init__(self):
+        super().__init__(
+            score_type="answer_relevancy",
+            threshold=0.8,
+            strict_mode=True
+        )
+
+class MockMetric1Scorer(APIJudgmentScorer):
+    def __init__(self):
+        super().__init__(
+            score_type="contextual_recall",
+            threshold=0.7,
+            strict_mode=True
+        )
+
+class MockMetric2Scorer(APIJudgmentScorer):
+    def __init__(self):
+        super().__init__(
+            score_type="contextual_relevancy",
+            threshold=0.7,
+            strict_mode=True
+        )
+
+class MockMetric3Scorer(APIJudgmentScorer):
+    def __init__(self):
+        super().__init__(
+            score_type="contextual_precision",
+            threshold=0.7,
+            strict_mode=True
+        )
+
+# Create reusable scorer instances
+faithfulness_scorer = MockFaithfulnessScorer()
+relevancy_scorer = MockRelevancyScorer()
+metric1_scorer = MockMetric1Scorer()
+metric2_scorer = MockMetric2Scorer()
+metric3_scorer = MockMetric3Scorer()
 
 
 def test_skip_missing_metrics_all():
@@ -13,8 +63,8 @@ def test_skip_missing_metrics_all():
         "quality_check": Rule(
             name="Quality Check",
             conditions=[
-                Condition(metric="faithfulness", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="relevancy", operator=Operator.GTE, threshold=0.8)
+                Condition(metric=faithfulness_scorer, operator=Operator.GTE, threshold=0.7),
+                Condition(metric=relevancy_scorer, operator=Operator.GTE, threshold=0.8)
             ],
             combine_type="all"
         )
@@ -33,8 +83,8 @@ def test_skip_missing_metrics_all():
     condition_results = results["quality_check"].conditions_result
     assert len(condition_results) == 2
     
-    # Find the missing metric condition
-    relevancy_condition = next((c for c in condition_results if c["metric"] == "relevancy"), None)
+    # Find the missing metric condition - use "answer_relevancy" instead of "relevancy"
+    relevancy_condition = next((c for c in condition_results if c["metric"] == "answer_relevancy"), None)
     assert relevancy_condition is not None
     assert relevancy_condition["value"] is None
     assert relevancy_condition["passed"] is None
@@ -54,8 +104,8 @@ def test_skip_missing_metrics_any():
         "quality_check": Rule(
             name="Quality Check",
             conditions=[
-                Condition(metric="faithfulness", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="relevancy", operator=Operator.GTE, threshold=0.8)
+                Condition(metric=faithfulness_scorer, operator=Operator.GTE, threshold=0.7),
+                Condition(metric=relevancy_scorer, operator=Operator.GTE, threshold=0.8)
             ],
             combine_type="any"
         )
@@ -84,16 +134,16 @@ def test_all_metrics_missing():
         "quality_check": Rule(
             name="Quality Check",
             conditions=[
-                Condition(metric="faithfulness", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="relevancy", operator=Operator.GTE, threshold=0.8)
+                Condition(metric=faithfulness_scorer, operator=Operator.GTE, threshold=0.7),
+                Condition(metric=relevancy_scorer, operator=Operator.GTE, threshold=0.8)
             ],
             combine_type="all"
         ),
         "any_check": Rule(
             name="Any Check",
             conditions=[
-                Condition(metric="faithfulness", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="relevancy", operator=Operator.GTE, threshold=0.8)
+                Condition(metric=faithfulness_scorer, operator=Operator.GTE, threshold=0.7),
+                Condition(metric=relevancy_scorer, operator=Operator.GTE, threshold=0.8)
             ],
             combine_type="any"
         )
@@ -125,9 +175,9 @@ def test_mixed_conditions():
         "mixed_rule": Rule(
             name="Mixed Rule",
             conditions=[
-                Condition(metric="metric1", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="metric2", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="metric3", operator=Operator.GTE, threshold=0.7)
+                Condition(metric=metric1_scorer, operator=Operator.GTE, threshold=0.7),
+                Condition(metric=metric2_scorer, operator=Operator.GTE, threshold=0.7),
+                Condition(metric=metric3_scorer, operator=Operator.GTE, threshold=0.7)
             ],
             combine_type="all"
         )
@@ -137,27 +187,26 @@ def test_mixed_conditions():
     
     # Test with one missing, one passing, one failing
     scores = {
-        "metric1": 0.8,  # Pass
-        "metric3": 0.6   # Fail
-        # metric2 is missing
+        "contextual_recall": 0.8,
+        "contextual_precision": 0.6
     }
     
     results = engine.evaluate_rules(scores)
     
     assert "mixed_rule" in results
-    assert results["mixed_rule"].status == AlertStatus.NOT_TRIGGERED  # Should not trigger due to metric3
+    assert results["mixed_rule"].status == AlertStatus.NOT_TRIGGERED
     
     # Check each condition
     condition_results = results["mixed_rule"].conditions_result
     
-    metric1_condition = next((c for c in condition_results if c["metric"] == "metric1"), None)
+    metric1_condition = next((c for c in condition_results if c["metric"] == "contextual_recall"), None)
     assert metric1_condition["passed"] is True
     assert metric1_condition["skipped"] is False
     
-    metric2_condition = next((c for c in condition_results if c["metric"] == "metric2"), None)
+    metric2_condition = next((c for c in condition_results if c["metric"] == "contextual_relevancy"), None)
     assert metric2_condition["passed"] is None
     assert metric2_condition["skipped"] is True
     
-    metric3_condition = next((c for c in condition_results if c["metric"] == "metric3"), None)
+    metric3_condition = next((c for c in condition_results if c["metric"] == "contextual_precision"), None)
     assert metric3_condition["passed"] is False
     assert metric3_condition["skipped"] is False 

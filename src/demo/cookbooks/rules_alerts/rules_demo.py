@@ -23,6 +23,12 @@ from judgeval.scorers.judgeval_scorers.api_scorers.answer_relevancy import Answe
 from judgeval.scorers.judgeval_scorers.api_scorers.answer_correctness import AnswerCorrectnessScorer
 from judgeval.data import Example
 from judgeval.rules import Rule, Condition, Operator
+from judgeval.run_evaluation import run_default_eval
+from judgeval.evaluation_run import EvaluationRun
+from judgeval.tracer import Tracer, TraceEvent, ObservationType, Span, Event
+from judgeval.scorers.judgeval_scorer import JudgevalScorer
+from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer, AnswerCorrectnessScorer
+from judgeval.rules import AlertResult, Condition, Operator, Rule, RulesEngine, AlertStatus
 
 # Try to import utilities from judgeval package first, fall back to local helper if needed
 try:
@@ -259,10 +265,10 @@ def main():
             name="All Conditions Check",
             description="Check if all conditions are met",
             conditions=[
-                # Use the scorer name as the metric ID, not the score_type
-                Condition(metric="Faithfulness", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="Answer Relevancy", operator=Operator.GTE, threshold=0.8),
-                Condition(metric="Answer Correctness", operator=Operator.GTE, threshold=0.9)
+                # Use scorer objects instead of strings
+                Condition(metric=FaithfulnessScorer(threshold=0.7), operator=Operator.GTE, threshold=0.7),
+                Condition(metric=AnswerRelevancyScorer(threshold=0.8), operator=Operator.GTE, threshold=0.8),
+                Condition(metric=AnswerCorrectnessScorer(threshold=0.9), operator=Operator.GTE, threshold=0.9)
             ],
             combine_type="all"  # Require all conditions to trigger
         ),
@@ -270,9 +276,9 @@ def main():
             name="Any Condition Check",
             description="Check if any condition is met",
             conditions=[
-                Condition(metric="Faithfulness", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="Answer Relevancy", operator=Operator.GTE, threshold=0.8),
-                Condition(metric="Answer Correctness", operator=Operator.GTE, threshold=0.9)
+                Condition(metric=FaithfulnessScorer(threshold=0.7), operator=Operator.GTE, threshold=0.7),
+                Condition(metric=AnswerRelevancyScorer(threshold=0.8), operator=Operator.GTE, threshold=0.8),
+                Condition(metric=AnswerCorrectnessScorer(threshold=0.9), operator=Operator.GTE, threshold=0.9)
             ],
             combine_type="any"  # Require any condition to trigger
         ),
@@ -281,7 +287,7 @@ def main():
             name="Keyword Check",
             description="Check if response contains enough keywords",
             conditions=[
-                Condition(metric="Simple Keyword", operator=Operator.GTE, threshold=0.6)
+                Condition(metric=SimpleKeywordScorer(keywords=["restaurant", "food", "cuisine"], threshold=0.6), operator=Operator.GTE, threshold=0.6)
             ],
             combine_type="all"
         ),
@@ -290,8 +296,8 @@ def main():
             name="Comprehensive Quality Check",
             description="Check for both keyword presence and correctness",
             conditions=[
-                Condition(metric="Simple Keyword", operator=Operator.GTE, threshold=0.6),
-                Condition(metric="Answer Correctness", operator=Operator.GTE, threshold=0.8)
+                Condition(metric=SimpleKeywordScorer(keywords=["restaurant", "food", "cuisine"], threshold=0.6), operator=Operator.GTE, threshold=0.6),
+                Condition(metric=AnswerCorrectnessScorer(threshold=0.8), operator=Operator.GTE, threshold=0.8)
             ],
             combine_type="all"
         )

@@ -24,15 +24,20 @@ from judgeval.rules import Rule, Condition, Operator
 # Load environment variables
 load_dotenv()
 
+# Create scorer instances to use in rules
+faithfulness_scorer = FaithfulnessScorer(threshold=0.7)
+answer_relevancy_scorer = AnswerRelevancyScorer(threshold=0.7)
+answer_correctness_scorer = AnswerCorrectnessScorer(threshold=0.7)
+
 # Define rules for the tracer
 rules = [
     Rule(
         name="All Metrics Quality Check",
         description="Check if all quality metrics meet thresholds",
         conditions=[
-            Condition(metric="Faithfulness", operator=Operator.GTE, threshold=0.7),
-            Condition(metric="Answer Relevancy", operator=Operator.GTE, threshold=0.7),
-            Condition(metric="Answer Correctness", operator=Operator.GTE, threshold=0.7)
+            Condition(metric=faithfulness_scorer, operator=Operator.GTE, threshold=0.7),
+            Condition(metric=answer_relevancy_scorer, operator=Operator.GTE, threshold=0.7),
+            Condition(metric=answer_correctness_scorer, operator=Operator.GTE, threshold=0.7)
         ],
         combine_type="all"  # Require all conditions to trigger
     ),
@@ -40,9 +45,9 @@ rules = [
         name="Any Metric Quality Check",
         description="Check if any quality metric meets threshold",
         conditions=[
-            Condition(metric="Faithfulness", operator=Operator.GTE, threshold=0.7),
-            Condition(metric="Answer Relevancy", operator=Operator.GTE, threshold=0.7),
-            Condition(metric="Answer Correctness", operator=Operator.GTE, threshold=0.7)
+            Condition(metric=faithfulness_scorer, operator=Operator.GTE, threshold=0.7),
+            Condition(metric=answer_relevancy_scorer, operator=Operator.GTE, threshold=0.7),
+            Condition(metric=answer_correctness_scorer, operator=Operator.GTE, threshold=0.7)
         ],
         combine_type="any"  # Require any condition to trigger
     )
@@ -198,14 +203,18 @@ async def test_basic_rules(good_example, bad_example):
 async def test_complex_rules():
     """Test more complex rule combinations."""
     
+    # Create scorers for this test
+    correctness_scorer = AnswerCorrectnessScorer(threshold=0.7)
+    relevancy_scorer = AnswerRelevancyScorer(threshold=0.7)
+    
     # Create a custom rule for this test
     complex_rules = [
         Rule(
             name="Mixed Operators Rule",
             description="Check with mixed operators",
             conditions=[
-                Condition(metric="Answer Correctness", operator=Operator.GTE, threshold=0.7),
-                Condition(metric="Answer Relevancy", operator=Operator.LTE, threshold=1.0)
+                Condition(metric=correctness_scorer, operator=Operator.GTE, threshold=0.7),
+                Condition(metric=relevancy_scorer, operator=Operator.LTE, threshold=1.0)
             ],
             combine_type="all"
         )
