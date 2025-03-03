@@ -597,7 +597,7 @@ class Tracer:
             cls._instance = super(Tracer, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, api_key: str = os.getenv("JUDGMENT_API_KEY"), project_name: str = "default_project", organization_id: str = os.getenv("ORGANIZATION_ID")):
+    def __init__(self, api_key: str = os.getenv("JUDGMENT_API_KEY"), project_name: str = "default_project", organization_id: str = os.getenv("JUDGMENT_ORG_ID")):
         if not hasattr(self, 'initialized'):
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")

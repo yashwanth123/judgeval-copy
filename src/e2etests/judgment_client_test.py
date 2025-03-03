@@ -38,7 +38,7 @@ load_dotenv()
 # Constants
 SERVER_URL = os.getenv("JUDGMENT_API_URL", "http://localhost:8000")
 API_KEY = os.getenv("JUDGMENT_API_KEY")
-ORGANIZATION_ID = os.getenv("ORGANIZATION_ID")
+ORGANIZATION_ID = os.getenv("JUDGMENT_ORG_ID")
 
 if not API_KEY:
     pytest.skip("JUDGMENT_API_KEY not set", allow_module_level=True)

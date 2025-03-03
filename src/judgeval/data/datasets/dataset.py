@@ -20,7 +20,7 @@ class EvalDataset:
     organization_id: str = field(default="")
     def __init__(self, 
                  judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"),  
-                 organization_id: str = os.getenv("ORGANIZATION_ID"),
+                 organization_id: str = os.getenv("JUDGMENT_ORG_ID"),
                  ground_truths: List[GroundTruthExample] = [], 
                  examples: List[Example] = [],
                  ):
