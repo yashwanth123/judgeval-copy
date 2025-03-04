@@ -16,10 +16,9 @@ load_dotenv()
 # This demo only supports slack and email notification methods
 notification_config = NotificationConfig(
     enabled=True,
-    communication_methods=[ "email"],  # Only using slack and email
+    communication_methods=["slack", "email"],  # Only using slack and email
     message_template="Rule '{rule_name}' was triggered with score {score}",
     email_addresses=["minh@judgmentlabs.ai"],  # Replace with your email
-    slack_channels=["general"],  # Replace with your slack channel
     send_at=None  # Send immediately
 )
 
