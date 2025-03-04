@@ -48,5 +48,5 @@ class APIJudgmentScorer(BaseModel):
         raise ValueError(f"Invalid value for score_type: {v}")
     
     def __str__(self):
-        return f"JudgmentScorer(score_type={self.score_type}, threshold={self.threshold})"
+        return f"JudgmentScorer(score_type={self.score_type.value}, threshold={self.threshold})"
     
