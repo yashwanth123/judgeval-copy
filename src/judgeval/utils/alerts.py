@@ -41,3 +41,35 @@ class AlertResult(BaseModel):
     def conditions_results(self) -> List[Dict[str, Any]]:
         """Backwards compatibility property for the conditions_result field"""
         return self.conditions_result
+
+    def model_dump(self, **kwargs):
+        """
+        Convert the AlertResult to a dictionary for JSON serialization.
+        
+        Args:
+            **kwargs: Additional arguments to pass to Pydantic's model_dump
+        
+        Returns:
+            dict: Dictionary representation of the AlertResult
+        """
+        data = super().model_dump(**kwargs) if hasattr(super(), "model_dump") else super().dict(**kwargs)
+        
+        # Handle the NotificationConfig object if it exists
+        if hasattr(self, "notification") and self.notification is not None:
+            if hasattr(self.notification, "model_dump"):
+                data["notification"] = self.notification.model_dump()
+            elif hasattr(self.notification, "dict"):
+                data["notification"] = self.notification.dict()
+            else:
+                # Manually convert the notification to a dictionary
+                notif = self.notification
+                data["notification"] = {
+                    "enabled": notif.enabled,
+                    "communication_methods": notif.communication_methods,
+                    "message_template": notif.message_template,
+                    "email_addresses": notif.email_addresses,
+                    "slack_channels": getattr(notif, "slack_channels", []),
+                    "send_at": notif.send_at
+                }
+        
+        return data
