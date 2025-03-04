@@ -12,7 +12,8 @@ from judgeval.scorers.judgeval_scorers.api_scorers import (
     ContextualPrecisionScorer as APIContextualPrecisionScorer,
     ContextualRecallScorer as APIContextualRecallScorer,
     AnswerRelevancyScorer as APIAnswerRelevancyScorer,
-    AnswerCorrectnessScorer as APIAnswerCorrectnessScorer,
+    AnswerCorrectnessScorer as APIAnswerCorrectnessScorer,  
+    ComparisonScorer as APIComparisonScorer,
 )
 
 from judgeval.scorers.judgeval_scorers.local_implementations import (
@@ -25,7 +26,8 @@ from judgeval.scorers.judgeval_scorers.local_implementations import (
     ToolCorrectnessScorer as LocalToolCorrectnessScorer,
     HallucinationScorer as LocalHallucinationScorer,
     SummarizationScorer as LocalSummarizationScorer,
-    AnswerCorrectnessScorer as LocalAnswerCorrectnessScorer
+    AnswerCorrectnessScorer as LocalAnswerCorrectnessScorer,
+    ComparisonScorer as LocalComparisonScorer
 )
 
 from judgeval.scorers.judgeval_scorers.classifiers import Text2SQLScorer
@@ -134,6 +136,12 @@ ContextualRecallScorer = ScorerWrapper(
     local_implementation=LocalContextualRecallScorer
 )
 
+def ComparisonScorer(threshold: float, criteria: str, description: str):
+    return ScorerWrapper(
+        api_implementation=APIComparisonScorer,
+        local_implementation=LocalComparisonScorer
+    )(threshold=threshold, criteria=criteria, description=description)
+
 __all__ = [
     "ToolCorrectnessScorer",
     "JSONCorrectnessScorer",
@@ -145,4 +153,5 @@ __all__ = [
     "ContextualRecallScorer",
     "AnswerRelevancyScorer",
     "Text2SQLScorer",
+    "ComparisonScorer",
 ]

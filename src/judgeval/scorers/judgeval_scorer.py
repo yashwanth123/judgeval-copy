@@ -11,7 +11,7 @@ from abc import abstractmethod
 from judgeval.common.logger import debug, info, warning, error
 from judgeval.judges import JudgevalJudge
 from judgeval.judges.utils import create_judge
-
+from judgeval.constants import APIScorer
 
 class JudgevalScorer:
     """
@@ -58,7 +58,7 @@ class JudgevalScorer:
         additional_metadata: Optional[Dict] = None
         ):
             debug(f"Initializing JudgevalScorer with score_type={score_type}, threshold={threshold}")
-            if not 0 <= threshold <= 1:
+            if score_type != APIScorer.COMPARISON and not 0 <= threshold <= 1:
                 raise ValueError("Threshold must be between 0 and 1")
             if strict_mode:
                 warning("Strict mode enabled - scoring will be more rigorous")

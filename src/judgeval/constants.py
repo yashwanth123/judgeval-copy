@@ -23,6 +23,7 @@ class APIScorer(str, Enum):
     CONTEXTUAL_PRECISION = "contextual_precision"
     TOOL_CORRECTNESS = "tool_correctness"
     JSON_CORRECTNESS = "json_correctness"
+    COMPARISON = "comparison"
 
     @classmethod
     def _missing_(cls, value):

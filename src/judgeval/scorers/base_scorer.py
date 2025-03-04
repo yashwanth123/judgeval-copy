@@ -18,15 +18,16 @@ class APIJudgmentScorer(BaseModel):
         score_type (APIScorer): The Judgment metric to use for scoring `Example`s
         threshold (float): A value between 0 and 1 that determines the scoring threshold
     """
-    threshold: float
     score_type: APIScorer
+    threshold: float
 
     @field_validator('threshold')
-    def validate_threshold(cls, v):
+    def validate_threshold(cls, v, info):
         """
         Validates that the threshold is between 0 and 1 inclusive.
         """
-        if not 0 <= v <= 1:
+        score_type = info.data.get('score_type')
+        if score_type != APIScorer.COMPARISON and not 0 <= v <= 1:
             error(f"Threshold must be between 0 and 1, got: {v}")
             raise ValueError(f"Threshold must be between 0 and 1, got: {v}")
         return v
