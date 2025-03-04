@@ -27,9 +27,9 @@ class APIJudgmentScorer(BaseModel):
         Validates that the threshold is between 0 and 1 inclusive.
         """
         score_type = info.data.get('score_type')
-        if score_type != APIScorer.COMPARISON and not 0 <= v <= 1:
-            error(f"Threshold must be between 0 and 1, got: {v}")
-            raise ValueError(f"Threshold must be between 0 and 1, got: {v}")
+        if (score_type != APIScorer.COMPARISON and not 0 <= v <= 1) or (score_type == APIScorer.COMPARISON and v < 0):
+            error(f"Invalid threshold value: {v} for score_type: {score_type}")
+            raise ValueError(f"Invalid threshold value: {v} for score_type: {score_type}")
         return v
 
     @field_validator('score_type')

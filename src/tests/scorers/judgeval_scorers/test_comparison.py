@@ -15,9 +15,6 @@ class TestComparisonScorer:
         # Test initialization with invalid threshold values
         with pytest.raises(ValueError):
             ComparisonScorer(threshold=-0.1, criteria="criteria", description="description")
-        
-        with pytest.raises(ValueError):
-            ComparisonScorer(threshold=1.1, criteria="criteria", description="description")
 
     def test_name_property(self):
         # Test the __name__ property

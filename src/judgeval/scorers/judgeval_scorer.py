@@ -58,8 +58,8 @@ class JudgevalScorer:
         additional_metadata: Optional[Dict] = None
         ):
             debug(f"Initializing JudgevalScorer with score_type={score_type}, threshold={threshold}")
-            if score_type != APIScorer.COMPARISON and not 0 <= threshold <= 1:
-                raise ValueError("Threshold must be between 0 and 1")
+            if (score_type != APIScorer.COMPARISON and not 0 <= threshold <= 1) or (score_type == APIScorer.COMPARISON and threshold < 0):
+                raise ValueError(f"Invalid threshold value: {threshold} for score_type: {score_type}")
             if strict_mode:
                 warning("Strict mode enabled - scoring will be more rigorous")
             info(f"JudgevalScorer initialized with evaluation_model: {evaluation_model}")
