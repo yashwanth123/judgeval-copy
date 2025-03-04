@@ -31,7 +31,7 @@ class APIScorer(str, Enum):
             if member.value == value.lower():
                 return member
 
-ROOT_API = os.getenv("JUDGMENT_API_URL", "https://api.judgmentlabs.ai")
+ROOT_API = os.getenv("JUDGMENT_API_URL", "https://127.0.0.1:8000")
 # API URLs
 JUDGMENT_EVAL_API_URL = f"{ROOT_API}/evaluate/"
 JUDGMENT_DATASETS_PUSH_API_URL = f"{ROOT_API}/datasets/push/"
@@ -48,7 +48,7 @@ JUDGMENT_TRACES_SAVE_API_URL = f"{ROOT_API}/traces/save/"
 JUDGMENT_TRACES_DELETE_API_URL = f"{ROOT_API}/traces/delete/"
 
 # RabbitMQ
-RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq-networklb-faa155df16ec9085.elb.us-west-1.amazonaws.com")
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", 5672)
 RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE", "task_queue")
 # Models

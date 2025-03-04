@@ -30,6 +30,7 @@ from judgeval.scorers.judgeval_scorer import JudgevalScorer
 from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer, AnswerCorrectnessScorer
 from judgeval.rules import AlertResult, Condition, Operator, Rule, RulesEngine, AlertStatus
 
+
 # Try to import utilities from judgeval package first, fall back to local helper if needed
 try:
     from judgeval.scorers.utils import scorer_progress_meter, create_verbose_logs
@@ -348,4 +349,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main() 

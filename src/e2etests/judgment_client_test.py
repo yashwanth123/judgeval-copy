@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Constants
-SERVER_URL = os.getenv("JUDGMENT_API_URL", "http://localhost:8000")
+SERVER_URL = os.getenv("JUDGMENT_API_URL", "https://127.0.0.1:8000")
 API_KEY = os.getenv("JUDGMENT_API_KEY")
 ORGANIZATION_ID = os.getenv("ORGANIZATION_ID")
 
