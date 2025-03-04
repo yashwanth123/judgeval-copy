@@ -58,6 +58,6 @@ class APIJudgmentScorer(BaseModel):
             dict: A dictionary containing the scorer's configuration
         """
         return {
-            "score_type": self.score_type.value,  # Convert enum to string for serialization
+            "score_type": str(self.score_type.value),  # Convert enum to string for serialization
             "threshold": self.threshold
         }
