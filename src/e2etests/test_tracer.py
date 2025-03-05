@@ -17,7 +17,10 @@ from judgeval.constants import APIScorer
 from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer
 
 # Initialize the tracer and clients
-judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
+judgment = Tracer(
+    api_key=os.getenv("JUDGMENT_API_KEY"),
+    organization_id=os.getenv("JUDGMENT_ORG_ID", "test-org-id")
+)
 openai_client = wrap(OpenAI())
 anthropic_client = wrap(Anthropic())
 
@@ -131,7 +134,10 @@ async def make_poem(input: str) -> str:
 @pytest.fixture
 def trace_manager_client():
     """Fixture to initialize TraceManagerClient."""
-    return TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"), organization_id=os.getenv("JUDGMENT_ORG_ID"))
+    return TraceManagerClient(
+        judgment_api_key=os.getenv("JUDGMENT_API_KEY"), 
+        organization_id=os.getenv("JUDGMENT_ORG_ID", "test-org-id")
+    )
 
 @pytest.mark.asyncio
 async def test_token_counting(trace_manager_client):

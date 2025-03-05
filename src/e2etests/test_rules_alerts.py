@@ -54,7 +54,12 @@ rules = [
 ]
 
 # Initialize tracer with rules
-judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"), project_name="rules_test", rules=rules)
+judgment = Tracer(
+    api_key=os.getenv("JUDGMENT_API_KEY"), 
+    project_name="rules_test", 
+    rules=rules,
+    organization_id=os.getenv("JUDGMENT_ORG_ID", "test-org-id")  # Add organization_id parameter
+)
 client = wrap(OpenAI())
 
 
@@ -192,11 +197,8 @@ async def test_basic_rules(good_example, bad_example):
         
         # Check for alerts in good example
         if good_result["alerts"]:
-            any_rule_id = next((k for k, v in good_result["alerts"].items() 
-                               if v.get('rule_name') == "Any Metric Quality Check"), None)
-            if any_rule_id:
-                assert good_result["alerts"][any_rule_id]['status'] == 'triggered', \
-                    "Any Metric Quality Check should be triggered for good example"
+            any_rule_id = next((k for k, v in good_result["alerts"].items() if v), None)
+            assert any_rule_id is None, "Good example should not trigger alerts"
 
 
 @pytest.mark.asyncio
