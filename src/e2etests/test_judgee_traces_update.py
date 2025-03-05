@@ -524,8 +524,6 @@ async def test_user_vs_org_tracking(client, reset_judgee_count, reset_user_judge
             }],
             "scorers": [
                 {
-                    "name": "relevance",
-                    "weight": 1.0,
                     "score_type": "relevance",
                     "threshold": 1.0,
                     "kwargs": {}
@@ -558,8 +556,6 @@ async def test_user_vs_org_tracking(client, reset_judgee_count, reset_user_judge
             }],
             "scorers": [
                 {
-                    "name": "relevance",
-                    "weight": 1.0,
                     "score_type": "relevance",
                     "threshold": 1.0,
                     "kwargs": {}
@@ -1087,8 +1083,6 @@ async def test_user_org_resource_tracking_e2e(client, reset_judgee_count, reset_
                 }],
                 "scorers": [
                     {
-                        "name": "relevance",
-                        "weight": 1.0,
                         "score_type": "relevance",
                         "threshold": 1.0,
                         "kwargs": {}
@@ -1134,8 +1128,6 @@ async def test_user_org_resource_tracking_e2e(client, reset_judgee_count, reset_
                 }],
                 "scorers": [
                     {
-                        "name": "relevance",
-                        "weight": 1.0,
                         "score_type": "relevance",
                         "threshold": 1.0,
                         "kwargs": {}
