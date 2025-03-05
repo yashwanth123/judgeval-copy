@@ -816,14 +816,15 @@ def wrap(client: Any) -> Any:
     Wraps an API client to add tracing capabilities.
     Supports OpenAI, Together, and Anthropic clients.
     """
-    tracer = Tracer._instance  # Get the global tracer instance
-    
     # Get the appropriate configuration for this client type
     span_name, original_create = _get_client_config(client)
     
     def traced_create(*args, **kwargs):
-        # Skip tracing if no active trace
-        if not (tracer and tracer._current_trace):
+        # Get the current tracer instance (might be created after client was wrapped)
+        tracer = Tracer._instance
+        
+        # Skip tracing if no tracer exists or no active trace
+        if not tracer or not tracer._current_trace:
             return original_create(*args, **kwargs)
 
         with tracer._current_trace.span(span_name, span_type="llm") as span:
