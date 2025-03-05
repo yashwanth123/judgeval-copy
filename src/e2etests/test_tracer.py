@@ -132,6 +132,7 @@ async def make_poem(input: str) -> str:
 def trace_manager_client():
     """Fixture to initialize TraceManagerClient."""
     return TraceManagerClient(judgment_api_key=os.getenv("JUDGMENT_API_KEY"), organization_id=os.getenv("JUDGMENT_ORG_ID"))
+
 @pytest.mark.asyncio
 async def test_token_counting(trace_manager_client):
     input = "Write a poem about Nissan R32 GTR"
