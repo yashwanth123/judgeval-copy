@@ -32,6 +32,8 @@ class APIScorer(str, Enum):
             if member.value == value.lower():
                 return member
 
+UNBOUNDED_SCORERS = set([APIScorer.COMPARISON])
+
 ROOT_API = os.getenv("JUDGMENT_API_URL", "https://api.judgmentlabs.ai")
 # API URLs
 JUDGMENT_EVAL_API_URL = f"{ROOT_API}/evaluate/"
