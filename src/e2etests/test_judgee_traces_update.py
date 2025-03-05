@@ -520,15 +520,15 @@ async def test_user_vs_org_tracking(client, reset_judgee_count, reset_user_judge
                 "actual_output": "Paris is the capital of France.",
                 "expected_output": "Paris is the capital of France.",
                 "context": [],
-                "retrieval_context": [],
-                "scorers": [
-                    {
-                        "score_type": "relevance",
-                        "threshold": 1.0,
-                        "kwargs": {}
-                    }
-                ]
+                "retrieval_context": []
             }],
+            "scorers": [
+                {
+                    "score_type": "relevance",
+                    "threshold": 1.0,
+                    "kwargs": {}
+                }
+            ],
             "model": "gpt-3.5-turbo",
             "project_name": "test_project",
             "eval_run_name": "test_org_tracking",
@@ -552,15 +552,15 @@ async def test_user_vs_org_tracking(client, reset_judgee_count, reset_user_judge
                 "actual_output": "Berlin is the capital of Germany.",
                 "expected_output": "Berlin is the capital of Germany.",
                 "context": [],
-                "retrieval_context": [],
-                "scorers": [
-                    {
-                        "score_type": "relevance",
-                        "threshold": 1.0,
-                        "kwargs": {}
-                    }
-                ]
+                "retrieval_context": []
             }],
+            "scorers": [
+                {
+                    "score_type": "relevance",
+                    "threshold": 1.0,
+                    "kwargs": {}
+                }
+            ],
             "model": "gpt-3.5-turbo",
             "project_name": "test_project",
             "eval_run_name": "test_user_tracking",
@@ -1079,15 +1079,15 @@ async def test_user_org_resource_tracking_e2e(client, reset_judgee_count, reset_
                     "actual_output": f"Test output {i}",
                     "expected_output": f"Test output {i}",
                     "context": [],
-                    "retrieval_context": [],
-                    "scorers": [
-                        {
-                            "score_type": "relevance",
-                            "threshold": 1.0,
-                            "kwargs": {}
-                        }
-                    ]
+                    "retrieval_context": []
                 }],
+                "scorers": [
+                    {
+                        "score_type": "relevance",
+                        "threshold": 1.0,
+                        "kwargs": {}
+                    }
+                ],
                 "model": "gpt-3.5-turbo",
                 "project_name": "test_project",
                 "eval_run_name": f"test_org_tracking_{i}",
@@ -1124,15 +1124,15 @@ async def test_user_org_resource_tracking_e2e(client, reset_judgee_count, reset_
                     "actual_output": f"Test output {i}",
                     "expected_output": f"Test output {i}",
                     "context": [],
-                    "retrieval_context": [],
-                    "scorers": [
-                        {
-                            "score_type": "relevance",
-                            "threshold": 1.0,
-                            "kwargs": {}
-                        }
-                    ]
+                    "retrieval_context": []
                 }],
+                "scorers": [
+                    {
+                        "score_type": "relevance",
+                        "threshold": 1.0,
+                        "kwargs": {}
+                    }
+                ],
                 "model": "gpt-3.5-turbo",
                 "project_name": "test_project",
                 "eval_run_name": f"test_user_tracking_{i}",
