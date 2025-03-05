@@ -3,16 +3,13 @@ Classes for representing examples in a dataset.
 """
 
 
-from typing import TypeVar, Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List
 from uuid import uuid4
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 from datetime import datetime
 import time
 
-
-Input = TypeVar('Input')
-Output = TypeVar('Output')
 
 class ExampleParams(Enum):
     INPUT = "input"
@@ -26,8 +23,8 @@ class ExampleParams(Enum):
 
 
 class Example(BaseModel):
-    input: Input
-    actual_output: Output
+    input: str
+    actual_output: str
     expected_output: Optional[str] = None
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
