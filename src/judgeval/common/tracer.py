@@ -744,7 +744,7 @@ class Tracer:
                     trace = self._current_trace
                 else:
                     trace_id = str(uuid.uuid4())
-                    trace_name = str(uuid.uuid4())
+                    trace_name = func.__name__
                     project = project_name if project_name is not None else self.project_name
                     trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules)
                     self._current_trace = trace
@@ -781,9 +781,9 @@ class Tracer:
                     trace = self._current_trace
                 else:
                     trace_id = str(uuid.uuid4())
-                    trace_name = str(uuid.uuid4())
+                    trace_name = func.__name__
                     project = project_name if project_name is not None else self.project_name
-                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite)
+                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules)
                     self._current_trace = trace
                     # Only save empty trace for the root call
                     trace.save(empty_save=True, overwrite=overwrite)
