@@ -37,13 +37,6 @@ class Example(BaseModel):
     example_index: Optional[int] = None
     timestamp: Optional[str] = None
     trace_id: Optional[str] = None
-
-    @field_validator('input', 'actual_output', mode='before')
-    def convert_to_str(cls, value):
-        try:
-            return str(value)
-        except Exception:
-            return repr(value)
     
     def __init__(self, **data):
         if 'example_id' not in data:
@@ -52,7 +45,6 @@ class Example(BaseModel):
         if 'timestamp' not in data:
             data['timestamp'] = datetime.now().strftime("%Y%m%d_%H%M%S")
         super().__init__(**data)
-
 
     def to_dict(self):
         return {
