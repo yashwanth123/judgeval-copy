@@ -525,7 +525,10 @@ async def test_user_vs_org_tracking(client, reset_judgee_count, reset_user_judge
             "scorers": [
                 {
                     "name": "relevance",
-                    "weight": 1.0
+                    "weight": 1.0,
+                    "score_type": "relevance",
+                    "threshold": 1.0,
+                    "kwargs": {}
                 }
             ],
             "model": "gpt-3.5-turbo",
@@ -556,7 +559,10 @@ async def test_user_vs_org_tracking(client, reset_judgee_count, reset_user_judge
             "scorers": [
                 {
                     "name": "relevance",
-                    "weight": 1.0
+                    "weight": 1.0,
+                    "score_type": "relevance",
+                    "threshold": 1.0,
+                    "kwargs": {}
                 }
             ],
             "model": "gpt-3.5-turbo",
@@ -1082,7 +1088,10 @@ async def test_user_org_resource_tracking_e2e(client, reset_judgee_count, reset_
                 "scorers": [
                     {
                         "name": "relevance",
-                        "weight": 1.0
+                        "weight": 1.0,
+                        "score_type": "relevance",
+                        "threshold": 1.0,
+                        "kwargs": {}
                     }
                 ],
                 "model": "gpt-3.5-turbo",
@@ -1126,7 +1135,10 @@ async def test_user_org_resource_tracking_e2e(client, reset_judgee_count, reset_
                 "scorers": [
                     {
                         "name": "relevance",
-                        "weight": 1.0
+                        "weight": 1.0,
+                        "score_type": "relevance",
+                        "threshold": 1.0,
+                        "kwargs": {}
                     }
                 ],
                 "model": "gpt-3.5-turbo",
@@ -1201,6 +1213,8 @@ async def test_trace_user_org_resource_tracking_e2e(client, reset_trace_count, r
         num_traces = 5
         for i in range(num_traces):
             org_trace_data = {
+                "trace_id": f"test_org_trace_id_{i}",
+                "project_name": "test_project",
                 "name": f"org_trace_test_{i}",
                 "created_at": "2023-01-01T00:00:00Z",
                 "duration": 1000,
@@ -1244,6 +1258,8 @@ async def test_trace_user_org_resource_tracking_e2e(client, reset_trace_count, r
         # Create additional traces with user headers
         for i in range(num_traces):
             user_trace_data = {
+                "trace_id": f"test_user_trace_id_{i}",
+                "project_name": "test_project",
                 "name": f"user_trace_test_{i}",
                 "created_at": "2023-01-01T00:00:00Z",
                 "duration": 1000,
