@@ -306,7 +306,8 @@ class JudgmentClient:
                                     "Authorization": f"Bearer {self.judgment_api_key}",
                                     "X-Organization-Id": self.organization_id
                                  },
-                                 json=eval_run_request_body.model_dump())
+                                 json=eval_run_request_body.model_dump(),
+                                 verify=False)
         if eval_run.status_code != requests.codes.ok:
             raise ValueError(f"Error fetching eval results: {eval_run.json()}")
 
@@ -378,7 +379,8 @@ class JudgmentClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
             },
-            json={}  # Empty body now
+            json={},  # Empty body now
+            verify=False
         )
         if response.status_code == 200:
             return True, response.json()
@@ -409,7 +411,8 @@ class JudgmentClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
                 "X-Organization-Id": self.organization_id
-            }
+            },
+            verify=False
         )
         
         if response.status_code == 500:
@@ -452,7 +455,8 @@ class JudgmentClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
                 "X-Organization-Id": self.organization_id
-            }
+            },
+            verify=False
         )
         
         if response.status_code == 500:

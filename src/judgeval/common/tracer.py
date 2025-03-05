@@ -207,7 +207,8 @@ class TraceManagerClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
                 "X-Organization-Id": self.organization_id
-            }
+            },
+            verify=False
         )
 
         if response.status_code != HTTPStatus.OK:
@@ -231,7 +232,8 @@ class TraceManagerClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
                 "X-Organization-Id": self.organization_id
-            }
+            },
+            verify=False
         )
         
         if response.status_code == HTTPStatus.BAD_REQUEST:
