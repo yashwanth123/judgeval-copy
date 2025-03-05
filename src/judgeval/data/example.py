@@ -20,6 +20,7 @@ class ExampleParams(Enum):
     TOOLS_CALLED = "tools_called"
     EXPECTED_TOOLS = "expected_tools"
     REASONING = "reasoning"
+    ADDITIONAL_METADATA = "additional_metadata"
 
 
 class Example(BaseModel):
