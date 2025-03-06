@@ -56,14 +56,14 @@ class Example(BaseModel):
     @classmethod
     def validate_input(cls, v):
         if not v or not isinstance(v, str):
-            raise ValueError(f"Input must be a non-empty string but got {v} of type {type(v)}")
+            raise ValueError(f"Input must be a non-empty string but got '{v}' of type {type(v)}")
         return v
     
     @field_validator('actual_output', mode='before')
     @classmethod
     def validate_actual_output(cls, v):
         if not isinstance(v, str):
-            raise ValueError(f"Actual output must be a string but got {v} of type {type(v)}")
+            raise ValueError(f"Actual output must be a string but got '{v}' of type {type(v)}")
         return v
     
     @field_validator('expected_output', mode='before')
