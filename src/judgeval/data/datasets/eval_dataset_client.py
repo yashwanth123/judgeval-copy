@@ -68,7 +68,8 @@ class EvalDatasetClient:
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {self.judgment_api_key}",
                         "X-Organization-Id": self.organization_id
-                    }
+                    },
+                    verify=False
                 )
                 if response.status_code == 500:
                     error(f"Server error during push: {content.get('message')}")
@@ -132,7 +133,8 @@ class EvalDatasetClient:
                             "Content-Type": "application/json",
                             "Authorization": f"Bearer {self.judgment_api_key}",
                             "X-Organization-Id": self.organization_id
-                        }
+                        },
+                        verify=False
                     )
                     response.raise_for_status()
                 except requests.exceptions.RequestException as e:
@@ -190,7 +192,8 @@ class EvalDatasetClient:
                             "Content-Type": "application/json",
                             "Authorization": f"Bearer {self.judgment_api_key}",
                             "X-Organization-Id": self.organization_id
-                        }
+                        },
+                        verify=False
                     )
                     response.raise_for_status()
                 except requests.exceptions.RequestException as e:
@@ -243,7 +246,8 @@ class EvalDatasetClient:
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {self.judgment_api_key}",
                         "X-Organization-Id": self.organization_id
-                    }
+                    },
+                    verify=False
                 )
                 response.raise_for_status()
             except requests.exceptions.RequestException as e:
@@ -274,7 +278,8 @@ class EvalDatasetClient:
                         "Authorization": f"Bearer {self.judgment_api_key}",
                         "X-Organization-Id": self.organization_id
                     },
-                    stream=True
+                    stream=True,
+                    verify=False
                 )
                 response.raise_for_status()
             except requests.exceptions.HTTPError as err:

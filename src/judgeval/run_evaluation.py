@@ -55,7 +55,8 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
             "Authorization": f"Bearer {evaluation_run.judgment_api_key}",
             "X-Organization-Id": evaluation_run.organization_id
         }, 
-        json=payload)
+        json=payload,
+        verify=False)
         response_data = response.json()
     except Exception as e:
         error(f"Error: {e}")
@@ -168,7 +169,8 @@ def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_k
                 "eval_name": eval_name,
                 "project_name": project_name,
                 "judgment_api_key": judgment_api_key,
-            }
+            },
+            verify=False
         )
         
         if response.status_code == 409:
@@ -210,7 +212,8 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
                 "results": [result.to_dict() for result in merged_results],
                 "project_name": evaluation_run.project_name,
                 "eval_name": evaluation_run.eval_name,
-            }
+            },
+            verify=False
         )
         
         if not res.ok:
