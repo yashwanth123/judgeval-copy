@@ -13,6 +13,7 @@ from judgeval.scorers import (
     FaithfulnessScorer,
     HallucinationScorer,
     SummarizationScorer,
+    ComparisonScorer,
     Text2SQLScorer,
 )
 
@@ -76,7 +77,7 @@ def test_ar_scorer():
 
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
-    EVAL_RUN_NAME = "test-run"
+    EVAL_RUN_NAME = "test-run-ar"
 
     # Test with use_judgment=True
     res = client.run_evaluation(
@@ -114,6 +115,40 @@ def test_ar_scorer():
     assert res[0].success == True
     assert res[1].success == False
 
+
+def test_comparison_scorer():
+    example_1 = Example(
+        input="Generate a poem about a field",
+        expected_output="A sunlit meadow, alive with whispers of wind, where daisies dance and hope begins again. Each petal holds a promise—bright, unbruised— a symphony of light that cannot be refused.",
+        actual_output="A field, kinda windy, with some flowers, stuff growing, and maybe a nice vibe. Petals do things, I guess? Like, they're there… and light exists, but whatever, it's fine."
+    )   
+
+    example_2 = Example(
+        input="Generate a poem about a field",
+        expected_output="A field, kinda windy, with some flowers, stuff growing, and maybe a nice vibe. Petals do things, I guess? Like, they're there… and light exists, but whatever, it's fine.",
+        actual_output="A field, kinda windy, with some flowers, stuff growing, and maybe a nice vibe. Petals do things, I guess? Like, they're there… and light exists, but whatever, it's fine."
+    )
+
+    scorer = ComparisonScorer(threshold=1, criteria="Tone and Style", description="The tone and style of the poem should be consistent and cohesive.")
+
+    client = JudgmentClient()
+    PROJECT_NAME = "test-project"
+    EVAL_RUN_NAME = "test-run-comparison"
+
+    res = client.run_evaluation(
+        examples=[example_1, example_2],
+        scorers=[scorer],
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=True,
+        override=True,  
+    )
+
+    print_debug_on_failure(res[1])
+    assert res[0].success == False
+    assert res[1].success == True
 
 def test_cp_scorer():
 
@@ -648,6 +683,7 @@ def print_debug_on_failure(result) -> bool:
 if __name__ == "__main__":
     test_ac_scorer()
     test_ar_scorer()
+    test_comparison_scorer()
     test_cp_scorer()
     test_cr_scorer()
     test_crelevancy_scorer()

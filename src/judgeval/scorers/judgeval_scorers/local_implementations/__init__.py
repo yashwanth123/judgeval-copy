@@ -8,11 +8,12 @@ from judgeval.scorers.judgeval_scorers.local_implementations.tool_correctness.to
 from judgeval.scorers.judgeval_scorers.local_implementations.hallucination.hallucination_scorer import HallucinationScorer
 from judgeval.scorers.judgeval_scorers.local_implementations.summarization.summarization_scorer import SummarizationScorer
 from judgeval.scorers.judgeval_scorers.local_implementations.answer_correctness.answer_correctness_scorer import AnswerCorrectnessScorer
-
+from judgeval.scorers.judgeval_scorers.local_implementations.comparison.comparison_scorer import ComparisonScorer
 
 __all__ = [
     "AnswerCorrectnessScorer",
     "AnswerRelevancyScorer",
+    "ComparisonScorer",
     "ContextualPrecisionScorer",
     "ContextualRecallScorer",
     "ContextualRelevancyScorer",

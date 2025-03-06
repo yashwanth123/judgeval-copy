@@ -23,6 +23,7 @@ class APIScorer(str, Enum):
     CONTEXTUAL_PRECISION = "contextual_precision"
     TOOL_CORRECTNESS = "tool_correctness"
     JSON_CORRECTNESS = "json_correctness"
+    COMPARISON = "comparison"
 
     @classmethod
     def _missing_(cls, value):
@@ -30,6 +31,8 @@ class APIScorer(str, Enum):
         for member in cls:
             if member.value == value.lower():
                 return member
+
+UNBOUNDED_SCORERS = set([APIScorer.COMPARISON])  # scorers whose scores are not bounded between 0-1
 
 ROOT_API = os.getenv("JUDGMENT_API_URL", "https://api.judgmentlabs.ai")
 # API URLs

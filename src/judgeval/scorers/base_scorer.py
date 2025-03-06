@@ -7,7 +7,7 @@ Scores `Example`s using ready-made Judgment evaluators.
 from pydantic import BaseModel, field_validator
 from judgeval.common.logger import debug, info, warning, error
 
-from judgeval.constants import APIScorer
+from judgeval.constants import APIScorer, UNBOUNDED_SCORERS
 
 
 class APIJudgmentScorer(BaseModel):
@@ -18,17 +18,23 @@ class APIJudgmentScorer(BaseModel):
         score_type (APIScorer): The Judgment metric to use for scoring `Example`s
         threshold (float): A value between 0 and 1 that determines the scoring threshold
     """
-    threshold: float
     score_type: APIScorer
+    threshold: float
 
     @field_validator('threshold')
-    def validate_threshold(cls, v):
+    def validate_threshold(cls, v, info):
         """
         Validates that the threshold is between 0 and 1 inclusive.
         """
-        if not 0 <= v <= 1:
-            error(f"Threshold must be between 0 and 1, got: {v}")
-            raise ValueError(f"Threshold must be between 0 and 1, got: {v}")
+        score_type = info.data.get('score_type')
+        if score_type in UNBOUNDED_SCORERS:
+            if v < 0:
+                error(f"Threshold for {score_type} must be greater than 0, got: {v}")
+                raise ValueError(f"Threshold for {score_type} must be greater than 0, got: {v}")
+        else:
+            if not 0 <= v <= 1:
+                error(f"Threshold for {score_type} must be between 0 and 1, got: {v}")
+                raise ValueError(f"Threshold for {score_type} must be between 0 and 1, got: {v}")
         return v
 
     @field_validator('score_type')
