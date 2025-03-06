@@ -22,18 +22,22 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 def load_data():
     """Load and parse the data from CSV file"""
-    with open(os.path.join(os.path.dirname(__file__), "cstone_data.csv"), "r") as f:
-        reader = csv.reader(f)
-        next(reader)  # Skip header row
-        data = list(reader)
+    with open(os.path.join(os.path.dirname(__file__), "JudgmentDemo/clh-ma-class-action-sec-v3.xlsx"), "rb") as f:
+        # reader = csv.reader(f)
+        df = pd.read_excel(f)
+        print(f"df: {df.shape=}")
+        # next(reader)  # Skip header row
+        # data = list(reader)
+        data = df.iterrows()
     
     examples = []
     for row in data:
-        docket_id, excerpts, raw_response, quote, is_class_action, note, is_hallucination = row
+        # docket_id, excerpts, LLM_raw_response, LLM_quote, is_class_action, LLM_note, final_flag, correct, RZ_note = row
+        _, data = row
         example = Example(
-            input=str(docket_id),
-            actual_output=raw_response,
-            retrieval_context=[excerpts],
+            input=str(data['docket_id']),
+            actual_output=data['LLM_raw_response'],
+            retrieval_context=[data['excerpts']],
         )
         examples.append(example)
         
@@ -53,10 +57,10 @@ def run_judgment_evaluation(examples: List[Example]):
     scorer = FaithfulnessScorer(threshold=1.0)
     
     output = client.run_evaluation(
-        model="osiris-large",
+        model="gpt-4o",
         examples=examples,
         scorers=[scorer],
-        eval_run_name="cstone-basic-test-osiris-large-1", 
+        eval_run_name="cstone-basic-test-gpt-4o-1", 
         project_name="cstone_faithfulness_testing",
         override=True,
     )
