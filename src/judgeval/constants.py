@@ -32,7 +32,7 @@ class APIScorer(str, Enum):
             if member.value == value.lower():
                 return member
 
-UNBOUNDED_SCORERS = set([APIScorer.COMPARISON])
+UNBOUNDED_SCORERS = set([APIScorer.COMPARISON])  # scorers whose scores are not bounded between 0-1
 
 ROOT_API = os.getenv("JUDGMENT_API_URL", "https://api.judgmentlabs.ai")
 # API URLs
