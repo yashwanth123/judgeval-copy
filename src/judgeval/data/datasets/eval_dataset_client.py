@@ -69,7 +69,7 @@ class EvalDatasetClient:
                         "Authorization": f"Bearer {self.judgment_api_key}",
                         "X-Organization-Id": self.organization_id
                     },
-                    verify=False
+                    verify=True
                 )
                 if response.status_code == 500:
                     error(f"Server error during push: {content.get('message')}")
@@ -134,7 +134,7 @@ class EvalDatasetClient:
                             "Authorization": f"Bearer {self.judgment_api_key}",
                             "X-Organization-Id": self.organization_id
                         },
-                        verify=False
+                        verify=True
                     )
                     response.raise_for_status()
                 except requests.exceptions.RequestException as e:
@@ -193,7 +193,7 @@ class EvalDatasetClient:
                             "Authorization": f"Bearer {self.judgment_api_key}",
                             "X-Organization-Id": self.organization_id
                         },
-                        verify=False
+                        verify=True
                     )
                     response.raise_for_status()
                 except requests.exceptions.RequestException as e:
@@ -247,7 +247,7 @@ class EvalDatasetClient:
                         "Authorization": f"Bearer {self.judgment_api_key}",
                         "X-Organization-Id": self.organization_id
                     },
-                    verify=False
+                    verify=True
                 )
                 response.raise_for_status()
             except requests.exceptions.RequestException as e:
@@ -279,7 +279,7 @@ class EvalDatasetClient:
                         "X-Organization-Id": self.organization_id
                     },
                     stream=True,
-                    verify=False
+                    verify=True
                 )
                 response.raise_for_status()
             except requests.exceptions.HTTPError as err:
