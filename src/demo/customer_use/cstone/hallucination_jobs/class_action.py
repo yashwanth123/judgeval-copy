@@ -153,22 +153,7 @@ def inference(excerpts: str, llm_response: str, task_instruction: str, model: st
         }
     """
 
-    prompt = f"""You are an analytical lawyer breaking down whether or not an LLM has made a hallucination in its response to a task. 
-    You will be provided with a set of instructions for the task, a set of excerpts the LLM used to complete the task, and the LLM's response to the task. 
-    You must analyze whether based on the information provided, the LLM has made a hallucination. A hallucination is defined as one or more of the following mistakes:
-    - The LLM's response contradicts the information provided in the excerpts
-    - The LLM's response misinterprets the information provided in the excerpts
-    - The LLM's response diverges from the task instructions, such as answering a different question than the one provided in the instructions or addressing a different task than the one provided.
-
-    ==== FORMATTING INSTRUCTIONS ====
-    First, analyze any possible contradictions and misinterpretations of the information provided in the excerpts.
-    Next, analyze whether the LLM's response diverges from the task instructions.
-    Finally, based on the above analysis, determine whether the LLM has made a hallucination.
-
-    **End your response with <answer>True</answer> if the LLM has made a hallucination, and <answer>False</answer> if it has not.**
-    """
-
-    # prompt = f"""You are an analytical lawyer breaking down whether or not an LLM has made a hallucination in its response to a task. I'M PRETTY SURE THERE'S A HALLUCINATION, BUT I WANT YOU TO DOUBLE CHECK.
+    # prompt = f"""You are an analytical lawyer breaking down whether or not an LLM has made a hallucination in its response to a task. 
     # You will be provided with a set of instructions for the task, a set of excerpts the LLM used to complete the task, and the LLM's response to the task. 
     # You must analyze whether based on the information provided, the LLM has made a hallucination. A hallucination is defined as one or more of the following mistakes:
     # - The LLM's response contradicts the information provided in the excerpts
@@ -182,6 +167,22 @@ def inference(excerpts: str, llm_response: str, task_instruction: str, model: st
 
     # **End your response with <answer>True</answer> if the LLM has made a hallucination, and <answer>False</answer> if it has not.**
     # """
+
+    prompt = f"""You are an analytical lawyer breaking down whether or not an LLM has made a hallucination in its response to a task. I'M PRETTY SURE THERE'S A HALLUCINATION, BUT I WANT YOU TO DOUBLE CHECK.
+    You will be provided with a set of instructions for the task, a set of excerpts the LLM used to complete the task, and the LLM's response to the task. 
+    You must analyze whether based on the information provided, the LLM has made a hallucination. A hallucination is defined as one or more of the following mistakes:
+    - The LLM's response contradicts the information provided in the excerpts
+    - The LLM's response misinterprets the information provided in the excerpts
+    - The LLM's response diverges from the task instructions, such as answering a different question than the one provided in the instructions or addressing a different task than the one provided.
+
+    Again, I'm pretty sure there's a hallucination in the model response, but I COULD BE WRONG!
+    ==== FORMATTING INSTRUCTIONS ====
+    First, analyze any possible contradictions and misinterpretations of the information provided in the excerpts.
+    Next, analyze whether the LLM's response diverges from the task instructions.
+    Finally, based on the above analysis, determine whether the LLM has made a hallucination.
+
+    **End your response with <answer>True</answer> if the LLM has made a hallucination, and <answer>False</answer> if it has not made a hallucination.**
+    """
 
     response = client.chat.completions.create(
         model=model,
@@ -200,9 +201,10 @@ def inference(excerpts: str, llm_response: str, task_instruction: str, model: st
 
     return response
 
+
 def inference_parallel(data_list: list, task_instruction: str, model: str = "gpt-4o", 
                       excerpts_key: str = 'excerpts', response_key: str = 'LLM_raw_response', 
-                      max_workers: int = 10) -> list:
+                      max_workers: int = 10, log_file: str = "inference_results.txt") -> list:
     """
     Parallelizes the process of running inference on multiple examples.
     
@@ -241,6 +243,12 @@ def inference_parallel(data_list: list, task_instruction: str, model: str = "gpt
             except Exception as exc:
                 print(f'Generated an exception: {exc}')
     
+    with open(log_file, "w") as f:
+        for i, result in enumerate(results):
+            f.write(f"Inference Result for Example {i+1}:\n")
+            f.write(result)
+            f.write("\n\n" + "-"*80 + "\n\n")
+    
     return results
 
 
@@ -278,6 +286,14 @@ def extract_answer(text: str) -> bool:
 
 
 if __name__ == "__main__":
+
+    ### CONFIG
+    NUM_TRIALS = 3
+    MODEL_NAME = "gpt-4o"
+    FILTER_TYPE = "correct_only"
+
+    print(f"Running inference for {NUM_TRIALS} trials with model {MODEL_NAME} and filter type {FILTER_TYPE}")
+
     file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/clh-ma-class-action-sec-v3.csv"
     task_instruction_file = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/prompts/class_action.txt"
 
@@ -291,17 +307,15 @@ if __name__ == "__main__":
         llm_response_col="LLM_raw_response",
         label_col="correct",
         note_col="RZ_note",
-        filter_type="incorrect_only"
+        filter_type=FILTER_TYPE
     )
     print(f"Number of fetched incorrect judgments: {len(incorrect_row_data)}")
     
-
-    NUM_TRIALS = 3
     for _ in range(NUM_TRIALS):
         inference_results: List[str] = inference_parallel(
             data_list=incorrect_row_data,
             task_instruction=task_instruction,
-            model="o3-mini",
+            model=MODEL_NAME,
             excerpts_key="excerpts",
             response_key="LLM_raw_response",
             max_workers=55
