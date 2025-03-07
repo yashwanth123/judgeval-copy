@@ -288,9 +288,11 @@ def extract_answer(text: str) -> bool:
 if __name__ == "__main__":
 
     ### CONFIG
+    import os
     NUM_TRIALS = 3
     MODEL_NAME = "gpt-4o"
     FILTER_TYPE = "correct_only"
+    LOG_FILE = os.path.join(os.path.dirname(__file__), f"inference_results-{MODEL_NAME}-{FILTER_TYPE}-class-action.txt")
 
     print(f"Running inference for {NUM_TRIALS} trials with model {MODEL_NAME} and filter type {FILTER_TYPE}")
 
@@ -318,7 +320,8 @@ if __name__ == "__main__":
             model=MODEL_NAME,
             excerpts_key="excerpts",
             response_key="LLM_raw_response",
-            max_workers=55
+            max_workers=55,
+            log_file=LOG_FILE
         )
 
         hallucination_results: List[bool] = [extract_answer(result) for result in inference_results]
