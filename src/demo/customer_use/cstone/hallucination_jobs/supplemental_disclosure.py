@@ -280,12 +280,8 @@ def extract_answer(text: str) -> bool:
 if __name__ == "__main__":
     file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/clh-ma-supplemental-disclosure.csv"
     task_instruction_file = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/prompts/supplemental_disclosure.txt"
+    NUM_TRIALS = 3
 
-    # file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/clh-ma-class-action-sec-v3.csv"
-    # task_instruction_file = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/prompts/class_action.txt"
-
-    # file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/wh-driver-amend-charter.csv"
-    # task_instruction_file = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/prompts/driver_amend.txt"
     with open(task_instruction_file, 'r') as file:
         task_instruction = file.read()
 
@@ -296,17 +292,15 @@ if __name__ == "__main__":
         llm_response_col="raw_response",
         label_col="supplemental_disclosure_correct",
         note_col="RZ_note",
-        filter_type="correct_only"
+        filter_type="incorrect_only"
     )
     print(f"Number of fetched incorrect judgments: {len(incorrect_row_data)}")
     
-
-    NUM_TRIALS = 3
     for _ in range(NUM_TRIALS):
         inference_results: List[str] = inference_parallel(
             data_list=incorrect_row_data,
             task_instruction=task_instruction,
-            model="gpt-4o",
+            model="o3-mini",
             excerpts_key="excerpts",
             response_key="LLM_raw_response",
             max_workers=55
@@ -323,15 +317,3 @@ if __name__ == "__main__":
         print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
         print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
         print(f"  Total: {len(hallucination_results)}")
-
-        # failure_reasons = find_failure_reasons_parallel(
-        #     task_instruction=task_instruction,
-        #     data_list=incorrect_row_data,
-        #     response_key="LLM_raw_response",
-        #     excerpts_key="excerpts"
-        # )
-        
-        # for i, failure_reason in enumerate(failure_reasons):
-        #     print(f"Failure Reason for Example {i+1}:")
-        #     print(failure_reason)
-        #     print("\n" + "-"*80 + "\n")
