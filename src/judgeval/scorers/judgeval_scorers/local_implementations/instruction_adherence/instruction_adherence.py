@@ -112,8 +112,7 @@ class InstructionAdherenceScorer(JudgevalScorer):
                 )
                 return self.score
         except Exception as e:
-            print(f"Error: {e}")
-            raise
+            raise e
 
 
     async def _a_get_verdicts(
@@ -146,7 +145,7 @@ class InstructionAdherenceScorer(JudgevalScorer):
                 ]
 
     def _get_verdicts(self, instructions: List[str], actual_output: str) -> List[Verdict]:
-        if len(self.statements) == 0:
+        if len(instructions) == 0:
             return []
 
         prompt = InstructionAdherenceTemplate.generate_verdicts(
