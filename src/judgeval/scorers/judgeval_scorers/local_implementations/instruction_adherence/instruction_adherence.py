@@ -210,7 +210,8 @@ class InstructionAdherenceScorer(JudgevalScorer):
                 return data["instructions"]
 
     def _compute_score(self):
-
+        if len(self.verdicts) == 0:
+            return 1
         score = 0
         for verdict in self.verdicts:
             score += verdict.score
