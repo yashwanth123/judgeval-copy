@@ -20,24 +20,34 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-def load_data(file_path: str, docket_id_column: str, actual_output_column: str, retrieval_context_column: str):
-    """Load and parse the data from CSV or EXCEL file"""
-    with open(file_path, "r+") as f:
-        reader = csv.reader(f)
-        # df = pd.read_excel(f)
-        # print(f"df: {df.shape=}")
-        next(reader)  # Skip header row
-        data = list(reader)
-        # data = df.iterrows()
-    
-    examples = []
-    # Get column indices from header
+def load_data(
+    file_path: str, 
+    docket_id_column: str, 
+    actual_output_column: str, 
+    retrieval_context_column: str,
+    label_column: str,
+    flip_labels: bool = False,
+    sampling_limit: int = None
+    ):
+    """Load and parse the data from CSV"""
+    examples, gold_labels = [], []
+
     with open(file_path, "r") as f:
-        header = next(csv.reader(f))
+        reader = csv.reader(f)
+        header = next(reader)  # Get header row
+        # Get column indices from header
         docket_id_idx = header.index(docket_id_column)
         actual_output_idx = header.index(actual_output_column)
         retrieval_context_idx = header.index(retrieval_context_column)
-    
+        label_idx = header.index(label_column)
+        # Read the data
+        data = list(reader)
+        
+        # Apply sampling limit if specified
+        if sampling_limit is not None and sampling_limit < len(data):
+            import random
+            data = random.sample(data, sampling_limit)
+        
     for row in data:
         example = Example(
             input=str(row[docket_id_idx]),
@@ -46,9 +56,15 @@ def load_data(file_path: str, docket_id_column: str, actual_output_column: str, 
         )
         examples.append(example)
 
+        orig_label = row[label_idx]
+        if flip_labels:
+            gold_labels.append(not orig_label)
+        else:
+            gold_labels.append(orig_label)
+
     print(f"Loaded {len(examples)} examples from dataset.")
         
-    return examples
+    return examples, gold_labels
 
 def run_judgment_evaluation(examples: List[Example], model: str, run_threshold: float = 1.0) -> List[bool]:
     """
@@ -78,7 +94,6 @@ def run_judgment_evaluation(examples: List[Example], model: str, run_threshold: 
         scores.append(score)
 
     print(f"Judgment Scores: {scores}")
-    
     # score < threshold ==> hallucination. score >= threshold ==> not hallucination
     return [score < run_threshold for score in scores]
 
@@ -151,25 +166,11 @@ def run_patronus_evaluation(examples: List[Example]):
         
     return [score < 0.9 for score in scores]
 
-def evaluate_predictions(file_path: str, predictions: List[bool], labels_column: str, docket_id_column: str, flip_labels: bool = False):
+def evaluate_predictions(docket_ids: List[str], predictions: List[bool], gold_labels: List[bool]):
     """Calculate metrics comparing predictions to gold labels"""
-    df = pd.read_csv(os.path.join(os.path.dirname(__file__), file_path))
-    # df = pd.read_excel(file_path)
-    gold_labels = df[labels_column].tolist()
-    # # Count and print the number of true vs false labels
-    # true_count = sum(1 for label in gold_labels if label)
-    # false_count = sum(1 for label in gold_labels if not label)
-    # print(f"Gold labels: {true_count} True, {false_count} False (total: {len(gold_labels)})")
-
-    if flip_labels:
-        gold_labels = [not label for label in gold_labels]
-        print(f"is_hallucinated labels: {gold_labels}")
-
-    docket_ids = df[docket_id_column].tolist()
     
     # Find false negatives
-    false_negatives = [docket_id for docket_id, gold, pred in zip(docket_ids, gold_labels, predictions) 
-                      if gold and not pred]
+    false_negatives = [docket_id for docket_id, gold, pred in zip(docket_ids, gold_labels, predictions) if gold and not pred]
     
     # Calculate confusion matrix metrics
     # is_hallucinated is the gold label, predictions is a bool where True = hallucinated, False = not hallucinated
@@ -260,19 +261,24 @@ def evaluate_predictions(file_path: str, predictions: List[bool], labels_column:
         }
     }
 
+
 if __name__ == "__main__":
     # Load data
-    FILE_PATH = os.path.join(
-        os.path.dirname(__file__),                     
-        "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/clh-ma-class-action-sec-v3.csv"
-    )
-    examples = load_data(
+    FILE_PATH = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/clh-ma-class-action-sec-v3.csv"
+    
+    examples, gold_labels = load_data(
         FILE_PATH, 
         docket_id_column="docket_id", 
         actual_output_column="LLM_raw_response", 
-        retrieval_context_column="excerpts"
+        retrieval_context_column="excerpts",
+        label_column="correct",
+        flip_labels=True,
+        sampling_limit=10
     )
     
+    docket_ids = [example.input for example in examples]
+    print(f"docket_ids: {docket_ids}")
+
     # Run evaluations
     judgment_predictions = run_judgment_evaluation(
         examples, 
@@ -285,15 +291,14 @@ if __name__ == "__main__":
     # patronus_predictions = run_patronus_evaluation(examples)
 
     print(f"Judgment Predictions: {judgment_predictions}")
-    # ronus Predictions: {patronus_predictions}")
+    print(f"Gold Labels: {gold_labels}")
+    # Patronus Predictions: {patronus_predictions}")
 
     # Calculate and print metrics for both
     judgment_metrics = evaluate_predictions(
-        FILE_PATH, 
-        judgment_predictions,   # whether the model output is a hallucination
-        labels_column="correct", 
-        docket_id_column="docket_id", 
-        flip_labels=True
+        docket_ids=docket_ids, 
+        predictions=judgment_predictions,   # whether the model output is a hallucination
+        gold_labels=gold_labels
     )
     # patronus_metrics = evaluate_predictions(patronus_predictions)
     
