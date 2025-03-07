@@ -22,22 +22,27 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 def load_data(file_path: str, docket_id_column: str, actual_output_column: str, retrieval_context_column: str):
     """Load and parse the data from CSV or EXCEL file"""
-    with open(file_path, "rb") as f:
-        # reader = csv.reader(f)
-        df = pd.read_excel(f)
-        print(f"df: {df.shape=}")
-        # next(reader)  # Skip header row
-        # data = list(reader)
-        data = df.iterrows()
+    with open(file_path, "r+") as f:
+        reader = csv.reader(f)
+        # df = pd.read_excel(f)
+        # print(f"df: {df.shape=}")
+        next(reader)  # Skip header row
+        data = list(reader)
+        # data = df.iterrows()
     
     examples = []
+    # Get column indices from header
+    with open(file_path, "r") as f:
+        header = next(csv.reader(f))
+        docket_id_idx = header.index(docket_id_column)
+        actual_output_idx = header.index(actual_output_column)
+        retrieval_context_idx = header.index(retrieval_context_column)
+    
     for row in data:
-        # docket_id, excerpts, LLM_raw_response, LLM_quote, is_class_action, LLM_note, final_flag, correct, RZ_note = row
-        _, data = row
         example = Example(
-            input=str(data[docket_id_column]),
-            actual_output=data[actual_output_column],
-            retrieval_context=[data[retrieval_context_column]],
+            input=str(row[docket_id_idx]),
+            actual_output=row[actual_output_idx],
+            retrieval_context=[row[retrieval_context_idx]],
         )
         examples.append(example)
 
@@ -71,6 +76,8 @@ def run_judgment_evaluation(examples: List[Example], model: str, run_threshold: 
     for result in output:
         score = result.scorers_data[0].score
         scores.append(score)
+
+    print(f"Judgment Scores: {scores}")
     
     # score < threshold ==> hallucination. score >= threshold ==> not hallucination
     return [score < run_threshold for score in scores]
@@ -79,22 +86,22 @@ def run_base_evaluation(examples: List[Example], model: str) -> List[bool]:
     """
     Run evaluation using base approach
     """
-    predictions = []
-    for ex in examples:
-        docket_id = ex.input
+    import concurrent.futures
+    
+    BASE_HALLUCINATION_PROMPT = """
+    You are a helpful assistant that determines if a given text is a hallucination.
+    A hallucination is defined as a statement in the model output that is not supported by the provided context.
+
+    You will be given a model output and a retrieval context. You will need to determine if the model output is a hallucination.
+
+    Please respond with "True" if the model output is a hallucination, and "False" if it is not.
+    ONLY RESPOND WITH "True" OR "False". DO NOT RESPOND WITH ANY OTHER TEXT.
+    """
+    
+    def process_example(ex):
         actual_output = ex.actual_output
         retrieval_context = ex.retrieval_context
-
-        BASE_HALLUCINATION_PROMPT = f"""
-        You are a helpful assistant that determines if a given text is a hallucination.
-        A hallucination is defined as a statement in the model output that is not supported by the provided context.
-
-        You will be given a model output and a retrieval context. You will need to determine if the model output is a hallucination.
-
-        Please respond with "True" if the model output is a hallucination, and "False" if it is not.
-        ONLY RESPOND WITH "True" OR "False". DO NOT RESPOND WITH ANY OTHER TEXT.
-        """
-
+        
         response = openai.chat.completions.create(
             model=model,
             messages=[
@@ -102,14 +109,18 @@ def run_base_evaluation(examples: List[Example], model: str) -> List[bool]:
                 {"role": "user", "content": f"Model Output: {actual_output}\nRetrieval Context: {retrieval_context}"}
             ]
         ).choices[0].message.content
-
+        
         if response == "True":
-            predictions.append(True)
+            return True
         elif response == "False":
-            predictions.append(False)
+            return False
         else:
             raise ValueError(f"Invalid response: {response}")
-
+    
+    # Use ThreadPoolExecutor to parallelize API calls
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        predictions = list(executor.map(process_example, examples))
+    
     return predictions
 
 def run_patronus_evaluation(examples: List[Example]):
@@ -142,8 +153,8 @@ def run_patronus_evaluation(examples: List[Example]):
 
 def evaluate_predictions(file_path: str, predictions: List[bool], labels_column: str, docket_id_column: str, flip_labels: bool = False):
     """Calculate metrics comparing predictions to gold labels"""
-    # df = pd.read_csv(os.path.join(os.path.dirname(__file__), "cstone_data.csv"))
-    df = pd.read_excel(file_path)
+    df = pd.read_csv(os.path.join(os.path.dirname(__file__), file_path))
+    # df = pd.read_excel(file_path)
     gold_labels = df[labels_column].tolist()
     # # Count and print the number of true vs false labels
     # true_count = sum(1 for label in gold_labels if label)
@@ -251,7 +262,10 @@ def evaluate_predictions(file_path: str, predictions: List[bool], labels_column:
 
 if __name__ == "__main__":
     # Load data
-    FILE_PATH = os.path.join(os.path.dirname(__file__), "JudgmentDemo/clh-ma-class-action-sec-v3.xlsx")
+    FILE_PATH = os.path.join(
+        os.path.dirname(__file__),                     
+        "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/clh-ma-class-action-sec-v3.csv"
+    )
     examples = load_data(
         FILE_PATH, 
         docket_id_column="docket_id", 
@@ -263,8 +277,11 @@ if __name__ == "__main__":
     judgment_predictions = run_judgment_evaluation(
         examples, 
         model="osiris-mini", 
-        run_threshold=0.8
+        run_threshold=0.95
     )
+
+    # base_predictions = run_base_evaluation(examples, model="gpt-4o")
+    # judgment_predictions = base_predictions
     # patronus_predictions = run_patronus_evaluation(examples)
 
     print(f"Judgment Predictions: {judgment_predictions}")
@@ -273,7 +290,7 @@ if __name__ == "__main__":
     # Calculate and print metrics for both
     judgment_metrics = evaluate_predictions(
         FILE_PATH, 
-        judgment_predictions, 
+        judgment_predictions,   # whether the model output is a hallucination
         labels_column="correct", 
         docket_id_column="docket_id", 
         flip_labels=True
