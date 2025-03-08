@@ -1016,13 +1016,45 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         metadata: Optional[dict[str, Any]] = None,
         **kwargs: Any,
     ) -> Any:
-        pass
+        name = "RETRIEVER_CALL"
+        if serialized and "name" in serialized:
+            name = f"RETRIEVER_{serialized['name'].upper()}"
+        
+        self.start_span(name, span_type="retriever")
+        self.trace_client.record_input({
+            'query': query,
+            'tags': tags,
+            'metadata': metadata,
+            'kwargs': kwargs
+        })
 
     def on_retriever_end(
-        self, documents: Sequence[Document], *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any
+        self, 
+        documents: Sequence[Document], 
+        *, 
+        run_id: UUID, 
+        parent_run_id: Optional[UUID] = None, 
+        **kwargs: Any
     ) -> Any:
-        pass
-
+        # Process the retrieved documents into a format suitable for logging
+        doc_summary = []
+        for i, doc in enumerate(documents):
+            # Extract key information from each document
+            doc_data = {
+                "index": i,
+                "page_content": doc.page_content[:100] + "..." if len(doc.page_content) > 100 else doc.page_content,
+                "metadata": doc.metadata
+            }
+            doc_summary.append(doc_data)
+        
+        # Record the document data
+        self.trace_client.record_output({
+            "document_count": len(documents),
+            "documents": doc_summary
+        })
+        
+        # End the retriever span
+        self.end_span(self.trace_client._current_span, span_type="retriever")
 
     def on_tool_start(
         self,
@@ -1040,11 +1072,9 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
             'kwargs': kwargs
         })
 
-
     def on_tool_end(self, output: Any, *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any) -> Any:
         self.trace_client.record_output(output)
         self.end_span(self.trace_client._current_span, span_type="tool")
-
 
     def on_agent_action (self, action: AgentAction, **kwargs: Any) -> Any:
         print(f"Agent action: {action}")
