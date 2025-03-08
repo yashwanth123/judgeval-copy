@@ -470,15 +470,9 @@ class TraceClient:
         if self._current_span:
             duration = time.time() - start_time  # Calculate duration from start_time
             
-            # print(f"self._current_span: {type(self._current_span)=}, {self._current_span=}")
-            # print(f'{self.entries[-2]=}, {self.entries[-3]=}')
-            # print(f"{[(entry.function, entry.type, type(entry)) for entry in self.entries]}")
-            
-            # Have function be either the last function in the trace or the current span.
-            # function = self._current_span if not langchain else self.entries[-1].function
-            
             prev_entry = self.entries[-1]
             
+            # Select the last entry in the trace if it's an LLM call, otherwise use the current span
             self.add_entry(TraceEntry(
                 type="evaluation",
                 function=prev_entry.function if prev_entry.span_type == "llm" else self._current_span,
@@ -489,8 +483,6 @@ class TraceClient:
                 duration=duration,
                 span_type="evaluation"
             ))
-            
-            # print(f"{self.entries[-1]=}")
 
     def record_input(self, inputs: dict):
         """Record input parameters for the current span"""
