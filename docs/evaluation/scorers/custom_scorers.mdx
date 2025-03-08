@@ -3,14 +3,14 @@ title: Custom Scorers
 description: ""
 ---
 
-If none of `judgeval`'s built-in scorers fit your evaluation criteria, you can easily build your own custom metric to be run through a `CustomScorer`. 
-`CustomScorer`s are **automatically integrated** within `judgeval`'s infrastructure, so you can:
+If none of `judgeval`'s built-in scorers fit your evaluation criteria, you can easily build your own custom metric to be run through a `JudgevalScorer`. 
+`JudgevalScorer`s are **automatically integrated** within `judgeval`'s infrastructure, so you can:
 - Run your own scorer with the same syntax as any other `judgeval` scorer.
 - Use `judgeval`'s batched evaluation infrastructure to execute **scalable evaluation runs**.
 - Have your scorer's results be viewed and analyzed in the Judgment platform.
 
 <Tip>
-Be creative with your custom scorers! You can measure **anything** you want using a `CustomScorer`, 
+Be creative with your custom scorers! You can measure **anything** you want using a `JudgevalScorer`, 
 including using evaluations that aren't LLM judge-based such as ROUGE or embedding similarity.
 </Tip>
 
@@ -18,20 +18,20 @@ including using evaluations that aren't LLM judge-based such as ROUGE or embeddi
 
 To implement your own custom scorer, you must:
 
-### 1. Inherit from the `CustomScorer` class
+### 1. Inherit from the `JudgevalScorer` class
 
 This will help `judgeval` integrate your scorer into evaluation runs.
 
 ```python custom_scorer.py
-from judgeval.scorers import CustomScorer
+from judgeval.scorers import JudgevalScorer
 
-class SampleScorer(CustomScorer):
+class SampleScorer(JudgevalScorer):
     ...
 ```
 
 ### 2. Implement the `__init__()` method
 
-`CustomScorer`s have some required attributes that must be determined in the `__init__()` method. 
+`JudgevalScorer`s have some required attributes that must be determined in the `__init__()` method. 
 For instance, you must set a `threshold` to determine what constitutes success/failure for a scorer. 
 
 There are additional optional attributes that can be set here for even more flexibility:
@@ -42,7 +42,7 @@ There are additional optional attributes that can be set here for even more flex
 - `verbose_mode (bool)`: Whether your scorer produces verbose logs.
 
 ```python custom_scorer.py
-class SampleScorer(CustomScorer):
+class SampleScorer(JudgevalScorer):
     def __init__(
         self,
         threshold=0.5,
@@ -87,7 +87,7 @@ This will allow `judgeval` to catch the error but **still execute the rest of an
 Here's a sample implementation that integrates everything we've covered:
 
 ```python custom_scorer.py
-class SampleScorer(CustomScorer):
+class SampleScorer(JudgevalScorer):
     ...
 
     def score_example(self, example, ...):
@@ -123,7 +123,7 @@ When executing an evaluation run, `judgeval` will check if your scorer has passe
 You can implement this method in any way you want, but **it should return a `bool`.** Here's a perfectly valid implementation:
 
 ```python custom_scorer.py
-class SampleScorer(CustomScorer):
+class SampleScorer(JudgevalScorer):
     ...
 
     def success_check(self, example):
@@ -137,7 +137,7 @@ class SampleScorer(CustomScorer):
 This is so that when displaying your scorer's results in the Judgment platform, you can easily sort by and find your scorer.
 
 ```python custom_scorer.py
-class SampleScorer(CustomScorer):
+class SampleScorer(JudgevalScorer):
     ...
 
     @property
@@ -147,7 +147,7 @@ class SampleScorer(CustomScorer):
 
 **Congratulations!** 🎉 
 
-You've made your first custom scorer! Now that your scorer is implemented, you can run it on your own datasets 
+You've made your first custom judgeval scorer! Now that your scorer is implemented, you can run it on your own datasets 
 just like any other `judgeval` scorer. Your scorer is fully integrated with `judgeval`'s infrastructure so you can view it on 
 the [Judgment platform](/judgment/introduction) too.
 

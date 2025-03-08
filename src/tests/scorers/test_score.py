@@ -13,7 +13,7 @@ from judgeval.data import Example, ScoringResult, ProcessExample, ScorerData
 from judgeval.common.exceptions import MissingTestCaseParamsError
 
 
-class MockCustomScorer(JudgevalScorer):
+class MockJudgevalScorer(JudgevalScorer):
     def score_example(self, example, *args, **kwargs):
         pass
 
@@ -35,7 +35,7 @@ def example():
 
 @pytest.fixture
 def basic_scorer():
-    return MockCustomScorer(
+    return MockJudgevalScorer(
         score_type="test_scorer",
         threshold=0.5
     )
@@ -45,8 +45,8 @@ def basic_scorer():
 def scorers(basic_scorer):
     """Fixture providing a list of test scorers"""
     return [
-        MockCustomScorer(score_type="test_scorer", threshold=0.5),
-        MockCustomScorer(score_type="test_scorer", threshold=0.5)
+        MockJudgevalScorer(score_type="test_scorer", threshold=0.5),
+        MockJudgevalScorer(score_type="test_scorer", threshold=0.5)
     ]
 
 
@@ -538,8 +538,8 @@ async def test_score_with_indicator_concurrent_execution(mock_progress, example,
         completed_order.append(2)  # Second scorer
 
     # Create two separate scorer instances instead of using the same one twice
-    scorer1 = MockCustomScorer(score_type="test_scorer", threshold=0.5)
-    scorer2 = MockCustomScorer(score_type="test_scorer", threshold=0.5)
+    scorer1 = MockJudgevalScorer(score_type="test_scorer", threshold=0.5)
+    scorer2 = MockJudgevalScorer(score_type="test_scorer", threshold=0.5)
     
     scorer1.a_score_example = AsyncMock(side_effect=mock_delayed_score)
     scorer2.a_score_example = AsyncMock(side_effect=mock_quick_score)
@@ -790,7 +790,7 @@ def mock_example():
 
 @pytest.fixture
 def mock_scorer():
-    """Create a mock CustomScorer"""
+    """Create a mock JudgevalScorer"""
     scorer = Mock(spec=JudgevalScorer)
     scorer.__name__ = "MockScorer"
     scorer.threshold = 0.8

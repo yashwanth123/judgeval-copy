@@ -17,9 +17,10 @@ class EvalDataset:
     _alias: Union[str, None] = field(default=None)
     _id: Union[str, None] = field(default=None)
     judgment_api_key: str = field(default="")
-
+    organization_id: str = field(default="")
     def __init__(self, 
                  judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"),  
+                 organization_id: str = os.getenv("JUDGMENT_ORG_ID"),
                  ground_truths: List[GroundTruthExample] = [], 
                  examples: List[Example] = [],
                  ):
@@ -31,7 +32,7 @@ class EvalDataset:
         self._alias = None
         self._id = None
         self.judgment_api_key = judgment_api_key
-        
+        self.organization_id = organization_id
 
     def add_from_json(self, file_path: str) -> None:
         debug(f"Loading dataset from JSON file: {file_path}")
@@ -162,7 +163,8 @@ class EvalDataset:
                 "additional_metadata": ast.literal_eval(row["additional_metadata"]) if pd.notna(row["additional_metadata"]) else dict(),
                 "tools_called": row["tools_called"].split(";") if pd.notna(row["tools_called"]) else [],
                 "expected_tools": row["expected_tools"].split(";") if pd.notna(row["expected_tools"]) else [],
-                "trace_id": row["trace_id"] if pd.notna(row["trace_id"]) else None
+                "trace_id": row["trace_id"] if pd.notna(row["trace_id"]) else None,
+                "example_id": str(row["example_id"]) if pd.notna(row["example_id"]) else None
             }
             if row["example"]:
                 data["name"] = row["name"] if pd.notna(row["name"]) else None

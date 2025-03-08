@@ -17,8 +17,8 @@ from judgeval.scorers import JudgevalScorer
 from judgeval.data import Example
 
 
-class MockCustomScorer(JudgevalScorer):
-    """Mock implementation of CustomScorer for testing"""
+class MockJudgevalScorer(JudgevalScorer):
+    """Mock implementation of JudgevalScorer for testing"""
     def __init__(self, **kwargs):
         super().__init__(
             score_type="mock_scorer",
@@ -39,7 +39,7 @@ class MockCustomScorer(JudgevalScorer):
 
 @pytest.fixture
 def mock_scorer():
-    return MockCustomScorer(
+    return MockJudgevalScorer(
         evaluation_model="gpt-4",
         strict_mode=True,
         async_mode=True,
@@ -50,8 +50,8 @@ def mock_scorer():
 @pytest.fixture
 def mock_scorers():
     return [
-        MockCustomScorer(evaluation_model="gpt-4o"),
-        MockCustomScorer(evaluation_model="gpt-4o")
+        MockJudgevalScorer(evaluation_model="gpt-4o"),
+        MockJudgevalScorer(evaluation_model="gpt-4o")
     ]
 
 

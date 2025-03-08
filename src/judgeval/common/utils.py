@@ -21,7 +21,6 @@ from judgeval.clients import async_together_client, together_client
 from judgeval.constants import *
 from judgeval.common.logger import debug, error
 
-LITELLM_SUPPORTED_MODELS = set(litellm.model_list)
 
 class CustomModelParameters(pydantic.BaseModel):
     model_name: str
@@ -72,7 +71,7 @@ class ChatCompletionRequest(pydantic.BaseModel):
     def validate_model(cls, model):
         if not model:
             raise ValueError("Model cannot be empty")
-        if model not in TOGETHER_SUPPORTED_MODELS and model not in LITELLM_SUPPORTED_MODELS:
+        if model not in ACCEPTABLE_MODELS:
             raise ValueError(f"Model {model} is not in the list of supported models.")
         return model
     
@@ -114,13 +113,13 @@ def fetch_together_api_response(model: str, messages: List[Mapping], response_fo
     if request.response_format is not None:
         debug(f"Using response format: {request.response_format}")
         response = together_client.chat.completions.create(
-            model=TOGETHER_SUPPORTED_MODELS.get(request.model),
+            model=request.model,
             messages=request.messages,
             response_format=request.response_format
         )
     else:
         response = together_client.chat.completions.create(
-            model=TOGETHER_SUPPORTED_MODELS.get(request.model),
+            model=request.model,
             messages=request.messages,
         )
     
@@ -144,13 +143,13 @@ async def afetch_together_api_response(model: str, messages: List[Mapping], resp
     if request.response_format is not None:
         debug(f"Using response format: {request.response_format}")
         response = await async_together_client.chat.completions.create(
-            model=TOGETHER_SUPPORTED_MODELS.get(request.model),
+            model=request.model,
             messages=request.messages,
             response_format=request.response_format
         )
     else:
         response = await async_together_client.chat.completions.create(
-            model=TOGETHER_SUPPORTED_MODELS.get(request.model),
+            model=request.model,
             messages=request.messages,
         )
     return response.choices[0].message.content
@@ -174,8 +173,8 @@ def query_together_api_multiple_calls(models: List[str], messages: List[List[Map
 
     # Validate all models are supported
     for model in models:
-        if model not in TOGETHER_SUPPORTED_MODELS:
-            raise ValueError(f"Model {model} is not in the list of supported TogetherAI models: {TOGETHER_SUPPORTED_MODELS}.")
+        if model not in ACCEPTABLE_MODELS:
+            raise ValueError(f"Model {model} is not in the list of supported models: {ACCEPTABLE_MODELS}.")
 
     # Validate input lengths match
     if response_formats is None:
@@ -223,8 +222,8 @@ async def aquery_together_api_multiple_calls(models: List[str], messages: List[L
 
     # Validate all models are supported
     for model in models:
-        if model not in TOGETHER_SUPPORTED_MODELS:
-            raise ValueError(f"Model {model} is not in the list of supported TogetherAI models: {TOGETHER_SUPPORTED_MODELS}.")
+        if model not in ACCEPTABLE_MODELS:
+            raise ValueError(f"Model {model} is not in the list of supported models: {ACCEPTABLE_MODELS}.")
 
     # Validate input lengths match
     if response_formats is None:
@@ -322,8 +321,8 @@ async def afetch_litellm_api_response(model: str, messages: List[Mapping], respo
     # Add validation
     validate_chat_messages(messages)
     
-    if model not in LITELLM_SUPPORTED_MODELS:
-        raise ValueError(f"Model {model} is not in the list of supported Litellm models: {LITELLM_SUPPORTED_MODELS}.")
+    if model not in ACCEPTABLE_MODELS:
+        raise ValueError(f"Model {model} is not in the list of supported models: {ACCEPTABLE_MODELS}.")
     
     if response_format is not None:
         response = await litellm.acompletion(
@@ -409,7 +408,7 @@ async def aquery_litellm_api_multiple_calls(models: List[str], messages: List[Ma
         models (List[str]): List of models to query
         messages (List[Mapping]): List of messages to query
         response_formats (List[pydantic.BaseModel], optional): A list of the format of the response if JSON forcing. Defaults to None.
-
+    
     Returns:
         List[str]: Litellm responses for each model and message pair in order. Any exceptions in the thread call result in a None.
     """

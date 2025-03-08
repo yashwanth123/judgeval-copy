@@ -8,8 +8,20 @@ import functools
 import requests
 import uuid
 from contextlib import contextmanager
-from typing import Optional, Any, List, Literal, Tuple, Generator, TypeAlias, Union
-from dataclasses import dataclass, field
+from typing import (
+    Optional, 
+    Any, 
+    List, 
+    Literal, 
+    Tuple, 
+    Generator, 
+    TypeAlias, 
+    Union
+)
+from dataclasses import (
+    dataclass, 
+    field
+)
 from datetime import datetime 
 from openai import OpenAI
 from together import Together
@@ -25,10 +37,19 @@ from rich import print as rprint
 from uuid import UUID
 from collections.abc import Sequence
 
-from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL
+import pika
+import os
+
+from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL, JUDGMENT_TRACES_FETCH_API_URL, RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_QUEUE, JUDGMENT_TRACES_DELETE_API_URL,JUDGMENT_TRACES_ADD_TO_EVAL_QUEUE_API_URL
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
+from judgeval.scorers import APIJudgmentScorer, JudgevalScorer, ScorerWrapper
+from judgeval.rules import Rule
+from judgeval.evaluation_run import EvaluationRun
+from judgeval.judges import JudgevalJudge
+
+from rich import print as rprint
+
 from judgeval.data.result import ScoringResult
 from langchain_core.language_models import BaseChatModel
 from langchain_huggingface import ChatHuggingFace
@@ -70,7 +91,7 @@ class TraceEntry:
     # Use field() for mutable defaults to avoid shared state issues
     inputs: dict = field(default_factory=dict)
     span_type: SpanType = "span"
-    evaluation_result: Optional[List[ScoringResult]] = field(default=None)
+    evaluation_runs: List[Optional[EvaluationRun]] = field(default=None)
     
     def print_entry(self):
         indent = "  " * self.depth
@@ -83,7 +104,8 @@ class TraceEntry:
         elif self.type == "input":
             print(f"{indent}Input: {self.inputs}")
         elif self.type == "evaluation":
-            print(f"{indent}Evaluation: {self.evaluation_result} ({self.duration:.3f}s)")
+            for evaluation_run in self.evaluation_runs:
+                print(f"{indent}Evaluation: {evaluation_run.model_dump()}")
     
     def _serialize_inputs(self) -> dict:
         """Helper method to serialize input data safely.
@@ -130,7 +152,7 @@ class TraceEntry:
             "duration": self.duration,
             "output": self._serialize_output(),
             "inputs": self._serialize_inputs(),
-            "evaluation_result": [result.to_dict() for result in self.evaluation_result] if self.evaluation_result else None,
+            "evaluation_runs": [evaluation_run.model_dump() for evaluation_run in self.evaluation_runs] if self.evaluation_runs else [],
             "span_type": self.span_type
         }
 
@@ -171,20 +193,141 @@ class TraceEntry:
             return self.output
         except (TypeError, OverflowError, ValueError):
             return safe_stringify(self.output, self.function)
+        
+
+class TraceManagerClient:
+    """
+    Client for handling trace endpoints with the Judgment API
+    
+
+    Operations include:
+    - Fetching a trace by id
+    - Saving a trace
+    - Deleting a trace
+    """
+    def __init__(self, judgment_api_key: str, organization_id: str):
+        self.judgment_api_key = judgment_api_key
+        self.organization_id = organization_id
+
+    def fetch_trace(self, trace_id: str):
+        """
+        Fetch a trace by its id
+        """
+        response = requests.post(
+            JUDGMENT_TRACES_FETCH_API_URL,
+            json={
+                "trace_id": trace_id,
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
+            },
+            verify=True
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to fetch traces: {response.text}")
+        
+        return response.json()
+
+    def save_trace(self, trace_data: dict, empty_save: bool):
+        """
+        Saves a trace to the database
+
+        Args:
+            trace_data: The trace data to save
+            empty_save: Whether to save an empty trace
+            NOTE we save empty traces in order to properly handle async operations; we need something in the DB to associate the async results with
+        """
+        response = requests.post(
+            JUDGMENT_TRACES_SAVE_API_URL,
+            json=trace_data,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
+            },
+            verify=True
+        )
+        
+        if response.status_code == HTTPStatus.BAD_REQUEST:
+            raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
+        elif response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to save trace data: {response.text}")
+        
+        if not empty_save and "ui_results_url" in response.json():
+            rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
+
+    def delete_trace(self, trace_id: str):
+        """
+        Delete a trace from the database.
+        """
+        response = requests.delete(
+            JUDGMENT_TRACES_DELETE_API_URL,
+            json={
+                "trace_ids": [trace_id],
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
+            }
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to delete trace: {response.text}")
+        
+        return response.json()
+    
+    def delete_traces(self, trace_ids: List[str]):
+        """
+        Delete a batch of traces from the database.
+        """
+        response = requests.delete(
+            JUDGMENT_TRACES_DELETE_API_URL,
+            json={
+                "trace_ids": trace_ids,
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
+            }
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to delete trace: {response.text}")
+        
+        return response.json()
+
 
 class TraceClient:
     """Client for managing a single trace context"""
-    def __init__(self, tracer, trace_id: str, name: str, project_name: str = "default_project", overwrite: bool = False):
-        self.tracer = tracer
-        self.trace_id = trace_id
+    
+    def __init__(
+        self,
+        tracer: Optional["Tracer"],
+        trace_id: Optional[str] = None,
+        name: str = "default",
+        project_name: str = "default_project",
+        overwrite: bool = False,
+        rules: Optional[List[Rule]] = None,
+    ):
         self.name = name
+        self.trace_id = trace_id or str(uuid.uuid4())
         self.project_name = project_name
+        self.overwrite = overwrite
+        self.tracer = tracer
+        # Initialize rules with either provided rules or an empty list
+        self.rules = rules or []
+        
         self.client: JudgmentClient = tracer.client
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
         self.span_type = None
         self._current_span: Optional[TraceEntry] = None
-        self.overwrite = overwrite
+        self.trace_manager_client = TraceManagerClient(tracer.api_key, tracer.organization_id)  # Manages DB operations for trace data
         
     @contextmanager
     def span(self, name: str, span_type: SpanType = "span"):
@@ -201,6 +344,7 @@ class TraceClient:
             span_type=span_type
         ))
         
+        # Increment nested depth and set current span
         self.tracer.depth += 1
         prev_span = self._current_span
         self._current_span = name
@@ -223,7 +367,7 @@ class TraceClient:
             ))
             self._current_span = prev_span
             
-    async def async_evaluate(
+    def async_evaluate(
         self,
         scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
         input: Optional[str] = None,
@@ -235,7 +379,7 @@ class TraceClient:
         expected_tools: Optional[List[str]] = None,
         additional_metadata: Optional[Dict[str, Any]] = None,
         model: Optional[str] = None,
-        log_results: Optional[bool] = True,
+        log_results: Optional[bool] = True
     ):
         start_time = time.time()  # Record start time
         example = Example(
@@ -249,25 +393,80 @@ class TraceClient:
             additional_metadata=additional_metadata,
             trace_id=self.trace_id
         )
-        scoring_results = self.client.run_evaluation(
-            examples=[example],
-            scorers=scorers,
-            model=model,
-            metadata={},
+        loaded_rules = None
+        if self.rules:
+            loaded_rules = []
+            for rule in self.rules:
+                processed_conditions = []
+                for condition in rule.conditions:
+                    # Convert metric if it's a ScorerWrapper
+                    try:
+                        if isinstance(condition.metric, ScorerWrapper):
+                            condition_copy = condition.model_copy()
+                            condition_copy.metric = condition.metric.load_implementation(use_judgment=True)
+                            processed_conditions.append(condition_copy)
+                        else:
+                            processed_conditions.append(condition)
+                    except Exception as e:
+                        warnings.warn(f"Failed to convert ScorerWrapper in rule '{rule.name}', condition metric '{condition.metric_name}': {str(e)}")
+                        processed_conditions.append(condition)  # Keep original condition as fallback
+                
+                # Create new rule with processed conditions
+                new_rule = rule.model_copy()
+                new_rule.conditions = processed_conditions
+                loaded_rules.append(new_rule)
+        try:
+            # Load appropriate implementations for all scorers
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = []
+            for scorer in scorers:
+                try:
+                    if isinstance(scorer, ScorerWrapper):
+                        loaded_scorers.append(scorer.load_implementation(use_judgment=True))
+                    else:
+                        loaded_scorers.append(scorer)
+                except Exception as e:
+                    warnings.warn(f"Failed to load implementation for scorer {scorer}: {str(e)}")
+                    # Skip this scorer
+            
+            if not loaded_scorers:
+                warnings.warn("No valid scorers available for evaluation")
+                return
+            
+            # Prevent using JudgevalScorer with rules - only APIJudgmentScorer allowed with rules
+            if loaded_rules and any(isinstance(scorer, JudgevalScorer) for scorer in loaded_scorers):
+                raise ValueError("Cannot use Judgeval scorers (only API scorers) when using rules. Please either remove rules or use only APIJudgmentScorer types.")
+            
+        except Exception as e:
+            warnings.warn(f"Failed to load scorers: {str(e)}")
+            return
+        
+        # Combine the trace-level rules with any evaluation-specific rules)
+        eval_run = EvaluationRun(
+            organization_id=self.tracer.organization_id,
             log_results=log_results,
             project_name=self.project_name,
-            eval_run_name=(
-                f"{self.name.capitalize()}-"
+            eval_name=f"{self.name.capitalize()}-"
                 f"{self._current_span}-"
-                f"[{','.join(scorer.load_implementation().score_type.capitalize() for scorer in scorers)}]"
-            ),
-            override=self.overwrite
+                f"[{','.join(scorer.score_type.capitalize() for scorer in loaded_scorers)}]",
+            examples=[example],
+            scorers=loaded_scorers,
+            model=model,
+            metadata={},
+            judgment_api_key=self.tracer.api_key,
+            override=self.overwrite,
+            rules=loaded_rules # Use the combined rules
         )
         
-        self.record_evaluation(scoring_results, start_time)  # Pass start_time to record_evaluation
+        self.add_eval_run(eval_run, start_time)  # Pass start_time to record_evaluation
             
-    def record_evaluation(self, results: List[ScoringResult], start_time: float):
-        """Record evaluation results for the current span"""
+    def add_eval_run(self, eval_run: EvaluationRun, start_time: float):
+        """
+        Add evaluation run data to the trace
+
+        Args:
+            eval_run (EvaluationRun): The evaluation run to add to the trace
+            start_time (float): The start time of the evaluation run
+        """
         if self._current_span:
             duration = time.time() - start_time  # Calculate duration from start_time
             
@@ -284,7 +483,7 @@ class TraceClient:
                 depth=self.tracer.depth,
                 message=f"Evaluation results for {self._current_span}",
                 timestamp=time.time(),
-                evaluation_result=list(results),
+                evaluation_runs=[eval_run],
                 duration=duration,
                 span_type="evaluation"
             ))
@@ -367,7 +566,7 @@ class TraceClient:
                     "timestamp": entry["timestamp"],
                     "inputs": None,
                     "output": None,
-                    "evaluation_result": None,
+                    "evaluation_runs": [],
                     "span_type": entry.get("span_type", "span")
                 }
                 active_functions.append(function)
@@ -393,9 +592,8 @@ class TraceClient:
                 if entry["type"] == "output" and entry["output"]:
                     current_entry["output"] = entry["output"]
                     
-                if entry["type"] == "evaluation" and entry["evaluation_result"]:
-                    current_entry["evaluation_result"] = entry["evaluation_result"]
-                    
+                if entry["type"] == "evaluation" and entry["evaluation_runs"]:
+                    current_entry["evaluation_runs"] = entry["evaluation_runs"]
             # print(f"{entry=}, {active_functions=}")
 
         # Sort by timestamp
@@ -437,7 +635,6 @@ class TraceClient:
         # Create trace document
         trace_data = {
             "trace_id": self.trace_id,
-            "api_key": self.tracer.api_key,
             "name": self.name,
             "project_name": self.project_name,
             "created_at": datetime.fromtimestamp(self.start_time).isoformat(),
@@ -451,26 +648,33 @@ class TraceClient:
             "empty_save": empty_save,
             "overwrite": overwrite
         }
+        # Execute asynchrous evaluation in the background
+        if not empty_save:  # Only send to RabbitMQ if the trace is not empty
+            # Send trace data to evaluation queue via API
+            try:
+                response = requests.post(
+                    JUDGMENT_TRACES_ADD_TO_EVAL_QUEUE_API_URL,
+                    json=trace_data,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {self.tracer.api_key}",
+                        "X-Organization-Id": self.tracer.organization_id
+                    },
+                    verify=True
+                )
+                
+                if response.status_code != HTTPStatus.OK:
+                    warnings.warn(f"Failed to add trace to evaluation queue: {response.text}")
+            except Exception as e:
+                warnings.warn(f"Error sending trace to evaluation queue: {str(e)}")
+        
+        self.trace_manager_client.save_trace(trace_data, empty_save)
 
-        # Save trace data by making POST request to API
-        response = requests.post(
-            JUDGMENT_TRACES_SAVE_API_URL,
-            json=trace_data,
-            headers={
-                "Content-Type": "application/json",
-            }
-        )
-        
-        if response.status_code == HTTPStatus.BAD_REQUEST:
-            raise ValueError(f"Failed to save trace data: Check your Trace name for conflicts, set overwrite=True to overwrite existing traces: {response.text}")
-        elif response.status_code != HTTPStatus.OK:
-            raise ValueError(f"Failed to save trace data: {response.text}")
-        
-        if not empty_save and "ui_results_url" in response.json():
-            rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
-        
         return self.trace_id, trace_data
 
+    def delete(self):
+        return self.trace_manager_client.delete_trace(self.trace_id)
+    
 class Tracer:
     _instance = None
 
@@ -479,23 +683,55 @@ class Tracer:
             cls._instance = super(Tracer, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, api_key: str = os.getenv("JUDGMENT_API_KEY")):
+    def __init__(
+        self, 
+        api_key: str = os.getenv("JUDGMENT_API_KEY"), 
+        project_name: str = "default_project",
+        rules: Optional[List[Rule]] = None,  # Added rules parameter
+        organization_id: str = os.getenv("JUDGMENT_ORG_ID")):
         if not hasattr(self, 'initialized'):
-
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
             
+            if not organization_id:
+                raise ValueError("Tracer must be configured with an Organization ID")
+            
             self.api_key: str = api_key
+            self.project_name: str = project_name
             self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
+            self.organization_id: str = organization_id
             self.depth: int = 0
             self._current_trace: Optional[str] = None
+            self.rules: List[Rule] = rules or []  # Store rules at tracer level
             self.initialized: bool = True
+        elif hasattr(self, 'project_name') and self.project_name != project_name:
+            warnings.warn(
+                f"Attempting to initialize Tracer with project_name='{project_name}' but it was already initialized with "
+                f"project_name='{self.project_name}'. Due to the singleton pattern, the original project_name will be used. "
+                "To use a different project name, ensure the first Tracer initialization uses the desired project name.",
+                RuntimeWarning
+            )
         
     @contextmanager
-    def trace(self, name: str, project_name: str = "default_project", overwrite: bool = False) -> Generator[TraceClient, None, None]:
+    def trace(
+        self, 
+        name: str, 
+        project_name: str = None, 
+        overwrite: bool = False,
+        rules: Optional[List[Rule]] = None  # Added rules parameter
+    ) -> Generator[TraceClient, None, None]:
         """Start a new trace context using a context manager"""
         trace_id = str(uuid.uuid4())
-        trace = TraceClient(self, trace_id, name, project_name=project_name, overwrite=overwrite)
+        project = project_name if project_name is not None else self.project_name
+
+        trace = TraceClient(
+            self, 
+            trace_id, 
+            name, 
+            project_name=project, 
+            overwrite=overwrite,
+            rules=self.rules  # Pass combined rules to the trace client
+        )
         prev_trace = self._current_trace
         self._current_trace = trace
         
@@ -514,28 +750,40 @@ class Tracer:
         """
         return self._current_trace    
 
-    def observe(self, func=None, *, name=None, span_type: SpanType = "span"):
+    def observe(self, func=None, *, name=None, span_type: SpanType = "span", project_name: str = None, overwrite: bool = False):
         """
         Decorator to trace function execution with detailed entry/exit information.
         
         Args:
-            func: The function to trace
-            name: Optional custom name for the function
-            span_type: The type of span to use for this observation (default: "span")
+            func: The function to decorate
+            name: Optional custom name for the span (defaults to function name)
+            span_type: Type of span (default "span")
+            project_name: Optional project name override
+            overwrite: Whether to overwrite existing traces
         """
         if func is None:
-            return lambda f: self.observe(f, name=name, span_type=span_type)
+            return lambda f: self.observe(f, name=name, span_type=span_type, project_name=project_name, overwrite=overwrite)
+        
+        # Use provided name or fall back to function name
+        span_name = name or func.__name__
         
         if asyncio.iscoroutinefunction(func):
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
+                # If there's already a trace, use it. Otherwise create a new one
                 if self._current_trace:
-                    span_name = name or func.__name__
-                    
-                    with self._current_trace.span(span_name, span_type=span_type) as span:
-                        # Set the span type
-                        span.span_type = span_type
-                        
+                    trace = self._current_trace
+                else:
+                    trace_id = str(uuid.uuid4())
+                    trace_name = func.__name__
+                    project = project_name if project_name is not None else self.project_name
+                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules)
+                    self._current_trace = trace
+                    # Only save empty trace for the root call
+                    trace.save(empty_save=True, overwrite=overwrite)
+
+                try:
+                    with trace.span(span_name, span_type=span_type) as span:
                         # Record inputs
                         span.record_input({
                             'args': str(args),
@@ -549,19 +797,30 @@ class Tracer:
                         span.record_output(result)
                         
                         return result
-                
-                return await func(*args, **kwargs)
+                finally:
+                    # Only save and cleanup if this is the root observe call
+                    if self.depth == 0:
+                        trace.save(empty_save=False, overwrite=overwrite)
+                        self._current_trace = None
+                    
             return async_wrapper
         else:
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
+                # If there's already a trace, use it. Otherwise create a new one
                 if self._current_trace:
-                    span_name = name or func.__name__
-                    
-                    with self._current_trace.span(span_name, span_type=span_type) as span:
-                        # Set the span type
-                        span.span_type = span_type
-                        
+                    trace = self._current_trace
+                else:
+                    trace_id = str(uuid.uuid4())
+                    trace_name = func.__name__
+                    project = project_name if project_name is not None else self.project_name
+                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules)
+                    self._current_trace = trace
+                    # Only save empty trace for the root call
+                    trace.save(empty_save=True, overwrite=overwrite)
+                
+                try:
+                    with trace.span(span_name, span_type=span_type) as span:
                         # Record inputs
                         span.record_input({
                             'args': str(args),
@@ -575,8 +834,12 @@ class Tracer:
                         span.record_output(result)
                         
                         return result
-                
-                return func(*args, **kwargs)
+                finally:
+                    # Only save and cleanup if this is the root observe call
+                    if self.depth == 0:
+                        trace.save(empty_save=False, overwrite=overwrite)
+                        self._current_trace = None
+                    
             return wrapper
         
     def score(self, func=None, scorers: List[Union[APIJudgmentScorer, JudgevalScorer]] = None, model: str = None, log_results: bool = True, *, name: str = None, span_type: SpanType = "span"):
@@ -606,14 +869,15 @@ def wrap(client: Any) -> Any:
     Wraps an API client to add tracing capabilities.
     Supports OpenAI, Together, and Anthropic clients.
     """
-    tracer = Tracer._instance  # Get the global tracer instance
-    
     # Get the appropriate configuration for this client type
     span_name, original_create = _get_client_config(client)
     
     def traced_create(*args, **kwargs):
-        # Skip tracing if no active trace
-        if not (tracer and tracer._current_trace):
+        # Get the current tracer instance (might be created after client was wrapped)
+        tracer = Tracer._instance
+        
+        # Skip tracing if no tracer exists or no active trace
+        if not tracer or not tracer._current_trace:
             return original_create(*args, **kwargs)
 
         with tracer._current_trace.span(span_name, span_type="llm") as span:

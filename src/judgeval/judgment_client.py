@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any, Union
 import requests
 
 from judgeval.constants import ROOT_API
-from judgeval.data.datasets import EvalDataset, EvalDatasetClient
+from judgeval.data.datasets import EvalDataset, EvalDatasetClient, GroundTruthExample
 from judgeval.data import (
     ScoringResult, 
     Example
@@ -15,7 +15,8 @@ from judgeval.scorers import (
     APIJudgmentScorer, 
     JudgevalScorer, 
     ClassifierScorer, 
-    ScorerWrapper
+    ScorerWrapper,
+    score,
 )
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.run_evaluation import (
@@ -23,9 +24,10 @@ from judgeval.run_evaluation import (
     assert_test
 )
 from judgeval.judges import JudgevalJudge
-from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL
+from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL, JUDGMENT_EVAL_DELETE_API_URL, JUDGMENT_EVAL_DELETE_PROJECT_API_URL
 from judgeval.common.exceptions import JudgmentAPIError
 from pydantic import BaseModel
+from judgeval.rules import Rule
 
 class EvalRunRequestBody(BaseModel):
     eval_name: str
@@ -34,9 +36,10 @@ class EvalRunRequestBody(BaseModel):
 
 
 class JudgmentClient:
-    def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY")):
+    def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"), organization_id: str = os.getenv("JUDGMENT_ORG_ID")):
         self.judgment_api_key = judgment_api_key
-        self.eval_dataset_client = EvalDatasetClient(judgment_api_key)
+        self.organization_id = organization_id
+        self.eval_dataset_client = EvalDatasetClient(judgment_api_key, organization_id)
         
         # Verify API key is valid
         result, response = self._validate_api_key()
@@ -57,17 +60,69 @@ class JudgmentClient:
         project_name: str = "default_project",
         eval_run_name: str = "default_eval_run",
         override: bool = False,
-        use_judgment: bool = True
+        use_judgment: bool = True,
+        rules: Optional[List[Rule]] = None
     ) -> List[ScoringResult]:
         """
         Executes an evaluation of `Example`s using one or more `Scorer`s
+        
+        Args:
+            examples (List[Example]): The examples to evaluate
+            scorers (List[Union[ScorerWrapper, JudgevalScorer]]): A list of scorers to use for evaluation
+            model (Union[str, List[str], JudgevalJudge]): The model used as a judge when using LLM as a Judge
+            aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
+            metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run
+            log_results (bool): Whether to log the results to the Judgment API
+            project_name (str): The name of the project the evaluation results belong to
+            eval_run_name (str): A name for this evaluation run
+            override (bool): Whether to override an existing evaluation run with the same name
+            use_judgment (bool): Whether to use Judgment API for evaluation
+            rules (Optional[List[Rule]]): Rules to evaluate against scoring results
+            
+        Returns:
+            List[ScoringResult]: The results of the evaluation
         """
         try:
             # Load appropriate implementations for all scorers
-            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
-                scorer.load_implementation(use_judgment=use_judgment) if isinstance(scorer, ScorerWrapper) else scorer
-                for scorer in scorers
-            ]
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = []
+            for scorer in scorers:
+                try:
+                    if isinstance(scorer, ScorerWrapper):
+                        loaded_scorers.append(scorer.load_implementation(use_judgment=use_judgment))
+                    else:
+                        loaded_scorers.append(scorer)
+                except Exception as e:
+                    raise ValueError(f"Failed to load implementation for scorer {scorer}: {str(e)}")
+
+            # Prevent using JudgevalScorer with rules - only APIJudgmentScorer allowed with rules
+            if rules and any(isinstance(scorer, JudgevalScorer) for scorer in loaded_scorers):
+                raise ValueError("Cannot use Judgeval scorers (only API scorers) when using rules. Please either remove rules or use only APIJudgmentScorer types.")
+
+            # Convert ScorerWrapper in rules to their implementations
+            loaded_rules = None
+            if rules:
+                loaded_rules = []
+                for rule in rules:
+                    try:
+                        processed_conditions = []
+                        for condition in rule.conditions:
+                            # Convert metric if it's a ScorerWrapper
+                            if isinstance(condition.metric, ScorerWrapper):
+                                try:
+                                    condition_copy = condition.model_copy()
+                                    condition_copy.metric = condition.metric.load_implementation(use_judgment=use_judgment)
+                                    processed_conditions.append(condition_copy)
+                                except Exception as e:
+                                    raise ValueError(f"Failed to convert ScorerWrapper to implementation in rule '{rule.name}', condition metric '{condition.metric}': {str(e)}")
+                            else:
+                                processed_conditions.append(condition)
+                        
+                        # Create new rule with processed conditions
+                        new_rule = rule.model_copy()
+                        new_rule.conditions = processed_conditions
+                        loaded_rules.append(new_rule)
+                    except Exception as e:
+                        raise ValueError(f"Failed to process rule '{rule.name}': {str(e)}")
 
             eval = EvaluationRun(
                 log_results=log_results,
@@ -78,11 +133,15 @@ class JudgmentClient:
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,
-                judgment_api_key=self.judgment_api_key
+                judgment_api_key=self.judgment_api_key,
+                rules=loaded_rules,
+                organization_id=self.organization_id
             )
             return run_eval(eval, override)
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
+        except Exception as e:
+            raise Exception(f"An unexpected error occurred during evaluation: {str(e)}")
     
     def evaluate_dataset(
         self, 
@@ -94,17 +153,68 @@ class JudgmentClient:
         project_name: str = "",
         eval_run_name: str = "",
         log_results: bool = False,
-        use_judgment: bool = True
+        use_judgment: bool = True,
+        rules: Optional[List[Rule]] = None
     ) -> List[ScoringResult]:
         """
         Executes an evaluation of a `EvalDataset` using one or more `Scorer`s
+        
+        Args:
+            dataset (EvalDataset): The dataset containing examples to evaluate
+            scorers (List[Union[ScorerWrapper, JudgevalScorer]]): A list of scorers to use for evaluation
+            model (Union[str, List[str], JudgevalJudge]): The model used as a judge when using LLM as a Judge
+            aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
+            metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run
+            project_name (str): The name of the project the evaluation results belong to
+            eval_run_name (str): A name for this evaluation run
+            log_results (bool): Whether to log the results to the Judgment API
+            use_judgment (bool): Whether to use Judgment API for evaluation
+            rules (Optional[List[Rule]]): Rules to evaluate against scoring results
+            
+        Returns:
+            List[ScoringResult]: The results of the evaluation
         """
         try:
             # Load appropriate implementations for all scorers
-            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = [
-                scorer.load_implementation(use_judgment=use_judgment) if isinstance(scorer, ScorerWrapper) else scorer
-                for scorer in scorers
-            ]
+            loaded_scorers: List[Union[JudgevalScorer, APIJudgmentScorer]] = []
+            for scorer in scorers:
+                try:
+                    if isinstance(scorer, ScorerWrapper):
+                        loaded_scorers.append(scorer.load_implementation(use_judgment=use_judgment))
+                    else:
+                        loaded_scorers.append(scorer)
+                except Exception as e:
+                    raise ValueError(f"Failed to load implementation for scorer {scorer}: {str(e)}")
+
+            # Prevent using JudgevalScorer with rules - only APIJudgmentScorer allowed with rules
+            if rules and any(isinstance(scorer, JudgevalScorer) for scorer in loaded_scorers):
+                raise ValueError("Cannot use Judgeval scorers (only API scorers) when using rules. Please either remove rules or use only APIJudgmentScorer types.")
+
+            # Convert ScorerWrapper in rules to their implementations
+            loaded_rules = None
+            if rules:
+                loaded_rules = []
+                for rule in rules:
+                    try:
+                        processed_conditions = []
+                        for condition in rule.conditions:
+                            # Convert metric if it's a ScorerWrapper
+                            if isinstance(condition.metric, ScorerWrapper):
+                                try:
+                                    condition_copy = condition.model_copy()
+                                    condition_copy.metric = condition.metric.load_implementation(use_judgment=use_judgment)
+                                    processed_conditions.append(condition_copy)
+                                except Exception as e:
+                                    raise ValueError(f"Failed to convert ScorerWrapper to implementation in rule '{rule.name}', condition metric '{condition.metric}': {str(e)}")
+                            else:
+                                processed_conditions.append(condition)
+                        
+                        # Create new rule with processed conditions
+                        new_rule = rule.model_copy()
+                        new_rule.conditions = processed_conditions
+                        loaded_rules.append(new_rule)
+                    except Exception as e:
+                        raise ValueError(f"Failed to process rule '{rule.name}': {str(e)}")
 
             evaluation_run = EvaluationRun(
                 log_results=log_results,
@@ -115,11 +225,15 @@ class JudgmentClient:
                 model=model,
                 aggregator=aggregator,
                 metadata=metadata,
-                judgment_api_key=self.judgment_api_key
+                judgment_api_key=self.judgment_api_key,
+                rules=loaded_rules,
+                organization_id=self.organization_id
             )
             return run_eval(evaluation_run)
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
+        except Exception as e:
+            raise Exception(f"An unexpected error occurred during evaluation: {str(e)}")
 
     def create_dataset(self) -> EvalDataset:
         return self.eval_dataset_client.create_dataset()
@@ -164,6 +278,11 @@ class JudgmentClient:
         """
         return self.eval_dataset_client.pull_all_user_dataset_stats()
     
+    def edit_dataset(self, alias: str, examples: List[Example], ground_truths: List[GroundTruthExample]) -> bool:
+        """
+        Edits the dataset on Judgment platform by adding new examples and ground truths
+        """
+        return self.eval_dataset_client.edit_dataset(alias, examples, ground_truths)
     
     # Maybe add option where you can pass in the EvaluationRun object and it will pull the eval results from the backend
     def pull_eval(self, project_name: str, eval_run_name: str) -> List[Dict[str, Union[str, List[ScoringResult]]]]:
@@ -182,7 +301,13 @@ class JudgmentClient:
                                                    eval_name=eval_run_name, 
                                                    judgment_api_key=self.judgment_api_key)
         eval_run = requests.post(JUDGMENT_EVAL_FETCH_API_URL,
-                                 json=eval_run_request_body.model_dump())
+                                 headers={
+                                    "Content-Type": "application/json",
+                                    "Authorization": f"Bearer {self.judgment_api_key}",
+                                    "X-Organization-Id": self.organization_id
+                                 },
+                                 json=eval_run_request_body.model_dump(),
+                                 verify=True)
         if eval_run.status_code != requests.codes.ok:
             raise ValueError(f"Error fetching eval results: {eval_run.json()}")
 
@@ -194,6 +319,55 @@ class JudgmentClient:
             eval_run_result[0]["id"] = result_id
             eval_run_result[0]["results"] = [ScoringResult(**filtered_result)]
         return eval_run_result
+    
+    def delete_eval(self, project_name: str, eval_run_name: str) -> bool:
+        """
+        Deletes an evaluation from the server by project and run name.
+
+        Args:
+            project_name (str): Name of the project
+            eval_run_name (str): Name of the evaluation run
+
+        Returns:
+            bool: Whether the evaluation was successfully deleted
+        """
+        eval_run_request_body = EvalRunRequestBody(project_name=project_name, 
+                                                   eval_name=eval_run_name, 
+                                                   judgment_api_key=self.judgment_api_key)
+        response = requests.delete(JUDGMENT_EVAL_DELETE_API_URL, 
+                        json=eval_run_request_body.model_dump(),
+                        headers={
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {self.judgment_api_key}",
+                            "X-Organization-Id": self.organization_id
+                        })
+        if response.status_code != requests.codes.ok:
+            raise ValueError(f"Error deleting eval results: {response.json()}")
+        return response.json()
+    
+    def delete_project_evals(self, project_name: str) -> bool:
+        """
+        Deletes all evaluations from the server for a given project.
+        
+        Args:
+            project_name (str): Name of the project
+
+        Returns:
+            bool: Whether the evaluations were successfully deleted
+        """
+        response = requests.delete(JUDGMENT_EVAL_DELETE_PROJECT_API_URL, 
+                        json={
+                            "project_name": project_name,
+                            "judgment_api_key": self.judgment_api_key,
+                        },
+                        headers={
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {self.judgment_api_key}",
+                            "X-Organization-Id": self.organization_id
+                        })
+        if response.status_code != requests.codes.ok:
+            raise ValueError(f"Error deleting eval results: {response.json()}")
+        return response.json()
         
     def _validate_api_key(self):
         """
@@ -201,7 +375,12 @@ class JudgmentClient:
         """
         response = requests.post(
             f"{ROOT_API}/validate_api_key/",
-            json={"api_key": self.judgment_api_key}
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}",
+            },
+            json={},  # Empty body now
+            verify=True
         )
         if response.status_code == 200:
             return True, response.json()
@@ -223,12 +402,17 @@ class JudgmentClient:
         """
         request_body = {
             "slug": slug,
-            "judgment_api_key": self.judgment_api_key
         }
         
         response = requests.post(
             f"{ROOT_API}/fetch_scorer/",
-            json=request_body
+            json=request_body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
+            },
+            verify=True
         )
         
         if response.status_code == 500:
@@ -261,13 +445,18 @@ class JudgmentClient:
             "name": scorer.name,
             "conversation": scorer.conversation,
             "options": scorer.options,
-            "judgment_api_key": self.judgment_api_key,
             "slug": slug
         }
         
         response = requests.post(
             f"{ROOT_API}/save_scorer/",
-            json=request_body
+            json=request_body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
+            },
+            verify=True
         )
         
         if response.status_code == 500:
@@ -290,9 +479,22 @@ class JudgmentClient:
         project_name: str = "default_project",
         eval_run_name: str = "default_eval_run",
         override: bool = False,
+        rules: Optional[List[Rule]] = None
     ) -> None:
         """
         Asserts a test by running the evaluation and checking the results for success
+        
+        Args:
+            examples (List[Example]): The examples to evaluate
+            scorers (List[Union[APIJudgmentScorer, JudgevalScorer]]): A list of scorers to use for evaluation
+            model (Union[str, List[str], JudgevalJudge]): The model used as a judge when using LLM as a Judge
+            aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
+            metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run
+            log_results (bool): Whether to log the results to the Judgment API
+            project_name (str): The name of the project the evaluation results belong to
+            eval_run_name (str): A name for this evaluation run
+            override (bool): Whether to override an existing evaluation run with the same name
+            rules (Optional[List[Rule]]): Rules to evaluate against scoring results
         """
         results = self.run_evaluation(
             examples=examples,
@@ -303,7 +505,8 @@ class JudgmentClient:
             log_results=log_results,
             project_name=project_name,
             eval_run_name=eval_run_name,
-            override=override
+            override=override,
+            rules=rules
         )
         
         assert_test(results)

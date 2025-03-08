@@ -3,14 +3,13 @@ Classes for representing examples in a dataset.
 """
 
 
-from typing import TypeVar, Optional, Any, Dict, List
-from pydantic import BaseModel
+from typing import Optional, Any, Dict, List
+from uuid import uuid4
+from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 from datetime import datetime
+import time
 
-
-Input = TypeVar('Input')
-Output = TypeVar('Output')
 
 class ExampleParams(Enum):
     INPUT = "input"
@@ -21,11 +20,12 @@ class ExampleParams(Enum):
     TOOLS_CALLED = "tools_called"
     EXPECTED_TOOLS = "expected_tools"
     REASONING = "reasoning"
+    ADDITIONAL_METADATA = "additional_metadata"
 
 
 class Example(BaseModel):
-    input: Input
-    actual_output: Output
+    input: str
+    actual_output: str
     expected_output: Optional[str] = None
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
@@ -33,15 +33,18 @@ class Example(BaseModel):
     tools_called: Optional[List[str]] = None
     expected_tools: Optional[List[str]] = None
     name: Optional[str] = None
-    example_id: Optional[str] = None
+    example_id: str = Field(default_factory=lambda: str(uuid4()))
+    example_index: Optional[int] = None
     timestamp: Optional[str] = None
     trace_id: Optional[str] = None
-
+    
     def __init__(self, **data):
-        super().__init__(**data)
+        if 'example_id' not in data:
+            data['example_id'] = str(uuid4())
         # Set timestamp if not provided
-        if self.timestamp is None:
-            self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if 'timestamp' not in data:
+            data['timestamp'] = datetime.now().strftime("%Y%m%d_%H%M%S")
+        super().__init__(**data)
 
     def to_dict(self):
         return {
@@ -55,6 +58,7 @@ class Example(BaseModel):
             "expected_tools": self.expected_tools,
             "name": self.name,
             "example_id": self.example_id,
+            "example_index": self.example_index,
             "timestamp": self.timestamp,
             "trace_id": self.trace_id
         }
@@ -71,6 +75,7 @@ class Example(BaseModel):
             f"expected_tools={self.expected_tools}, "
             f"name={self.name}, "
             f"example_id={self.example_id}, "
+            f"example_index={self.example_index}, "
             f"timestamp={self.timestamp}, "
             f"trace_id={self.trace_id})"
         )

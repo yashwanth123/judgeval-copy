@@ -1,5 +1,5 @@
 """
-Infrastructure for executing evaluations of `Example`s using one or more `CustomScorer`s.
+Infrastructure for executing evaluations of `Example`s using one or more `JudgevalScorer`s.
 """
 
 
@@ -30,15 +30,15 @@ async def safe_a_score_example(
 ):
     """
     Scoring task function when not using a progress indicator!
-    "Safely" scores an `Example` using a `CustomScorer` by gracefully handling any exceptions that may occur.
+    "Safely" scores an `Example` using a `JudgevalScorer` by gracefully handling any exceptions that may occur.
 
     Args:
-        scorer (CustomScorer): The `CustomScorer` to use for scoring the example.
+        scorer (JudgevalScorer): The `JudgevalScorer` to use for scoring the example.
         example (Example): The `Example` to be scored.
         
         ignore_errors (bool): Whether to ignore errors during the evaluation. 
         If set to false, any error will be raised and stop the evaluation.
-        If set to true, the error will be stored in the `error` attribute of the `CustomScorer` and the `success` attribute will be set to False.
+        If set to true, the error will be stored in the `error` attribute of the `JudgevalScorer` and the `success` attribute will be set to False.
         
         skip_on_missing_params (bool): Whether to skip the test case if required parameters are missing. 
     """
@@ -102,12 +102,12 @@ async def score_task(
     skip_on_missing_params: bool = True,
 ):
     """
-    Task function for asynchronously measuring a given example using a custom scorer.
+    Task function for asynchronously measuring a given example using a JudgevalScorer.
 
     Args:
         task_id (int): The ID of the task being measured.
         progress (Progress): An instance of the Progress class to track task progress.
-        scorer (CustomScorer): An instance of the CustomScorer class used to score the example.
+        scorer (JudgevalScorer): An instance of the JudgevalScorer class used to score the example.
         example (Example): The example to be scored.
         ignore_errors (bool, optional): Whether to ignore errors during scoring. Defaults to True.
         skip_on_missing_params (bool, optional): Whether to skip scoring if there are missing parameters. Defaults to True.
@@ -189,10 +189,10 @@ async def score_with_indicator(
     show_indicator: bool,
 ):
     """
-    Scores an example using a list of custom scorers, optionally displaying a progress indicator.
+    Scores an example using a list of JudgevalScorers, optionally displaying a progress indicator.
 
     Args:
-        scorers (List[CustomScorer]): A list of custom scorer objects to evaluate the example.
+        scorers (List[JudgevalScorer]): A list of JudgevalScorer objects to evaluate the example.
         example (Example): The example to be scored.
         ignore_errors (bool): If True, errors during scoring will be ignored.
         skip_on_missing_params (bool): If True, scoring will be skipped if required parameters are missing.
@@ -253,8 +253,8 @@ async def a_execute_scoring(
     _use_bar_indicator: bool = True,
 ) -> List[ScoringResult]:
     """
-    Executes evaluations of `Example`s asynchronously using one or more `CustomScorer`s.
-    Each `Example` will be evaluated by all of the `CustomScorer`s in the `scorers` list.
+    Executes evaluations of `Example`s asynchronously using one or more `JudgevalScorer`s.
+    Each `Example` will be evaluated by all of the `JudgevalScorer`s in the `scorers` list.
 
     Args:
         examples (List[Example]): A list of `Example` objects to be evaluated.
@@ -379,7 +379,7 @@ async def a_eval_examples_helper(
     Evaluate a single example asynchronously using a list of scorers.
     
     Args:
-        scorers (List[CustomScorer]): List of CustomScorer objects to evaluate the example.
+        scorers (List[JudgevalScorer]): List of JudgevalScorer objects to evaluate the example.
         example (Example): The example to be evaluated.
         scoring_results (List[ScoringResult]): List to store the scoring results.
         score_index (int): Index at which the result should be stored in scoring_results.

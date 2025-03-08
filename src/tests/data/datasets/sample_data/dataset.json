@@ -47,7 +47,7 @@
                 "tool2"
             ],
             "name": "test example",
-            "example_id": null,
+            "example_id": "12345",
             "timestamp": "20241230_160117",
             "trace_id": "123"
         }

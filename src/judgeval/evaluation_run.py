@@ -6,6 +6,7 @@ from judgeval.scorers import JudgevalScorer, APIJudgmentScorer
 from judgeval.constants import ACCEPTABLE_MODELS
 from judgeval.common.logger import debug, error
 from judgeval.judges import JudgevalJudge
+from judgeval.rules import Rule
 
 class EvaluationRun(BaseModel):
     """
@@ -15,15 +16,17 @@ class EvaluationRun(BaseModel):
         project_name (str): The name of the project the evaluation results belong to
         eval_name (str): A name for this evaluation run
         examples (List[Example]): The examples to evaluate
-        scorers (List[Union[JudgmentScorer, CustomScorer]]): A list of scorers to use for evaluation
+        scorers (List[Union[JudgmentScorer, JudgevalScorer]]): A list of scorers to use for evaluation
         model (str): The model used as a judge when using LLM as a Judge
         aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
         metadata (Optional[Dict[str, Any]]): Additional metadata to include for this evaluation run, e.g. comments, dataset name, purpose, etc.
         judgment_api_key (Optional[str]): The API key for running evaluations on the Judgment API
+        rules (Optional[List[Rule]]): Rules to evaluate against scoring results
     """
 
     # The user will specify whether they want log_results when they call run_eval
     log_results: bool = False  # NOTE: log_results has to be set first because it is used to validate project_name and eval_name
+    organization_id: Optional[str] = None
     project_name: Optional[str] = None
     eval_name: Optional[str] = None
     examples: List[Example]
@@ -33,6 +36,8 @@ class EvaluationRun(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     # API Key will be "" until user calls client.run_eval(), then API Key will be set
     judgment_api_key: Optional[str] = ""
+    override: Optional[bool] = False
+    rules: Optional[List[Rule]] = None
     
     def model_dump(self, **kwargs):
         data = super().model_dump(**kwargs)
@@ -43,6 +48,11 @@ class EvaluationRun(BaseModel):
             else {"score_type": scorer.score_type, "threshold": scorer.threshold}
             for scorer in self.scorers
         ]
+
+        if self.rules:
+            # Process rules to ensure proper serialization
+              data["rules"] = [rule.model_dump() for rule in self.rules]
+            
         return data
 
     @field_validator('log_results', mode='before')

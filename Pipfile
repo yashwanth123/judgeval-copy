@@ -4,7 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-langfuse = "==2.50.3"
 litellm = "*"
 python-dotenv = "==1.0.1"
 fastapi = "*"
@@ -15,15 +14,17 @@ pandas = "*"
 openai = "*"
 together = "*"
 anthropic = "*"
-patronus = "*"
 asyncio = "*"
 nest-asyncio = "*"
-tavily-python = "*"
+pika = "*"
 
 [dev-packages]
 pytest = "*"
 pytest-asyncio = "*"
 pytest-mock = "*"
+tavily-python = "*"
+patronus = "*"
+langfuse = "==2.50.3"
 
 [requires]
 python_version = "3.11"

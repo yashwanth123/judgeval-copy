@@ -72,7 +72,7 @@ class PromptScorer(JudgevalScorer, BaseModel):
             strict_mode=strict_mode,
             verbose_mode=verbose_mode,
         )
-        # Then initialize CustomScorer
+        # Then initialize JudgevalScorer
         JudgevalScorer.__init__(
             self,
             score_type=name,
@@ -309,7 +309,7 @@ class ClassifierScorer(PromptScorer):
             strict_mode=strict_mode,
             verbose_mode=verbose_mode,
         )
-        # Then initialize CustomScorer
+        # Then initialize JudgevalScorer
         JudgevalScorer.__init__(
             self,
             score_type=name,

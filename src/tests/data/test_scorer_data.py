@@ -5,8 +5,8 @@ from judgeval.data.scorer_data import ScorerData, create_scorer_data
 from judgeval.scorers.judgeval_scorer import JudgevalScorer
 
 
-class MockCustomScorer(JudgevalScorer):
-    """Mock implementation of CustomScorer for testing"""
+class MockJudgevalScorer(JudgevalScorer):
+    """Mock implementation of JudgevalScorer for testing"""
     def __init__(
         self,
         score_type: str = "mock_scorer",
@@ -53,7 +53,7 @@ def successful_scorer():
     """
     Fixture for a scorer that executes successfully and stores the results of the evaluation
     """
-    return MockCustomScorer(
+    return MockJudgevalScorer(
         score_type="test_scorer",
         threshold=0.7,
         score=0.8,
@@ -71,7 +71,7 @@ def failed_scorer():
     """
     Fixture for a scorer that does not pass its threshold expectation
     """
-    return MockCustomScorer(
+    return MockJudgevalScorer(
         score_type="test_scorer",
         threshold=0.7,
         score=0.6,
@@ -88,7 +88,7 @@ def error_scorer():
     """
     Fixture for a scorer that encounters an error during execution
     """
-    return MockCustomScorer(
+    return MockJudgevalScorer(
         score_type="test_scorer",
         threshold=0.7,
         error="Test execution failed",

@@ -2,6 +2,7 @@
 Tests for judgee update functionality
 """
 
+import pytest
 import os
 import time
 import asyncio
@@ -25,11 +26,12 @@ if not TEST_API_KEY:
     print("❌ Error: JUDGMENT_API_KEY not set in .env file")
     sys.exit(1)
 
+@pytest.mark.asyncio
 async def verify_server(server_url: str = SERVER_URL):
     """Helper function to verify server is running."""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{server_url}/health")
+            response = await client.get(f"{server_url}/health/")
             if response.status_code == 200:
                 print("✓ Server health check passed")
                 return True
@@ -39,11 +41,12 @@ async def verify_server(server_url: str = SERVER_URL):
         return False
     return False
 
+@pytest.mark.asyncio
 async def debug_server_state(client):
     """Helper function to get server state for debugging."""
     try:
         # Check server health
-        health_response = await client.get(f"{SERVER_URL}/health")
+        health_response = await client.get(f"{SERVER_URL}/health/")
         print("\n🔍 Server Status:")
         print(f"- Health endpoint: {'✓ OK' if health_response.status_code == 200 else '❌ Failed'}")
         print(f"- Status code: {health_response.status_code}")
@@ -67,6 +70,7 @@ async def debug_server_state(client):
         print("3. Check server logs for errors")
         return False
 
+@pytest.mark.asyncio
 async def test_single_judgee_increment():
     """Test basic single judgee increment and reset."""
     print("\n" + "="*50)
@@ -218,6 +222,7 @@ async def test_single_judgee_increment():
         print("- Run server in debug mode")
         return False
 
+@pytest.mark.asyncio
 async def test_multiple_judgee_increment():
     """Test multiple judgee increments with various scorers."""
     print("\n" + "="*50)
@@ -310,6 +315,7 @@ async def test_multiple_judgee_increment():
         print(f"❌ Test failed with error: {str(e)}")
         return False
 
+@pytest.mark.asyncio
 async def test_zero_scorer_case():
     """Test that evaluation with no scorers doesn't affect count."""
     print("\n" + "="*50)
@@ -380,6 +386,7 @@ async def test_zero_scorer_case():
         print(f"❌ Test failed with error: {str(e)}")
         return False
 
+@pytest.mark.asyncio
 async def test_multiple_examples():
     """Test judgee counting with multiple examples."""
     print("\n" + "="*50)
@@ -467,6 +474,7 @@ async def test_multiple_examples():
         print(f"❌ Test failed with error: {str(e)}")
         return False
 
+@pytest.mark.asyncio
 async def test_rapid_evaluations():
     """Test rapid sequential evaluations."""
     print("\n" + "="*50)

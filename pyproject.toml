@@ -1,6 +1,6 @@
 [project]
 name = "judgeval"
-version = "0.0.8"
+version = "0.0.17"
 authors = [
     { name="Andrew Li", email="andrew@judgmentlabs.ai" },
     { name="Alex Shan", email="alex@judgmentlabs.ai" },
@@ -16,7 +16,6 @@ classifiers = [
 license = "Apache-2.0"
 license-files = ["LICENSE.md"]
 dependencies = [
-    "langfuse==2.50.3",
     "litellm",
     "python-dotenv==1.0.1",
     "fastapi",
@@ -27,7 +26,6 @@ dependencies = [
     "openai",
     "together",
     "anthropic",
-    "patronus",
     "nest-asyncio",
     "pika",
 ]
@@ -36,7 +34,10 @@ dependencies = [
 dev = [
     "pytest>=8.3.4",
     "pytest-asyncio>=0.25.0",
-    "pytest-mock>=3.14.0"
+    "pytest-mock>=3.14.0",
+    "langfuse==2.50.3",
+    "patronus",
+    "tavily-python"
 ]
 
 [project.urls]

@@ -32,7 +32,7 @@ def clone_scorers(scorers: List[JudgevalScorer]) -> List[JudgevalScorer]:
         valid_args = {key: args[key] for key in valid_params if key in args}
 
         cloned_scorer = scorer_class(**valid_args)
-        # kinda hacky, but in case the class inheriting from CustomScorer doesn't have `model` in its __init__,
+        # kinda hacky, but in case the class inheriting from JudgevalScorer doesn't have `model` in its __init__,
         # we need to explicitly include it here so that we can add the judge model to the cloned scorer
         cloned_scorer._add_model(model=args.get("model"))
         cloned_scorers.append(cloned_scorer)
@@ -91,7 +91,7 @@ def parse_response_json(llm_response: str, scorer: Optional[JudgevalScorer] = No
 
     Args:
         llm_response (str): The response from an LLM.
-        scorer (CustomScorer, optional): The scorer object to forward errors to (if any).
+        scorer (JudgevalScorer, optional): The scorer object to forward errors to (if any).
     """
     start = llm_response.find("{")  # opening bracket
     end = llm_response.rfind("}") + 1  # closing bracket
@@ -129,7 +129,7 @@ def create_verbose_logs(metric: JudgevalScorer, steps: List[str]) -> str:
     Creates verbose logs for a scorer object.
 
     Args:
-        metric (CustomScorer): The scorer object.
+        metric (JudgevalScorer): The scorer object.
         steps (List[str]): The steps to be included in the verbose logs.
     
     Returns:

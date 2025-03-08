@@ -1,3 +1,4 @@
+from uuid import uuid4
 import openai
 import os
 import asyncio
@@ -7,11 +8,13 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 from judgeval.common.tracer import Tracer, wrap
-from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer
 from demo.cookbooks.openai_travel_agent.populate_db import destinations_data
+from demo.cookbooks.openai_travel_agent.tools import search_tavily
+from judgeval.scorers import AnswerRelevancyScorer, FaithfulnessScorer
 
-judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
 
+client = wrap(openai.Client(api_key=os.getenv("OPENAI_API_KEY")))
+judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"), project_name="travel_agent_demo")
 
 def populate_vector_db(collection, destinations_data):
     """
@@ -25,26 +28,11 @@ def populate_vector_db(collection, destinations_data):
             ids=[f"destination_{data['destination'].lower().replace(' ', '_')}"]
         )
 
-@judgment.observe(span_type="search tool")
-def search_tavily(query):
-    """Fetch travel data using Tavily API."""
-    API_KEY = os.getenv("TAVILY_API_KEY")
-    client = TavilyClient(api_key=API_KEY)
-    results = client.search(query, num_results=3)
-    return results
-
 @judgment.observe(span_type="tool")
 async def get_attractions(destination):
     """Search for top attractions in the destination."""
     prompt = f"Best tourist attractions in {destination}"
     attractions_search = search_tavily(prompt)
-    await judgment.get_current_trace().async_evaluate(
-        scorers=[AnswerRelevancyScorer(threshold=0.5)],
-        input=prompt,
-        actual_output=str(attractions_search),
-        model="gpt-4o-mini",
-        log_results=True
-    )
     return attractions_search
 
 @judgment.observe(span_type="tool")
@@ -52,13 +40,6 @@ async def get_hotels(destination):
     """Search for hotels in the destination."""
     prompt = f"Best hotels in {destination}"
     hotels_search = search_tavily(prompt)
-    await judgment.get_current_trace().async_evaluate(
-        scorers=[AnswerRelevancyScorer(threshold=0.5)],
-        input=prompt,
-        actual_output=str(hotels_search),
-        model="gpt-4o-mini",
-        log_results=True
-    )
     return hotels_search
 
 @judgment.observe(span_type="tool")
@@ -66,12 +47,11 @@ async def get_flights(destination):
     """Search for flights to the destination."""
     prompt = f"Flights to {destination} from major cities"
     flights_search = search_tavily(prompt)
-    await judgment.get_current_trace().async_evaluate(
+    judgment.get_current_trace().async_evaluate(
         scorers=[AnswerRelevancyScorer(threshold=0.5)],
         input=prompt,
-        actual_output=str(flights_search),
-        model="gpt-4o-mini",
-        log_results=True
+        actual_output=flights_search["results"],
+        model="gpt-4",
     )
     return flights_search
 
@@ -80,16 +60,14 @@ async def get_weather(destination, start_date, end_date):
     """Search for weather information."""
     prompt = f"Weather forecast for {destination} from {start_date} to {end_date}"
     weather_search = search_tavily(prompt)
-    # await judgment.get_current_trace().async_evaluate(
-    #     scorers=[AnswerRelevancyScorer(threshold=0.5)],
-    #     input=prompt,
-    #     actual_output=str(weather_search),
-    #     model="gpt-4o-mini",
-    #     log_results=True
-    # )
+    judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerRelevancyScorer(threshold=0.5)],
+        input=prompt,
+        actual_output=weather_search["results"],
+        model="gpt-4",
+    )
     return weather_search
 
-@judgment.observe(span_type="Retriever")
 def initialize_vector_db():
     """Initialize ChromaDB with OpenAI embeddings."""
     client = chromadb.Client()
@@ -104,7 +82,7 @@ def initialize_vector_db():
     populate_vector_db(res, destinations_data)
     return res
 
-@judgment.observe(span_type="Retriever")
+@judgment.observe(span_type="retriever")
 def query_vector_db(collection, destination, k=3):
     """Query the vector database for existing travel information."""
     try:
@@ -116,7 +94,7 @@ def query_vector_db(collection, destination, k=3):
     except Exception:
         return []
 
-@judgment.observe(span_type="function")
+@judgment.observe(span_type="Research")
 async def research_destination(destination, start_date, end_date):
     """Gather all necessary travel information for a destination."""
     # First, check the vector database
@@ -154,7 +132,6 @@ async def create_travel_plan(destination, start_date, end_date, research_data):
     - Weather: {research_data['weather']}
     """
     
-    client = wrap(openai.Client(api_key=os.getenv("OPENAI_API_KEY")))
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
@@ -162,39 +139,23 @@ async def create_travel_plan(destination, start_date, end_date, research_data):
             {"role": "user", "content": prompt}
         ]
     ).choices[0].message.content
-    
 
-    await judgment.get_current_trace().async_evaluate(
-        scorers=[
-            FaithfulnessScorer(threshold=0.5)
-        ],
-        input="",
+    judgment.get_current_trace().async_evaluate(
+        scorers=[FaithfulnessScorer(threshold=0.5)],
+        input=prompt,
         actual_output=response,
-        retrieval_context=[
-            vector_db_context, 
-            str(research_data['attractions']), 
-            str(research_data['hotels']), 
-            str(research_data['flights']), 
-            str(research_data['weather'])
-        ],
-        model="gpt-4o-mini",
-        log_results=True
+        retrieval_context=[str(vector_db_context), str(research_data)],
+        model="gpt-4",
     )
+    
     return response
 
-
+@judgment.observe(span_type="Main Function", overwrite=True)
 async def generate_itinerary(destination, start_date, end_date):
     """Main function to generate a travel itinerary."""
-    with judgment.trace(
-        "generate_itinerary_demo",
-        project_name="travel_agent_demo",
-        overwrite=True
-    ) as trace:    
-        research_data = await research_destination(destination, start_date, end_date)
-        res = await create_travel_plan(destination, start_date, end_date, research_data)
-        trace.save()
-        trace.print()
-        return res
+    research_data = await research_destination(destination, start_date, end_date)
+    res = await create_travel_plan(destination, start_date, end_date, research_data)
+    return res
 
 
 if __name__ == "__main__":
