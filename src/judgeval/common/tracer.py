@@ -578,8 +578,6 @@ class TraceClient:
                 # Update existing function entry with additional data
                 current_entry = function_entries[function]
                 
-                # print(f"{current_entry=}")
-                
                 if entry["type"] == "input" and entry["inputs"]:
                     current_entry["inputs"] = entry["inputs"]
                     
@@ -588,7 +586,6 @@ class TraceClient:
                     
                 if entry["type"] == "evaluation" and entry["evaluation_runs"]:
                     current_entry["evaluation_runs"] = entry["evaluation_runs"]
-            # print(f"{entry=}, {active_functions=}")
 
         # Sort by timestamp
         condensed.sort(key=lambda x: x["timestamp"])
@@ -605,7 +602,6 @@ class TraceClient:
         
         raw_entries = [entry.to_dict() for entry in self.entries]
         
-        # print(f"Raw entries: {raw_entries}")
         condensed_entries = self.condense_trace(raw_entries)
 
         # Calculate total token counts from LLM API calls
@@ -1044,35 +1040,8 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
 
 
     def on_tool_end(self, output: Any, *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any) -> Any:
-        # print(f"Tool ended: {output}")
         self.trace_client.record_output(output)
         self.end_span(self.trace_client._current_span, span_type="tool")
-    
-    # def on_chain_start(
-    #     self,
-    #     serialized: dict[str, Any],
-    #     inputs: Union[dict[str, Any], Any],
-    #     *,
-    #     run_id: UUID,
-    #     parent_run_id: Optional[UUID] = None,
-    #     **kwargs: Any,
-    # ) -> Any:
-    #     print(f"Chain started: {serialized}")
-    #     print(f"Chain inputs: {inputs}")
-    #     print()
-    #     # self.start_span("Chain", span_type="chain")
-    #     # self.trace_client.record_input({
-    #     #     'args': inputs,
-    #     #     'kwargs': kwargs
-    #     # })
-
-    # def on_chain_end(
-    #     self, outputs: Union[str, dict[str, Any]], *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any
-    # ) -> Any:
-    #     print(f"Chain ended: {outputs}")
-    #     print()
-    #     # self.trace_client.record_output(outputs)
-    #     # self.end_span("Chain", span_type="chain")
 
 
     def on_agent_action (self, action: AgentAction, **kwargs: Any) -> Any:
@@ -1088,25 +1057,6 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
             **kwargs: Any,
         ) -> None:
             print(f"Agent action: {finish}")
-
-
-
-
-
-    # def on_retriever_start(
-    #     self,
-    #     serialized: Optional[dict[str, Any]],
-    #     query: str,
-    #     *,
-    #     run_id: UUID,
-    #     parent_run_id: Optional[UUID] = None,
-    #     tags: Optional[list[str]] = None,
-    #     metadata: Optional[dict[str, Any]] = None,
-    #     **kwargs: Any,
-    # ) -> Any:
-    #     print(f"Retriever started: {serialized}")
-    #     print(f"Retriever query: {query}")
-    #     # Additional processing based on the event data
 
     def on_llm_start(
         self,
@@ -1125,7 +1075,6 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         })
 
     def on_llm_end(self, response: LLMResult, *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any):
-        # print(f"LLM end: {response}")
         self.trace_client.record_output(response.generations[0][0].text)
         self.end_span(self.trace_client._current_span, span_type="llm")
 
@@ -1138,9 +1087,6 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         parent_run_id: Optional[UUID] = None,
         **kwargs: Any,
     ) -> Any:
-        # print(f"Chat model messages: {messages}")
-        # print(f"Chat model serialized: {serialized}")
-        # # print(f"Chat model kwargs: {kwargs}")
 
         if "openai" in serialized["id"]:
             name = f"OPENAI_API_CALL_{self.openai_count}"
