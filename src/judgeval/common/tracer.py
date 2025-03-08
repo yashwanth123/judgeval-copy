@@ -1133,7 +1133,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     def on_llm_end(self, response: LLMResult, *, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any):
         # print(f"LLM end: {response}")
         self.trace_client.record_output(response.generations[0][0].text)
-        self.end_span(self.trace_client._current_span, span_type="tool")
+        self.end_span(self.trace_client._current_span, span_type="llm")
 
     def on_chat_model_start(
         self,
