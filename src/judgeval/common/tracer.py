@@ -573,7 +573,9 @@ class TraceClient:
                 active_functions.remove(function)
                 # del function_entries[function]
                 
-            # The OR condition is to handle the Langchain LLM evaluation case.
+            # The OR condition is to handle the LLM client case.
+            # LLM client is a special case where we exit the span, so when we attach evaluations to it, 
+            # we have to check if the previous entry is an LLM call.
             elif function in active_functions or entry["type"] == "evaluation" and entries[i-1]["function"] == entry["function"]:
                 # Update existing function entry with additional data
                 current_entry = function_entries[function]
