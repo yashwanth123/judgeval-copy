@@ -434,7 +434,7 @@ class TraceClient:
             
             # Prevent using JudgevalScorer with rules - only APIJudgmentScorer allowed with rules
             if loaded_rules and any(isinstance(scorer, JudgevalScorer) for scorer in loaded_scorers):
-                raise ValueError("Cannot use Judgeval scorers (only API scorers) when using rules. Please either remove rules or use only APIJudgmentScorer types.")
+                raise ValueError("Cannot use Judgeval scorers, you can only use API scorers when using rules. Please either remove rules or use only APIJudgmentScorer types.")
             
         except Exception as e:
             warnings.warn(f"Failed to load scorers: {str(e)}")
@@ -476,10 +476,12 @@ class TraceClient:
             
             # Have function be either the last function in the trace or the current span.
             # function = self._current_span if not langchain else self.entries[-1].function
+            
+            prev_entry = self.entries[-1]
+            
             self.add_entry(TraceEntry(
                 type="evaluation",
-                function=self.entries[-1].function,
-                # function=self._current_span,
+                function=prev_entry.function if prev_entry.span_type == "llm" else self._current_span,
                 depth=self.tracer.depth,
                 message=f"Evaluation results for {self._current_span}",
                 timestamp=time.time(),
