@@ -1,6 +1,9 @@
 import csv
 from openai import OpenAI
 from typing import List
+from judgeval import JudgmentClient
+from judgeval.data import Example
+from judgeval.scorers import InstructionAdherenceScorer, FaithfulnessScorer
 
 def extract_data(file_path, 
                                docket_id_col='docket_id', 
@@ -400,6 +403,7 @@ REMEMBER TO END YOUR RESPONSE WITH <answer>True</answer> IF THE LLM HAS MADE A H
 
     return response
 
+
 def inference_parallel(data_list: list, task_instruction: str, model: str = "gpt-4o", 
                       excerpts_key: str = 'excerpts', response_key: str = 'LLM_raw_response', 
                       max_workers: int = 10, log_file: str = "inference_results.txt") -> list:
@@ -491,6 +495,34 @@ def extract_answer(text: str) -> bool:
         raise ValueError(f"Invalid answer: '{answer_text}'. Answer must be 'True' or 'False'")
 
 
+def test_judgment_scorers(task_instruction: str, retrieved_docs: List[List[str]], model_outputs: List[str], judge_model: str):
+    
+    examples = []
+    for i in range(len(model_outputs)):
+        examples.append(Example(
+            input=task_instruction,
+            actual_output=model_outputs[i],
+            retrieval_context=retrieved_docs[i]
+        ))
+
+    instruction_scorer = InstructionAdherenceScorer(threshold=0.95)
+    faithfulness_scorer = FaithfulnessScorer(threshold=0.95)
+
+    client = JudgmentClient()
+
+    results = client.run_evaluation(
+        examples=examples,
+        scorers=[instruction_scorer, faithfulness_scorer],
+        model=judge_model,
+        eval_run_name='test-j-scorers',
+        override=True
+    )
+
+    return results
+
+
+
+
 
 if __name__ == "__main__":
     ### CONFIG
@@ -519,34 +551,50 @@ if __name__ == "__main__":
     )
     print(f"Number of fetched incorrect judgments: {len(incorrect_row_data)}")
     
-    # Run inference to find cases where model response is incorrect but judge believes there's no hallucination
-    inference_results: List[str] = inference_parallel(
-        data_list=incorrect_row_data,
-        task_instruction=task_instruction,
-        model=MODEL_NAME,
-        excerpts_key="excerpts",
-        response_key="LLM_raw_response",
-        max_workers=55,
-        log_file=LOG_FILE
+    results = test_judgment_scorers(
+        task_instruction=task_instruction, 
+        retrieved_docs=[[incorrect_row_data[i]["excerpts"]] for i in range(len(incorrect_row_data))], 
+        model_outputs=[incorrect_row_data[i]["LLM_raw_response"] for i in range(len(incorrect_row_data))], 
+        judge_model="gpt-4o"
     )
 
-    hallucination_results: List[bool] = [extract_answer(result) for result in inference_results]
+    hallucination_results = [not result.success for result in results]
+    true_count = hallucination_results.count(True)
+    false_count = hallucination_results.count(False)
     
-    # Filter for cases where judge says there's no hallucination (False)
-    no_hallucination_indices = [i for i, result in enumerate(hallucination_results) if result is False]
-    no_hallucination_cases = [incorrect_row_data[i] for i in no_hallucination_indices]
+    # Print the counts
+    print(f"Hallucination Results Summary:")
+    print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
+    print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
+    print(f"  Total: {len(hallucination_results)}")
+    # # Run inference to find cases where model response is incorrect but judge believes there's no hallucination
+    # inference_results: List[str] = inference_parallel(
+    #     data_list=incorrect_row_data,
+    #     task_instruction=task_instruction,
+    #     model=MODEL_NAME,
+    #     excerpts_key="excerpts",
+    #     response_key="LLM_raw_response",
+    #     max_workers=55,
+    #     log_file=LOG_FILE
+    # )
+
+    # hallucination_results: List[bool] = [extract_answer(result) for result in inference_results]
     
-    # Write these cases to a file
-    supplemental_disclosure_log_file = os.path.join(os.path.dirname(__file__), f"supplemental_disclosure_data-investigation-{FILTER_TYPE}.txt")
-    with open(supplemental_disclosure_log_file, "w") as f:
-        for i, row in enumerate(no_hallucination_cases):
-            f.write(f"Docket ID: {row['docket_id']}\n")
-            f.write(f"Excerpts: {row['excerpts']}\n")
-            f.write(f"LLM Response: {row['LLM_raw_response']}\n")
-            f.write(f"Judge Inference Response: {inference_results[no_hallucination_indices[i]]}\n")
-            f.write(f"="*80 + "\n")
+    # # Filter for cases where judge says there's no hallucination (False)
+    # no_hallucination_indices = [i for i, result in enumerate(hallucination_results) if result is False]
+    # no_hallucination_cases = [incorrect_row_data[i] for i in no_hallucination_indices]
     
-    print(f"Found {len(no_hallucination_cases)} cases where model response is incorrect but judge believes there's no hallucination")
+    # # Write these cases to a file
+    # supplemental_disclosure_log_file = os.path.join(os.path.dirname(__file__), f"supplemental_disclosure_data-investigation-{FILTER_TYPE}.txt")
+    # with open(supplemental_disclosure_log_file, "w") as f:
+    #     for i, row in enumerate(no_hallucination_cases):
+    #         f.write(f"Docket ID: {row['docket_id']}\n")
+    #         f.write(f"Excerpts: {row['excerpts']}\n")
+    #         f.write(f"LLM Response: {row['LLM_raw_response']}\n")
+    #         # f.write(f"Judge Inference Response: {inference_results[no_hallucination_indices[i]]}\n")
+    #         f.write(f"="*80 + "\n")
+    
+    # print(f"Found {len(no_hallucination_cases)} cases where model response is incorrect but judge believes there's no hallucination")
 
 
     # for _ in range(NUM_TRIALS):
@@ -562,12 +610,12 @@ if __name__ == "__main__":
 
     #     hallucination_results: List[bool] = [extract_answer(result) for result in inference_results]
 
-    #     # Count the number of True and False results
-    #     true_count = hallucination_results.count(True)
-    #     false_count = hallucination_results.count(False)
+        # # Count the number of True and False results
+        # true_count = hallucination_results.count(True)
+        # false_count = hallucination_results.count(False)
         
-    #     # Print the counts
-    #     print(f"Hallucination Results Summary:")
-    #     print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
-    #     print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
-    #     print(f"  Total: {len(hallucination_results)}")
+        # # Print the counts
+        # print(f"Hallucination Results Summary:")
+        # print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
+        # print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
+        # print(f"  Total: {len(hallucination_results)}")

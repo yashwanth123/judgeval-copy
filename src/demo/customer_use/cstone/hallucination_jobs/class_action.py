@@ -1,6 +1,9 @@
 import csv
 from openai import OpenAI
 from typing import List
+from judgeval import JudgmentClient
+from judgeval.data import Example
+from judgeval.scorers import InstructionAdherenceScorer, FaithfulnessScorer
 
 def extract_data(file_path, 
                                docket_id_col='docket_id', 
@@ -345,7 +348,7 @@ Based on my findings, I can summarize the results as follows:
 The filing excerpts reference the same case—Joseph Pietras v. Richard D. Phillips, et al., Case No. 2018-0789, filed on October 31, 2018, in the Court of Chancery of the State of Delaware. The LLM correctly identifies this as the Target Case.
 
 Step 2: Search for Supplemental Disclosure
-The filing excerpts do mention that Item 8 of the Schedule 14D-9 was amended and supplemented. However, the LLM incorrectly states that this supplemental disclosure was made “in response” to the Pietras Chancery Complaint. The excerpts themselves do not specify that the supplemental disclosure was explicitly made in response to the lawsuit, only that the disclosure was updated in the section titled “Certain Litigation.”
+The filing excerpts do mention that Item 8 of the Schedule 14D-9 was amended and supplemented. However, the LLM incorrectly states that this supplemental disclosure was made "in response" to the Pietras Chancery Complaint. The excerpts themselves do not specify that the supplemental disclosure was explicitly made in response to the lawsuit, only that the disclosure was updated in the section titled "Certain Litigation."
 
 Step 3: Search for Explicit Settlement
 No mention of a Settlement Agreement or MOU appears in the excerpts. The LLM correctly notes the absence of an explicit settlement.
@@ -360,7 +363,7 @@ Step 6: Confirm the Agreement Pertains to the Target Case
 Because there is no identified agreement, determining whether one pertains to the Target Case is not applicable.
 
 Step 7: Summarize the Results
-While the LLM was correct in stating that the filing references the Target Case and that there is supplemental disclosure, it incorrectly concludes that the supplemental disclosure was made in response to the lawsuit. The filing’s language simply states that the disclosure was revised in the litigation section; it does not explicitly tie that revision to a response to the lawsuit.
+While the LLM was correct in stating that the filing references the Target Case and that there is supplemental disclosure, it incorrectly concludes that the supplemental disclosure was made in response to the lawsuit. The filing's language simply states that the disclosure was revised in the litigation section; it does not explicitly tie that revision to a response to the lawsuit.
 
 Final Determination: The LLM did hallucinate by asserting that the supplemental disclosure was explicitly made in response to the lawsuit.
 
@@ -470,6 +473,31 @@ def extract_answer(text: str) -> bool:
         raise ValueError(f"Invalid answer: '{answer_text}'. Answer must be 'True' or 'False'")
 
 
+def test_judgment_scorers(task_instruction: str, retrieved_docs: List[List[str]], model_outputs: List[str], judge_model: str):
+    
+    examples = []
+    for i in range(len(model_outputs)):
+        examples.append(Example(
+            input=task_instruction,
+            actual_output=model_outputs[i],
+            retrieval_context=retrieved_docs[i]
+        ))
+
+    instruction_scorer = InstructionAdherenceScorer(threshold=0.95)
+    faithfulness_scorer = FaithfulnessScorer(threshold=0.95)
+
+    client = JudgmentClient()
+
+    results = client.run_evaluation(
+        examples=examples,
+        scorers=[instruction_scorer, faithfulness_scorer],
+        model=judge_model,
+        eval_run_name='test-j-scorers',
+        override=True
+    )
+
+    return results
+
 
 if __name__ == "__main__":
 
@@ -477,7 +505,7 @@ if __name__ == "__main__":
     import os
     NUM_TRIALS = 3
     MODEL_NAME = "gpt-4o"
-    FILTER_TYPE = "incorrect_only"
+    FILTER_TYPE = "correct_only"
     LOG_FILE = os.path.join(os.path.dirname(__file__), f"inference_results-{MODEL_NAME}-{FILTER_TYPE}-class-action.txt")
 
     print(f"Running inference for {NUM_TRIALS} trials with model {MODEL_NAME} and filter type {FILTER_TYPE}")
@@ -487,7 +515,6 @@ if __name__ == "__main__":
 
     with open(task_instruction_file, 'r') as file:
         task_instruction = file.read()
-
 
     incorrect_row_data: List[dict] = extract_data(
         file_path,
@@ -499,26 +526,45 @@ if __name__ == "__main__":
     )
     print(f"Number of fetched incorrect judgments: {len(incorrect_row_data)}")
     
-    for _ in range(NUM_TRIALS):
-        inference_results: List[str] = inference_parallel(
-            data_list=incorrect_row_data,
-            task_instruction=task_instruction,
-            model=MODEL_NAME,
-            excerpts_key="excerpts",
-            response_key="LLM_raw_response",
-            max_workers=55,
-            log_file=LOG_FILE
-        )
+    # Add the test_judgment_scorers usage here
+    results = test_judgment_scorers(
+        task_instruction=task_instruction, 
+        retrieved_docs=[[incorrect_row_data[i]["excerpts"]] for i in range(len(incorrect_row_data))], 
+        model_outputs=[incorrect_row_data[i]["LLM_raw_response"] for i in range(len(incorrect_row_data))], 
+        judge_model="gpt-4o"
+    )
 
-        hallucination_results: List[bool] = [extract_answer(result) for result in inference_results]
+    hallucination_results = [not result.success for result in results]
+    true_count = hallucination_results.count(True)
+    false_count = hallucination_results.count(False)
+    
+    # Print the counts
+    print(f"Hallucination Results Summary:")
+    print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
+    print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
+    print(f"  Total: {len(hallucination_results)}")
 
-        # Count the number of True and False results
-        true_count = hallucination_results.count(True)
-        false_count = hallucination_results.count(False)
+    # # Original code can still be used after this if desired
+    # for _ in range(NUM_TRIALS):
+    #     inference_results: List[str] = inference_parallel(
+    #         data_list=incorrect_row_data,
+    #         task_instruction=task_instruction,
+    #         model=MODEL_NAME,
+    #         excerpts_key="excerpts",
+    #         response_key="LLM_raw_response",
+    #         max_workers=55,
+    #         log_file=LOG_FILE
+    #     )
+
+    #     hallucination_results: List[bool] = [extract_answer(result) for result in inference_results]
+
+    #     # Count the number of True and False results
+    #     true_count = hallucination_results.count(True)
+    #     false_count = hallucination_results.count(False)
         
-        # Print the counts
-        print(f"Hallucination Results Summary:")
-        print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
-        print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
-        print(f"  Total: {len(hallucination_results)}")
+    #     # Print the counts
+    #     print(f"Hallucination Results Summary:")
+    #     print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
+    #     print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
+    #     print(f"  Total: {len(hallucination_results)}")
 
