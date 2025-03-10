@@ -1,6 +1,9 @@
 import csv
 from openai import OpenAI
 from typing import List
+from judgeval import JudgmentClient
+from judgeval.scorers import GroundednessScorer
+from judgeval.data import Example
 
 def extract_data(file_path, 
                                docket_id_col='docket_id', 
@@ -477,7 +480,7 @@ if __name__ == "__main__":
     import os
     NUM_TRIALS = 3
     MODEL_NAME = "gpt-4o"
-    FILTER_TYPE = "incorrect_only"
+    FILTER_TYPE = "correct_only"
     LOG_FILE = os.path.join(os.path.dirname(__file__), f"inference_results-{MODEL_NAME}-{FILTER_TYPE}-class-action.txt")
 
     print(f"Running inference for {NUM_TRIALS} trials with model {MODEL_NAME} and filter type {FILTER_TYPE}")
@@ -499,26 +502,56 @@ if __name__ == "__main__":
     )
     print(f"Number of fetched incorrect judgments: {len(incorrect_row_data)}")
     
-    for _ in range(NUM_TRIALS):
-        inference_results: List[str] = inference_parallel(
-            data_list=incorrect_row_data,
-            task_instruction=task_instruction,
-            model=MODEL_NAME,
-            excerpts_key="excerpts",
-            response_key="LLM_raw_response",
-            max_workers=55,
-            log_file=LOG_FILE
-        )
+    # for _ in range(NUM_TRIALS):
+    # inference_results: List[str] = inference_parallel(
+    #     data_list=incorrect_row_data,
+    #     task_instruction=task_instruction,
+    #     model=MODEL_NAME,
+    #     excerpts_key="excerpts",
+    #     response_key="LLM_raw_response",
+    #     max_workers=55,
+    #     log_file=LOG_FILE
+    # )
+    data_examples = []
+    for row in incorrect_row_data:
+        data_examples.append(Example(
+            input=task_instruction,
+            actual_output=row['LLM_raw_response'],
+            retrieval_context=[row["excerpts"]],
+            additional_metadata={
+                "docket_id": row["docket_id"],
+                "correct": row["correct"],
+                "note": row["RZ_note"]
+            }
+        ))
+    
+    judgment_client = JudgmentClient()
 
-        hallucination_results: List[bool] = [extract_answer(result) for result in inference_results]
+    inference_results: List = judgment_client.run_evaluation(
+        examples=data_examples,
+        scorers=[GroundednessScorer(threshold=1.0)],
+        model="osiris-mini",
+        eval_run_name="class_action_halu",
+        project_name="haludetect",
+        override=True
+    )
 
-        # Count the number of True and False results
-        true_count = hallucination_results.count(True)
-        false_count = hallucination_results.count(False)
+    for r in inference_results:
+        if r.success:
+            print(r.additional_metadata["docket_id"])
+            print(r.actual_output)
+            print(r.retrieval_context)
         
-        # Print the counts
-        print(f"Hallucination Results Summary:")
-        print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
-        print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
-        print(f"  Total: {len(hallucination_results)}")
+    hallucination_results = [not result.success for result in inference_results]
+    # hallucination_results: List[bool] = [extract_answer(result) for result in inference_results]
+
+    # Count the number of True and False results
+    true_count = hallucination_results.count(True)
+    false_count = hallucination_results.count(False)
+    
+    # Print the counts
+    print(f"Hallucination Results Summary:")
+    print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
+    print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
+    print(f"  Total: {len(hallucination_results)}")
 
