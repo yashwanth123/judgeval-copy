@@ -529,7 +529,7 @@ if __name__ == "__main__":
     inference_results = judgment_client.run_evaluation(
         examples=data_examples,
         scorers=[GroundednessScorer(threshold=1.0)],
-        model="gpt-4o",
+        model="osiris",
         eval_run_name="driver_amend_halu",
         project_name="haludetect",
         override=True

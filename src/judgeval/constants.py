@@ -114,7 +114,7 @@ TOGETHER_SUPPORTED_MODELS = [
   "mistralai/Mistral-7B-Instruct-v0.1"
 ]
 
-JUDGMENT_SUPPORTED_MODELS = {"osiris-large", "osiris-mini"}
+JUDGMENT_SUPPORTED_MODELS = {"osiris-large", "osiris-mini", "osiris"}
 
 ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS) | JUDGMENT_SUPPORTED_MODELS
 
