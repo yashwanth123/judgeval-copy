@@ -14,6 +14,7 @@ from judgeval.scorers.judgeval_scorers import (
     ScorerWrapper,
     AnswerCorrectnessScorer,
     Text2SQLScorer,
+    ComparisonScorer,
 )
 
 __all__ = [
@@ -33,4 +34,5 @@ __all__ = [
     "ScorerWrapper",
     "AnswerCorrectnessScorer",
     "Text2SQLScorer",
+    "ComparisonScorer",
 ]

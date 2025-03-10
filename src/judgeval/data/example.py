@@ -3,16 +3,13 @@ Classes for representing examples in a dataset.
 """
 
 
-from typing import TypeVar, Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List
 from uuid import uuid4
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 from datetime import datetime
 import time
 
-
-Input = TypeVar('Input')
-Output = TypeVar('Output')
 
 class ExampleParams(Enum):
     INPUT = "input"
@@ -23,11 +20,12 @@ class ExampleParams(Enum):
     TOOLS_CALLED = "tools_called"
     EXPECTED_TOOLS = "expected_tools"
     REASONING = "reasoning"
+    ADDITIONAL_METADATA = "additional_metadata"
 
 
 class Example(BaseModel):
-    input: Input
-    actual_output: Output
+    input: str
+    actual_output: str
     expected_output: Optional[str] = None
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
@@ -39,13 +37,6 @@ class Example(BaseModel):
     example_index: Optional[int] = None
     timestamp: Optional[str] = None
     trace_id: Optional[str] = None
-
-    @field_validator('input', 'actual_output', mode='before')
-    def convert_to_str(cls, value):
-        try:
-            return str(value)
-        except Exception:
-            return repr(value)
     
     def __init__(self, **data):
         if 'example_id' not in data:
@@ -54,7 +45,6 @@ class Example(BaseModel):
         if 'timestamp' not in data:
             data['timestamp'] = datetime.now().strftime("%Y%m%d_%H%M%S")
         super().__init__(**data)
-
 
     def to_dict(self):
         return {

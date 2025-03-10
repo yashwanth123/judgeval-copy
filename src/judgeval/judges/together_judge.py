@@ -14,7 +14,7 @@ BASE_CONVERSATION = [
 ]
 
 class TogetherJudge(JudgevalJudge):
-    def __init__(self, model: str = "QWEN", **kwargs):
+    def __init__(self, model: str = "Qwen/Qwen2.5-72B-Instruct-Turbo", **kwargs):
         debug(f"Initializing TogetherJudge with model={model}")
         self.model = model
         self.kwargs = kwargs

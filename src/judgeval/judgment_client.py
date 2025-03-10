@@ -36,7 +36,7 @@ class EvalRunRequestBody(BaseModel):
 
 
 class JudgmentClient:
-    def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"), organization_id: str = os.getenv("ORGANIZATION_ID")):
+    def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"), organization_id: str = os.getenv("JUDGMENT_ORG_ID")):
         self.judgment_api_key = judgment_api_key
         self.organization_id = organization_id
         self.eval_dataset_client = EvalDatasetClient(judgment_api_key, organization_id)
@@ -306,7 +306,8 @@ class JudgmentClient:
                                     "Authorization": f"Bearer {self.judgment_api_key}",
                                     "X-Organization-Id": self.organization_id
                                  },
-                                 json=eval_run_request_body.model_dump())
+                                 json=eval_run_request_body.model_dump(),
+                                 verify=True)
         if eval_run.status_code != requests.codes.ok:
             raise ValueError(f"Error fetching eval results: {eval_run.json()}")
 
@@ -378,7 +379,8 @@ class JudgmentClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
             },
-            json={}  # Empty body now
+            json={},  # Empty body now
+            verify=True
         )
         if response.status_code == 200:
             return True, response.json()
@@ -409,7 +411,8 @@ class JudgmentClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
                 "X-Organization-Id": self.organization_id
-            }
+            },
+            verify=True
         )
         
         if response.status_code == 500:
@@ -452,7 +455,8 @@ class JudgmentClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
                 "X-Organization-Id": self.organization_id
-            }
+            },
+            verify=True
         )
         
         if response.status_code == 500:

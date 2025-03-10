@@ -40,7 +40,7 @@ To use an open-source judge model, you simply pass the model name to the `model`
 results = client.run_evaluation(
     examples=[example1, ...],
     scorers=[AnswerRelevancyScorer(threshold=0.5), ...]
-    model="QWEN"  # or any other open-source model name
+    model="Qwen/Qwen2.5-72B-Instruct-Turbo"  # or any other open-source model name
 )
 ```
 
