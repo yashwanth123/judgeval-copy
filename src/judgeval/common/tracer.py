@@ -37,7 +37,7 @@ from http import HTTPStatus
 import pika
 import os
 
-from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL, JUDGMENT_TRACES_FETCH_API_URL, RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_QUEUE, JUDGMENT_TRACES_DELETE_API_URL
+from judgeval.constants import JUDGMENT_TRACES_SAVE_API_URL, JUDGMENT_TRACES_FETCH_API_URL, RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_QUEUE, JUDGMENT_TRACES_DELETE_API_URL,JUDGMENT_TRACES_ADD_TO_EVAL_QUEUE_API_URL
 from judgeval.judgment_client import JudgmentClient
 from judgeval.data import Example
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer, ScorerWrapper
@@ -208,7 +208,7 @@ class TraceManagerClient:
                 "Authorization": f"Bearer {self.judgment_api_key}",
                 "X-Organization-Id": self.organization_id
             },
-            verify=False
+            verify=True
         )
 
         if response.status_code != HTTPStatus.OK:
@@ -233,7 +233,7 @@ class TraceManagerClient:
                 "Authorization": f"Bearer {self.judgment_api_key}",
                 "X-Organization-Id": self.organization_id
             },
-            verify=False
+            verify=True
         )
         
         if response.status_code == HTTPStatus.BAD_REQUEST:
@@ -619,25 +619,23 @@ class TraceClient:
         }
         # Execute asynchrous evaluation in the background
         if not empty_save:  # Only send to RabbitMQ if the trace is not empty
-            connection = pika.BlockingConnection(
-                pika.ConnectionParameters(host=RABBITMQ_HOST, port=RABBITMQ_PORT))
-            channel = connection.channel()
-            
-            channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
-            trace_data["judgment_api_key"] = self.tracer.api_key
-            trace_data["organization_id"] = self.tracer.organization_id
-            channel.basic_publish(
-                exchange='',
-                routing_key=RABBITMQ_QUEUE,
-                body=json.dumps(trace_data),
-                properties=pika.BasicProperties(
-                    delivery_mode=pika.DeliveryMode.Transient,  # Changed from Persistent to Transient
+            # Send trace data to evaluation queue via API
+            try:
+                response = requests.post(
+                    JUDGMENT_TRACES_ADD_TO_EVAL_QUEUE_API_URL,
+                    json=trace_data,
                     headers={
-                        'api_key': self.tracer.api_key,
-                        'organization_id': self.tracer.organization_id
-                    }
-                ))
-            connection.close()
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {self.tracer.api_key}",
+                        "X-Organization-Id": self.tracer.organization_id
+                    },
+                    verify=True
+                )
+                
+                if response.status_code != HTTPStatus.OK:
+                    warnings.warn(f"Failed to add trace to evaluation queue: {response.text}")
+            except Exception as e:
+                warnings.warn(f"Error sending trace to evaluation queue: {str(e)}")
         
         self.trace_manager_client.save_trace(trace_data, empty_save)
 
