@@ -53,7 +53,7 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
             "X-Organization-Id": evaluation_run.organization_id
         }, 
         json=payload,
-        verify=False)
+        verify=True)
         response_data = response.json()
     except Exception as e:
         error(f"Error: {e}")
@@ -167,12 +167,12 @@ def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_k
                 "project_name": project_name,
                 "judgment_api_key": judgment_api_key,
             },
-            verify=False
+            verify=True
         )
         
         if response.status_code == 409:
-            error(f"Evaluation run name '{eval_name}' already exists for this project")
-            raise ValueError(f"Evaluation run name '{eval_name}' already exists for this project")
+            error(f"Eval run name '{eval_name}' already exists for this project. Please choose a different name or set the `override` flag to true.")
+            raise ValueError(f"Eval run name '{eval_name}' already exists for this project. Please choose a different name or set the `override` flag to true.")
         
         if not response.ok:
             response_data = response.json()
@@ -210,7 +210,7 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
                 "project_name": evaluation_run.project_name,
                 "eval_name": evaluation_run.eval_name,
             },
-            verify=False
+            verify=True
         )
         
         if not res.ok:
