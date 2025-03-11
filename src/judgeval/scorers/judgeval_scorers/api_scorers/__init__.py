@@ -10,6 +10,7 @@ from judgeval.scorers.judgeval_scorers.api_scorers.answer_relevancy import Answe
 from judgeval.scorers.judgeval_scorers.api_scorers.answer_correctness import AnswerCorrectnessScorer
 from judgeval.scorers.judgeval_scorers.api_scorers.comparison import ComparisonScorer
 from judgeval.scorers.judgeval_scorers.api_scorers.instruction_adherence import InstructionAdherenceScorer
+from judgeval.scorers.judgeval_scorers.api_scorers.groundedness import GroundednessScorer
 
 __all__ = [
     "ToolCorrectnessScorer",
@@ -24,4 +25,5 @@ __all__ = [
     "AnswerCorrectnessScorer",
     "ComparisonScorer",
     "InstructionAdherenceScorer",
+    "GroundednessScorer",
 ]

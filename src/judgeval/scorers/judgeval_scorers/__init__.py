@@ -15,6 +15,7 @@ from judgeval.scorers.judgeval_scorers.api_scorers import (
     AnswerCorrectnessScorer as APIAnswerCorrectnessScorer,  
     ComparisonScorer as APIComparisonScorer,
     InstructionAdherenceScorer as APIInstructionAdherenceScorer,
+    GroundednessScorer as APIGroundednessScorer,
 )
 
 from judgeval.scorers.judgeval_scorers.local_implementations import (
@@ -149,6 +150,10 @@ def ComparisonScorer(threshold: float, criteria: str, description: str):
         local_implementation=LocalComparisonScorer
     )(threshold=threshold, criteria=criteria, description=description)
 
+GroundednessScorer = ScorerWrapper(
+    api_implementation=APIGroundednessScorer,
+)
+
 __all__ = [
     "ToolCorrectnessScorer",
     "JSONCorrectnessScorer",
@@ -161,4 +166,5 @@ __all__ = [
     "AnswerRelevancyScorer",
     "Text2SQLScorer",
     "ComparisonScorer",
+    "GroundednessScorer",
 ]

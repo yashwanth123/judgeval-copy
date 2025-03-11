@@ -31,7 +31,7 @@ async def verify_server(server_url: str = SERVER_URL):
     """Helper function to verify server is running."""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{server_url}/health")
+            response = await client.get(f"{server_url}/health/")
             if response.status_code == 200:
                 print("✓ Server health check passed")
                 return True
@@ -46,7 +46,7 @@ async def debug_server_state(client):
     """Helper function to get server state for debugging."""
     try:
         # Check server health
-        health_response = await client.get(f"{SERVER_URL}/health")
+        health_response = await client.get(f"{SERVER_URL}/health/")
         print("\n🔍 Server Status:")
         print(f"- Health endpoint: {'✓ OK' if health_response.status_code == 200 else '❌ Failed'}")
         print(f"- Status code: {health_response.status_code}")

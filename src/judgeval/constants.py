@@ -25,6 +25,7 @@ class APIScorer(str, Enum):
     TOOL_CORRECTNESS = "tool_correctness"
     JSON_CORRECTNESS = "json_correctness"
     COMPARISON = "comparison"
+    GROUNDEDNESS = "groundedness"
 
     @classmethod
     def _missing_(cls, value):
@@ -50,7 +51,7 @@ JUDGMENT_EVAL_DELETE_PROJECT_API_URL = f"{ROOT_API}/delete_eval_results_by_proje
 JUDGMENT_TRACES_FETCH_API_URL = f"{ROOT_API}/traces/fetch/"
 JUDGMENT_TRACES_SAVE_API_URL = f"{ROOT_API}/traces/save/"
 JUDGMENT_TRACES_DELETE_API_URL = f"{ROOT_API}/traces/delete/"
-
+JUDGMENT_TRACES_ADD_TO_EVAL_QUEUE_API_URL = f"{ROOT_API}/traces/add_to_eval_queue/"
 # RabbitMQ
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq-networklb-faa155df16ec9085.elb.us-west-1.amazonaws.com")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", 5672)
@@ -114,7 +115,7 @@ TOGETHER_SUPPORTED_MODELS = [
   "mistralai/Mistral-7B-Instruct-v0.1"
 ]
 
-JUDGMENT_SUPPORTED_MODELS = {"osiris-large", "osiris-mini"}
+JUDGMENT_SUPPORTED_MODELS = {"osiris-large", "osiris-mini", "osiris"}
 
 ACCEPTABLE_MODELS = set(litellm.model_list) | set(TOGETHER_SUPPORTED_MODELS) | JUDGMENT_SUPPORTED_MODELS
 
