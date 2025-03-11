@@ -1,5 +1,5 @@
 """
-Util prompts for AnswerRelevancyScorer
+Util prompts for InstructionAdherenceScorer
 """
 
 from typing import List, Optional, Tuple
