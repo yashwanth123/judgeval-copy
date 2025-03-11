@@ -1,0 +1,90 @@
+#### General Task Definition
+
+The provided content contains the following:
+
+- **Target Case** (enclosed in "<target_case>" tags): Basic information about a litigation case, including its caption, filing date, and court.
+- **Filing Excerpts** (enclosed in "<filing_excerpts>" tags): Excerpts from SEC filings filed by the defendant company.
+
+You will review the Filing Excerpts and answer two questions: 
+
+1. Did the defendant company (i.e. "the Company", which is the filer of this filing) filed supplemental disclosure or amendment in response to lawsuits?
+
+This is a "Yes" or "No" question. Answer "Yes" if there is explicit mention that the Company has made or planned to make supplemental disclosure or amendment. Otherwise "No".
+
+2. Besides supplemental disclosure, did the defendant company (i.e. "the Company", which is the filer of this filing) reach an explicit agreement with the Target Case parties?
+
+This is a "Yes" or "No" question; for "Yes" you will specify the type of the agreement. Your answer will eventually be one of the followings categories:
+- "Yes (Settlement Agreement)": settlement was indicated by an explicit mention of a settlement agreement.
+- "Yes (MOU)": settlement was suggested by the parties entering into a "memorandum of understanding" (or "MOU").
+- "Yes (Other Agreement)": other than a Settlement Agreement, an MOU, or an agreement to make supplemental disclosure, there is explicit discussion that the Company "entered into an agreement" with the parties of the Target Case, where "agreement" refers to a formal, named agreement type, and the detailed resolution of the agreement is provided.
+- "Yes (Implied Agreement)": an agreement is strongly implied but not explicitly stated.
+- "No": there is no indication of a settlement or agreement. This includes (but not limited to):
+   - there is no discussion of the Target Case.
+   - there is no discussion of the outcome of the Target Case.
+   - the case was dismissed by the plaintiff, but the excerpts provided no explicit discussion on the reason.
+   - there was discussion of an agreement, but the agreement was directly associated with a different case.
+
+#### Thinking Instructions
+
+Follow these steps, stopping as soon as an answer becomes clear. Include all reasoning in your output.
+
+1. **Confirm Case Discussion**: confirm that there are discussion around the Target Case. If the filing did not mention the Target Case at all, you will answer "No" for "supplemental_disclosure" and "reached_agreement" following the Output Instructions. Stop proceeding.
+
+2. **Search for Supplemental Disclosure**: look for explicit mention of the Company agreeing or planning to make supplemental disclosure or amendment related to the merger, in response to the lawsuit.
+
+If the supplemental disclosure is specifically in response to a lawsuit, confirm that the lawsuit is the Target Case. Look for supporting details such as the plaintiff name or matching case details. If there is no evidence that the supplemental disclosure is associated with the Target Case, you will answer "No" for "supplemental_disclosure".
+
+Otherwise, you will answer "Yes" for "supplemental_disclosure" and proceed to the next step.
+
+3. **Search for Explicit Settlement**: determine whether there is an explicit "settlement" for the Target Case. Settlement can be indicated by:
+
+    a. explicit mention of a "Settlement Agreement". This indicates that the agreement type is "Settlement Agreement".
+    b. IF there is no "Settlement Agreement" mention, search for "MOU" or "memorandum of understanding" related to the case. This indicates the agreement type to be "MOU".
+
+Note that in our definition, plaintiffs or the counsels of plaintiffs voluntarily dismissing a case in response to supplemental disclosure does NOT suggest a settlement. "Settlement" or "MOU" must be explicitly mentioned.
+
+Stop and proceed to step 6 if you find a solid settlement indicator. 
+
+4. **Search for other Agreements**: If there is no "Settlement Agreement" or "MOU", search for an explicit mention of a formal "XXX agreement" that indicates a resolution. 
+
+Note that plaintiff can voluntarily dismiss a case without an agreement, and thus the dismissal of the case without explicit reason does NOT suggest an agreement.
+
+Also, "agreeing to make supplemental disclosure" is NOT considered an agreement for this task. The agreement must be a formal, named agreement type and the detailed resolution of the agreement should be more specific than just supplemental disclosure.
+
+5. **Handle Implied Agreement**: If an agreement is **strongly** implied but does not explicitly use the phrase 'XXX Agreement', classify it as 'Yes (Implied Agreement)' and note the lack of explicit terminology in the "note" field with "Agreement is strongly implied but not explicit". Do not attempt to classify it into the specific type of agreement. Err on the side of caution and only use this classification when the implication is very clear.
+
+6. **Confirm the agreement pertains the Target Case**: If the agreement is case-specific, check the context around the agreement discussion to confirm that it pertains to the target case. Think step by step:
+
+Evaluate whether the agreement was case specific (e.g. the Company reached the agreement with plaintiffs in XXX action; the Company made supplemental disclosure in response to XXX action and XXX action.) If so, confirm that the associated lawsuit(s) was or contained the Target Case. Look for supporting details such as the plaintiff name or matching case details. 
+
+When the agreement is case-specific, and that there is no evidence that the Target Case is associated with the discussed agreement, you will answer "No" for "reached_agreement". 
+
+When the agreement was not case-specific:
+- If there is no evidence suggesting the lawsuits are different, assume inclusion and classify accordingly. Add to the "note" field: "The identified agreement was not case specific."
+- If any evidence suggests the lawsuits are different, classify as "No". 
+
+If you find multiple agreement types, choose the most specific one. For example, if you find both "Settlement Agreement" and "MOU", choose "Settlement Agreement". If an MOU and another non-settlement agreement exist, prioritize "MOU".
+
+If multiple "Other Agreements" exist, only answer with a single "Yes (Other Agreement)".
+
+7. **Summarize the Results**: Gather all the evidence you have found and determine the final answer for "supplemental_disclosure" and "reached_agreement".
+
+If step 2 finds any valid supplemental disclosure, you will answer "Yes" for "supplemental_disclosure". Otherwise, you will answer "No" for "supplemental_disclosure".
+
+If Step 6 finds no valid agreement or the agreement explicitly pertains to a different case, answer 'No' for 'reached_agreement'. Otherwise, you will answer "Yes (xxx)" for "reached_agreement" where xxx is the agreement type (Settlement Agreement, MOU, Other Agreement, or Implied Agreement). 
+
+#### Output Instructions
+
+First, output your thinking process by following the Thinking Instructions step by step. For each step, restate the step in your own words and discuss your thinkings and findings. Start your output with "**Step 1: Confirm Case Discussion**".
+
+Then, provide your final answer in a JSON object with the following format:
+
+{
+    "supplemental_disclosure": [STRING] "Yes" or "No",
+    "supplemental_disclosure_quote": [STRING] exact quote from the filing that proved the existence of supplemental disclosure; "Not applicable" if there is no such discussion,
+    "reached_agreement": [STRING] One of the following: "Yes (Settlement Agreement)", "Yes (MOU)", "Yes (Other Agreement)", "Yes (Implied Agreement)", or "No",
+    "reached_agreement_quote": [STRING] exact quote from the filing that proved the "reached_agreement" result; "Not applicable" if there is no such discussion,
+    "note": [STRING] Any other supportive comment or "Case not mentioned." if applicable
+}
+
+Never generate any comment or note within the JSON beyond the "outcome_details" or "note" fields. Finish your output with just the JSON object.
