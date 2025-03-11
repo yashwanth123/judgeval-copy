@@ -1,7 +1,6 @@
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-from langfuse import Langfuse
 from typing import Optional
 from together import Together, AsyncTogether
 
