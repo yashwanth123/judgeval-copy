@@ -17,7 +17,6 @@ load_dotenv()
 notification_config = NotificationConfig(
     enabled=True,
     communication_methods=["slack", "email"],  # Only using slack and email
-    message_template="Rule '{rule_name}' was triggered with score {score}",
     email_addresses=["minh@judgmentlabs.ai"],  # Replace with your email
     send_at=None  # Send immediately
 )
