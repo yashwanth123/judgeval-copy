@@ -4,7 +4,7 @@ Classes for representing examples in a dataset.
 
 from typing import Optional, Any, Dict, List
 from uuid import uuid4
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 from datetime import datetime
 
