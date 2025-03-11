@@ -1,5 +1,5 @@
 """
-`judgeval` hallucination scorer
+`judgeval` instruction adherence scorer
 
 TODO add link to docs page for this scorer
 
