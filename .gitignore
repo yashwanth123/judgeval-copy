@@ -29,6 +29,9 @@ google-cloud-sdk/
 *.manifest
 *.spec
 
+# Customer use cases
+src/demo/customer_use/
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
