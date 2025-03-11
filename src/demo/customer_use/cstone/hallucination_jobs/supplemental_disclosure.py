@@ -499,7 +499,7 @@ if __name__ == "__main__":
     ### CONFIG
     import os
     NUM_TRIALS = 3
-    MODEL_NAME = "gpt-4o"
+    MODEL_NAME = "osiris"
     FILTER_TYPE = "correct_only"
     LOG_FILE = os.path.join(os.path.dirname(__file__), f"inference_results-{MODEL_NAME}-{FILTER_TYPE}-supplemental-disclosure.txt")
 
@@ -507,12 +507,12 @@ if __name__ == "__main__":
 
     file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/clh-ma-supplemental-disclosure.csv"
     task_instruction_file = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/prompts/supplemental_disclosure.txt"
-
+    CSV_OUTPUT_FILE = os.path.join(os.path.dirname(__file__), f"hallucination_results-{MODEL_NAME}-{FILTER_TYPE}-supplemental-disclosure.csv")
     with open(task_instruction_file, 'r') as file:
         task_instruction = file.read()
 
 
-    incorrect_row_data: List[dict] = extract_data(
+    row_data: List[dict] = extract_data(
         file_path,
         excerpts_col="content",
         llm_response_col="raw_response",
@@ -520,11 +520,11 @@ if __name__ == "__main__":
         note_col="RZ_note",
         filter_type=FILTER_TYPE
     )
-    print(f"Number of fetched incorrect judgments: {len(incorrect_row_data)}")
+    print(f"Number of fetched incorrect judgments: {len(row_data)}")
     
     # Run inference to find cases where model response is incorrect but judge believes there's no hallucination
     data_examples = []
-    for row in incorrect_row_data:
+    for row in row_data:
         data_examples.append(Example(
             input=task_instruction,
             actual_output=row['LLM_raw_response'],
@@ -541,14 +541,12 @@ if __name__ == "__main__":
     inference_results = judgment_client.run_evaluation(
         examples=data_examples,
         scorers=[GroundednessScorer(threshold=1.0)],
-        model="osiris",
+        model=MODEL_NAME,
         eval_run_name="supplemental_disclosure_halu",
         project_name="haludetect",
         override=True
     )
 
-    print(inference_results)
-        
     hallucination_results = [not result.success for result in inference_results]
 
     # Count the number of True and False results
@@ -560,3 +558,22 @@ if __name__ == "__main__":
     print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
     print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
     print(f"  Total: {len(hallucination_results)}")
+
+         
+    # Write results to CSV
+    with open(CSV_OUTPUT_FILE, 'w', newline='') as csvfile:
+        fieldnames = ['excerpts', 'llm_response', 'docket_id', 'correct', 'hallucination_decision', 'model_raw_response']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for i, (row, hallucination, result) in enumerate(zip(row_data, hallucination_results, inference_results)):
+            writer.writerow({
+                'excerpts': row['excerpts'],
+                'llm_response': row['LLM_raw_response'],
+                'docket_id': row['docket_id'],
+                'correct': row['correct'],
+                'hallucination_decision': 'hallucination' if hallucination else 'no hallucination',
+                'model_raw_response': result.scorers_data[0].additional_metadata["raw_response"]
+            })
+    
+    print(f"Results written to {CSV_OUTPUT_FILE}")

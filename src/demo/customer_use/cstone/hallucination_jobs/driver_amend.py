@@ -476,10 +476,12 @@ def extract_answer(text: str) -> bool:
 if __name__ == "__main__":
     ### CONFIG
     import os
+    import csv
     NUM_TRIALS = 3
-    MODEL_NAME = "gpt-4o"
+    MODEL_NAME = "osiris"
     FILTER_TYPE = "correct_only"
     LOG_FILE = os.path.join(os.path.dirname(__file__), f"inference_results-{MODEL_NAME}-{FILTER_TYPE}-driver-amend.txt")
+    CSV_OUTPUT_FILE = os.path.join(os.path.dirname(__file__), f"hallucination_results-{MODEL_NAME}-{FILTER_TYPE}-driver-amend.csv")
     print(f"Running inference for {NUM_TRIALS} trials with model {MODEL_NAME} and filter type {FILTER_TYPE}")
 
     file_path = "/Users/alexshan/Desktop/judgment_labs/judgeval/src/demo/customer_use/cstone/JudgmentDemo/wh-driver-amend-charter.csv"
@@ -488,7 +490,7 @@ if __name__ == "__main__":
         task_instruction = file.read()
 
 
-    incorrect_row_data: List[dict] = extract_data(
+    row_data: List[dict] = extract_data(
         file_path,
         excerpts_col="content",
         llm_response_col="raw_response",
@@ -496,23 +498,11 @@ if __name__ == "__main__":
         note_col="RZ_note",
         filter_type=FILTER_TYPE
     )
-    print(f"Number of fetched incorrect judgments: {len(incorrect_row_data)}")
+    print(f"Number of fetched incorrect judgments: {len(row_data)}")
     
-
-    # for _ in range(NUM_TRIALS):
-    #     inference_results: List[str] = inference_parallel(
-    #         data_list=incorrect_row_data,
-    #         task_instruction=task_instruction,
-    #         model=MODEL_NAME,
-    #         excerpts_key="excerpts",
-    #         response_key="LLM_raw_response",
-    #         max_workers=55,
-    #         log_file=LOG_FILE
-    #     )
-
     #     hallucination_results: List[bool] = [extract_answer(result) for result in inference_results]
     data_examples = []
-    for row in incorrect_row_data:
+    for row in row_data:
         data_examples.append(Example(
             input=task_instruction,
             actual_output=row['LLM_raw_response'],
@@ -529,13 +519,11 @@ if __name__ == "__main__":
     inference_results = judgment_client.run_evaluation(
         examples=data_examples,
         scorers=[GroundednessScorer(threshold=1.0)],
-        model="osiris",
+        model=MODEL_NAME,
         eval_run_name="driver_amend_halu",
         project_name="haludetect",
         override=True
     )
-
-    print(inference_results)
         
     hallucination_results = [not result.success for result in inference_results]
 
@@ -548,4 +536,21 @@ if __name__ == "__main__":
     print(f"  True: {true_count} ({true_count/len(hallucination_results)*100:.2f}%)")
     print(f"  False: {false_count} ({false_count/len(hallucination_results)*100:.2f}%)")
     print(f"  Total: {len(hallucination_results)}")
-
+    
+    # Write results to CSV
+    with open(CSV_OUTPUT_FILE, 'w', newline='') as csvfile:
+        fieldnames = ['excerpts', 'llm_response', 'docket_id', 'correct', 'hallucination_decision', 'model_raw_response']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for i, (row, hallucination, result) in enumerate(zip(row_data, hallucination_results, inference_results)):
+            writer.writerow({
+                'excerpts': row['excerpts'],
+                'llm_response': row['LLM_raw_response'],
+                'docket_id': row['docket_id'],
+                'correct': row['correct'],
+                'hallucination_decision': 'hallucination' if hallucination else 'no hallucination',
+                'model_raw_response': result.scorers_data[0].additional_metadata["raw_response"]
+            })
+    
+    print(f"Results written to {CSV_OUTPUT_FILE}")
