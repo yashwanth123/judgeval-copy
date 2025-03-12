@@ -47,7 +47,7 @@
       ]
     },
     {
-      "group": "Evaluation",
+      "group": "Evaluation (Experiments)",
       "pages": [
         "evaluation/introduction",
         "evaluation/data_examples",
