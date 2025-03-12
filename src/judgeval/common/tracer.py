@@ -36,6 +36,7 @@ from judgeval.constants import (
     RABBITMQ_PORT,
     RABBITMQ_QUEUE,
     JUDGMENT_TRACES_DELETE_API_URL,
+    JUDGMENT_PROJECT_DELETE_API_URL,
     JUDGMENT_TRACES_ADD_TO_EVAL_QUEUE_API_URL
 )
 from judgeval.judgment_client import JudgmentClient
@@ -292,6 +293,27 @@ class TraceManagerClient:
         if response.status_code != HTTPStatus.OK:
             raise ValueError(f"Failed to delete trace: {response.text}")
         
+        return response.json()
+    
+    def delete_project(self, project_name: str):
+        """
+        Delete all traces for a project
+        """
+        response = requests.delete(
+            JUDGMENT_PROJECT_DELETE_API_URL,
+            json={
+                "project_name": project_name,
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
+            }
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to delete traces: {response.text}")
+            
         return response.json()
 
 
