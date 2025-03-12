@@ -27,7 +27,7 @@ from judgeval.judges import JudgevalJudge
 from judgeval.constants import (
     JUDGMENT_EVAL_FETCH_API_URL, 
     JUDGMENT_EVAL_DELETE_API_URL, 
-    JUDGMENT_EVAL_DELETE_PROJECT_EVALS_API_URL,
+    JUDGMENT_EVAL_DELETE_PROJECT_API_URL,
     JUDGMENT_PROJECT_DELETE_API_URL
 )
 from judgeval.common.exceptions import JudgmentAPIError
@@ -360,7 +360,7 @@ class JudgmentClient:
         Returns:
             bool: Whether the evaluations were successfully deleted
         """
-        response = requests.delete(JUDGMENT_EVAL_DELETE_PROJECT_EVALS_API_URL, 
+        response = requests.delete(JUDGMENT_EVAL_DELETE_PROJECT_API_URL, 
                         json={
                             "project_name": project_name,
                         },
