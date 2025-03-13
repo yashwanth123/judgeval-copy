@@ -152,5 +152,5 @@ class ExecutionOrderScorer(JudgevalScorer):
 
     @property
     def __name__(self):
-        return "Tool Correctness"
+        return "Execution Order"
     

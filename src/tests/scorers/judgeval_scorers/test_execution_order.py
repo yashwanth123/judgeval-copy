@@ -10,7 +10,7 @@ class TestExecutionOrderScorer:
         scorer = ExecutionOrderScorer(threshold=threshold)
         
         assert scorer.threshold == threshold
-        assert scorer.score_type == APIScorer.TOOL_CORRECTNESS
+        assert scorer.score_type == APIScorer.EXECUTION_ORDER
 
     def test_init_invalid_threshold(self):
         # Test initialization with invalid threshold values
