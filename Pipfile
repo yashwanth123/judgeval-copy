@@ -18,6 +18,7 @@ asyncio = "*"
 nest-asyncio = "*"
 pika = "*"
 openpyxl = "*"
+langchain-community = "*"
 
 [dev-packages]
 pytest = "*"
