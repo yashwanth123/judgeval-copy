@@ -11,6 +11,7 @@ import time
 import uuid
 import warnings
 from contextlib import contextmanager
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from http import HTTPStatus
@@ -962,6 +963,8 @@ def _format_output_data(client: ApiClient, response: Any) -> dict:
 class JudgevalCallbackHandler(BaseCallbackHandler):
     def __init__(self, trace_client: TraceClient):
         self.trace_client = trace_client
+        self.previous_node = "__start__"
+        self.node_tool_list = []
         self.openai_count = 1
 
     def start_span(self, name: str, span_type: SpanType = "span"):
@@ -1049,6 +1052,22 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         # End the retriever span
         self.end_span(self.trace_client._current_span, span_type="retriever")
 
+    def on_chain_start(
+        self,
+        serialized: Dict[str, Any],
+        inputs: Dict[str, Any],
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any
+    ) -> None:
+        node = metadata.get("langgraph_node")
+        if node != None and node != "__start__" and node != self.previous_node:
+            self.node_tool_list.append(node)
+        self.previous_node = node
+
     def on_tool_start(
         self,
         serialized: Optional[dict[str, Any]],
@@ -1060,6 +1079,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     ):
         name = serialized["name"]
         self.start_span(name, span_type="tool")
+        self.node_tool_list.append(f"{self.previous_node}:{name}")
         self.trace_client.record_input({
             'args': input_str,
             'kwargs': kwargs
