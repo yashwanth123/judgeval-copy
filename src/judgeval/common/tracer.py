@@ -297,7 +297,7 @@ class TraceManagerClient:
     
     def delete_project(self, project_name: str):
         """
-        Delete all traces for a project
+        Deletes a project from the server. Which also deletes all evaluations and traces associated with the project.
         """
         response = requests.delete(
             JUDGMENT_PROJECT_DELETE_API_URL,
