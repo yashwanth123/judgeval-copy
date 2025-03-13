@@ -512,7 +512,4 @@ class RulesEngine:
                 )
                 end_time = time.perf_counter()
                 
-                # Could log performance metrics here if needed
-                # debug(f"Rule evaluation for example {example_id} took {end_time - start_time:.4f} seconds")
-                
                 return (example_id, rule_results) 
