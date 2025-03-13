@@ -97,7 +97,7 @@ def run_agent():
     result = graph.invoke({
         "messages": [HumanMessage(content="""
             Find me a good Italian restaurant in Manhattan. 
-            Check their opening hours and most popular dishes.
+            Check their opening hours and also check their most popular dishes.
         """)]
     }, config=dict(callbacks=[handler]))
 
@@ -110,13 +110,12 @@ def run_agent():
 
 def evaluate_performance(handler: JudgevalCallbackHandler):
     client = JudgmentClient()
-    tool_calls = handler.tools_called_map['tools']
     print(handler.node_tool_list)
 
     tool_example = Example(
         input="Expected tool calling order",
-        actual_output=tool_calls,
-        expected_output=["search_restaurants", "get_menu_items", "check_opening_hours"],
+        actual_output=handler.node_tool_list,
+        expected_output=['assistant', 'tools', 'tools:search_restaurants', 'assistant', 'tools', 'tools:check_opening_hours', 'assistant', 'tools', 'tools:get_menu_items', 'assistant'],
     )
     res = client.run_evaluation(
         examples=[tool_example],
@@ -126,21 +125,6 @@ def evaluate_performance(handler: JudgevalCallbackHandler):
         eval_run_name="mist-demo-tool-order",
         override=True,
     )
-
-    node_example = Example(
-        input="Expected node calling order",
-        actual_output=handler.visited_nodes,
-        expected_output=["assistant", "tools", "assistant", "tools", "assistant", "tools", "assistant"],
-    )
-    res2 = client.run_evaluation(
-        examples=[node_example],
-        scorers=[ExecutionOrderScorer(threshold=1, should_consider_ordering=True)],
-        model="gpt-4o-mini",
-        project_name=PROJECT_NAME,
-        eval_run_name="mist-demo-node-order",
-        override=True,
-    )
-
 
 @judgment.observe(span_type="Main Function", overwrite=True)
 def main():

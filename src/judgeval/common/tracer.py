@@ -964,8 +964,6 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     def __init__(self, trace_client: TraceClient):
         self.trace_client = trace_client
         self.previous_node = "__start__"
-        self.tools_called_map = defaultdict(list)
-        self.visited_nodes = []
         self.node_tool_list = []
         self.openai_count = 1
 
@@ -1067,7 +1065,6 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     ) -> None:
         node = metadata.get("langgraph_node")
         if node != None and node != "__start__" and node != self.previous_node:
-            self.visited_nodes.append(node)
             self.node_tool_list.append(node)
         self.previous_node = node
 
@@ -1082,7 +1079,6 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     ):
         name = serialized["name"]
         self.start_span(name, span_type="tool")
-        self.tools_called_map[self.previous_node].append(name)
         self.node_tool_list.append(f"{self.previous_node}:{name}")
         self.trace_client.record_input({
             'args': input_str,
