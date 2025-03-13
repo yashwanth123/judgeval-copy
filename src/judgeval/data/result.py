@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Union, Optional, Dict, Any
+from typing import List, Union, Optional, Dict, Any, Union
 
 from judgeval.data import ScorerData, ProcessExample
 
@@ -87,8 +87,8 @@ def generate_scoring_result(
         success=process_example.success,
         scorers_data=process_example.scorers_data,
         input=process_example.input,
-        actual_output=process_example.actual_output,
-        expected_output=process_example.expected_output,
+        actual_output=str(process_example.actual_output),
+        expected_output=str(process_example.expected_output),
         context=process_example.context,
         retrieval_context=process_example.retrieval_context,
         additional_metadata=process_example.additional_metadata,

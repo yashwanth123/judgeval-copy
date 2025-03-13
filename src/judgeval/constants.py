@@ -22,7 +22,7 @@ class APIScorer(str, Enum):
     CONTEXTUAL_RELEVANCY = "contextual_relevancy"
     CONTEXTUAL_PRECISION = "contextual_precision"
     INSTRUCTION_ADHERENCE = "instruction_adherence"
-    TOOL_CORRECTNESS = "tool_correctness"
+    EXECUTION_ORDER = "execution_order"
     JSON_CORRECTNESS = "json_correctness"
     COMPARISON = "comparison"
     GROUNDEDNESS = "groundedness"
