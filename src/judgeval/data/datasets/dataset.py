@@ -3,6 +3,7 @@ import csv
 import datetime
 import json
 import os
+import yaml
 from dataclasses import dataclass, field
 from typing import List, Union, Literal
 
@@ -188,6 +189,76 @@ class EvalDataset:
             self.add_example(e)
 
         for g in ground_truths:
+            self.add_ground_truth(g)
+
+    def add_from_yaml(self, file_path: str) -> None:
+        debug(f"Loading dataset from YAML file: {file_path}")
+        """
+        Adds examples and ground truths from a YAML file.
+
+        The format of the YAML file is expected to be a dictionary with two keys: "examples" and "ground_truths". 
+        The value of each key is a list of dictionaries, where each dictionary represents an example or ground truth.
+
+        The YAML file is expected to have the following format:
+        ground_truths:
+          - input: "test input"
+            actual_output: null
+            expected_output: "expected output"
+            context:
+              - "context1"
+            retrieval_context:
+              - "retrieval1"
+            additional_metadata:
+              key: "value"
+            comments: "test comment"
+            tools_called:
+              - "tool1"
+            expected_tools:
+              - "tool1"
+            source_file: "test.py"
+            trace_id: "094121"
+        examples:
+          - input: "test input"
+            actual_output: "test output"
+            expected_output: "expected output"
+            context:
+              - "context1"
+              - "context2"
+            retrieval_context:
+              - "retrieval1"
+            additional_metadata:
+              key: "value"
+            tools_called:
+              - "tool1"
+            expected_tools:
+              - "tool1"
+              - "tool2"
+            name: "test example"
+            example_id: null
+            timestamp: "20241230_160117"
+            trace_id: "123"
+        """
+        try:
+            with open(file_path, "r") as file:
+                payload = yaml.safe_load(file)
+                if payload is None:
+                    raise ValueError("The YAML file is empty.")
+                examples = payload.get("examples", [])
+                ground_truths = payload.get("ground_truths", [])
+        except FileNotFoundError:
+            error(f"YAML file not found: {file_path}")
+            raise FileNotFoundError(f"The file {file_path} was not found.")
+        except yaml.YAMLError:
+            error(f"Invalid YAML file: {file_path}")
+            raise ValueError(f"The file {file_path} is not a valid YAML file.")
+
+        info(f"Added {len(examples)} examples and {len(ground_truths)} ground truths from YAML")
+        new_examples = [Example(**e) for e in examples]
+        for e in new_examples:
+            self.add_example(e)
+
+        new_ground_truths = [GroundTruthExample(**g) for g in ground_truths]
+        for g in new_ground_truths:
             self.add_ground_truth(g)
 
     def add_example(self, e: Example) -> None:

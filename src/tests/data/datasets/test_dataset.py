@@ -263,3 +263,37 @@ def test_load_from_csv():
     dataset.add_from_csv("tests/data/datasets/sample_data/dataset.csv")
     assert dataset.ground_truths == [gt1]
     assert dataset.examples == [ex1]
+
+def test_load_from_yaml():
+    ex1 = Example(
+        input="test input",
+        actual_output="test output",
+        expected_output="expected output",
+        context=["context1", "context2"],
+        retrieval_context=["retrieval1"],
+        additional_metadata={"key": "value"},
+        tools_called=["tool1"],
+        expected_tools=["tool1", "tool2"],
+        name="test example",
+        trace_id="123",
+        example_id="12345"
+    )
+
+    gt1 = GroundTruthExample(
+        input="test input",
+        expected_output="expected output",
+        context=["context1"],
+        retrieval_context=["retrieval1"],
+        additional_metadata={"key": "value"},
+        tools_called=["tool1"],
+        expected_tools=["tool1"],
+        comments="test comment",
+        source_file="test.py",
+        trace_id="094121"
+    )
+
+    dataset = EvalDataset()
+
+    dataset.add_from_yaml("tests/data/datasets/sample_data/dataset.yaml")
+    assert dataset.ground_truths == [gt1]
+    assert dataset.examples == [ex1]
