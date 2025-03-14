@@ -1,114 +1,109 @@
-from typing import Annotated
-
-from langchain_openai import ChatOpenAI
+from typing import Annotated, List
 from langchain_anthropic import ChatAnthropic
-from langchain_huggingface import ChatHuggingFace
-
 from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, HumanMessage
 from typing_extensions import TypedDict
-from langchain_core.utils.function_calling import convert_to_openai_tool
-from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
-from dotenv import load_dotenv
 from judgeval.common.tracer import Tracer, wrap, JudgevalCallbackHandler
-from judgeval.scorers import FaithfulnessScorer, AnswerRelevancyScorer, AnswerCorrectnessScorer
-
-
-import asyncio
 import os
-from typing import Any, Optional
-from uuid import UUID
+from judgeval.data import Example
+from judgeval.data.datasets import EvalDataset
+from judgeval.scorers import AnswerRelevancyScorer, ExecutionOrderScorer, AnswerCorrectnessScorer
+from judgeval import JudgmentClient
+
+PROJECT_NAME = "LangGraphBasic"
 
 class State(TypedDict):
-    messages: Annotated[list, add_messages]
+    messages: Annotated[List[BaseMessage], add_messages]
 
 
-judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
+judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"), project_name=PROJECT_NAME)
 
-
-def stream_graph_updates(graph,user_input: str):
-    for event in graph.stream({"messages": [{"role": "user", "content": user_input}]}):
-        print(f"Event: {event}")
-        # for value in event.values():
-        #     print("Assistant:", value["messages"][-1].content)
-
-
-def tavily_search(query: str) -> str:
-    """
-    Tool that queries the Tavily Search API and gets back json.
-    """
-    return TavilySearchResults(max_results=2)
-
-
-async def multiply(int_list: list[int]) -> int:
-    """
-    Multiples numbers together
-    """
-    product = 1
-    for i in int_list:
-        product *= i
-
-    await judgment.get_current_trace().async_evaluate(
-        scorers=[AnswerCorrectnessScorer(threshold=0.5)],
-        input=str(int_list),
-        actual_output=str(product),
-        model="gpt-4o-mini",
-        log_results=True
+# REPLACE THIS WITH YOUR OWN TOOLS
+@judgment.observe(name="search_restaurants", span_type="tool")
+def search_restaurants(location: str, cuisine: str, state: State) -> str:
+    """Search for restaurants in a location with specific cuisine"""
+    ans = f"Top 3 {cuisine} restaurants in {location}: 1. Le Gourmet 2. Spice Palace 3. Carbones"
+    judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerRelevancyScorer(threshold=1)],
+        input="Search for restaurants in a location with specific cuisine",
+        actual_output=ans,
+        model="gpt-4o-mini"
     )
-    return product
+    return ans
 
-async def main():
-    with judgment.trace(
-        "langgraph_run1",
-        project_name="langgraph_basic",
-        overwrite=True
-    ) as trace:
-        graph_builder = StateGraph(State)
+# REPLACE THIS WITH YOUR OWN TOOLS
+@judgment.observe(name="check_opening_hours", span_type="tool")
+def check_opening_hours(restaurant: str, state: State) -> str:
+    """Check opening hours for a specific restaurant"""
+    ans = f"{restaurant} hours: Mon-Sun 11AM-10PM"
+    judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerCorrectnessScorer(threshold=1)],
+        input="Check opening hours for a specific restaurant",
+        actual_output=ans,
+        expected_output=ans,
+        model="gpt-4o-mini"
+    )
+    return ans
 
-        tavily_search = TavilySearchResults(max_results=2)
-        tools = [tavily_search, multiply]
-        llm = ChatAnthropic(model="claude-3-5-haiku-20241022")
+# REPLACE THIS WITH YOUR OWN TOOLS
+@judgment.observe(name="get_menu_items", span_type="tool")
+def get_menu_items(restaurant: str) -> str:
+    """Get popular menu items for a restaurant"""
+    ans = f"{restaurant} popular dishes: 1. Chef's Special 2. Seafood Platter 3. Vegan Delight"
+    judgment.get_current_trace().async_evaluate(
+        scorers=[AnswerRelevancyScorer(threshold=1)],
+        input="Get popular menu items for a restaurant",
+        actual_output=ans,
+        model="gpt-4o-mini"
+    )
+    return ans 
+
+@judgment.observe(span_type="Run Agent", overwrite=True)
+def run_agent(prompt: str):
+    tools = [
+        TavilySearchResults(max_results=2),
+        check_opening_hours,
+        get_menu_items,
+        search_restaurants,
+    ]
+
+    llm = ChatAnthropic(model="claude-3-5-sonnet-20240620")
+
+    graph_builder = StateGraph(State)
+
+    def assistant(state: State):
         llm_with_tools = llm.bind_tools(tools)
+        response = llm_with_tools.invoke(state["messages"])
+        return {"messages": [response]}
 
-        def chatbot(state: State):
-            return {"messages": [llm_with_tools.invoke(state["messages"])]}
+    tool_node = ToolNode(tools)
+    
+    graph_builder.add_node("assistant", assistant)
+    graph_builder.add_node("tools", tool_node)
+    
+    graph_builder.set_entry_point("assistant")
+    graph_builder.add_conditional_edges(
+        "assistant",
+        lambda state: "tools" if state["messages"][-1].tool_calls else END
+    )
+    graph_builder.add_edge("tools", "assistant")
+    
+    graph = graph_builder.compile()
 
+    handler = JudgevalCallbackHandler(judgment.get_current_trace())
 
-        graph_builder.add_node("chatbot", chatbot)
+    result = graph.invoke({
+        "messages": [HumanMessage(content=prompt)]
+    }, config=dict(callbacks=[handler]))
 
-        tool_node = ToolNode(tools=tools)
-        graph_builder.add_node("tools", tool_node)
-
-        graph_builder.add_conditional_edges(
-            "chatbot",
-            tools_condition,
-        )
-        # Any time a tool is called, we return to the chatbot to decide the next step
-
-        graph_builder.add_edge("tools", "chatbot")
-        graph_builder.set_entry_point("chatbot")
-        graph = graph_builder.compile()
-
-        handler = JudgevalCallbackHandler(trace)
-
-
-        res = graph.invoke(
-            {"messages": [{"role": "user", "content": "What is the amount of people in the US times 5 times number of people in China?"}]},
-            config=dict(callbacks=[handler])
-            )
-        
-        print(f"Result: {res}")
-            
-
-        # # stream_graph_updates(graph, "What is the amount of people in the US times 5 times number of people in China?")
-
-        trace.save()
-        # trace.print()
-
-
+    return result, handler
 
 if __name__ == "__main__":
-    load_dotenv()
-    asyncio.run(main())
+    result, handler = run_agent("Find me a good Italian restaurant in Manhattan. Check their opening hours and also check their most popular dishes.")
+    print(result)
+    
+    print("Executed Node-Tools:")
+    print(handler.executed_node_tools)

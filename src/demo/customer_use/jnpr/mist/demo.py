@@ -57,8 +57,8 @@ def get_menu_items(restaurant: str) -> str:
         actual_output=ans,
         model="gpt-4o-mini"
     )
-    return ans
-    
+    return ans 
+
 
 @judgment.observe(span_type="Run Agent", overwrite=True)
 def run_agent(prompt: str):
@@ -108,10 +108,14 @@ def run_agent(prompt: str):
 
 def test_eval_dataset():
     dataset = EvalDataset()
-    dataset.add_from_yaml("/Users/alanzhang/repo/JudgmentLabs/judgeval/src/demo/customer_use/jnpr/mist/test.yaml")
+
+    # Helper to configure tests with YAML
+    dataset.add_from_yaml(os.path.join(os.path.dirname(__file__), "test.yaml"))
+    
     for example in dataset.examples:
+        # Run your agent here
         handler = run_agent(example.input)
-        example.actual_output = handler.node_tool_list
+        example.actual_output = handler.executed_node_tools
 
     client = JudgmentClient()
     client.run_evaluation(

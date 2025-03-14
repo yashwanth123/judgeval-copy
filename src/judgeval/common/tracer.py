@@ -964,7 +964,9 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     def __init__(self, trace_client: TraceClient):
         self.trace_client = trace_client
         self.previous_node = "__start__"
-        self.node_tool_list = []
+        self.executed_node_tools = []
+        self.executed_nodes = []
+        self.executed_tools = []
         self.openai_count = 1
 
     def start_span(self, name: str, span_type: SpanType = "span"):
@@ -1065,7 +1067,8 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     ) -> None:
         node = metadata.get("langgraph_node")
         if node != None and node != "__start__" and node != self.previous_node:
-            self.node_tool_list.append(node)
+            self.executed_node_tools.append(node)
+            self.executed_nodes.append(node)
         self.previous_node = node
 
     def on_tool_start(
@@ -1079,7 +1082,8 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     ):
         name = serialized["name"]
         self.start_span(name, span_type="tool")
-        self.node_tool_list.append(f"{self.previous_node}:{name}")
+        self.executed_node_tools.append(f"{self.previous_node}:{name}")
+        self.executed_tools.append(name)
         self.trace_client.record_input({
             'args': input_str,
             'kwargs': kwargs

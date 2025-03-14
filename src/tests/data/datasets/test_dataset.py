@@ -1,6 +1,7 @@
 import pytest
 import json
 import pandas as pd
+import yaml
 from unittest.mock import Mock, patch, mock_open
 from judgeval.data.datasets import EvalDataset, EvalDatasetClient
 from judgeval.data import Example, GroundTruthExample
@@ -161,6 +162,24 @@ def test_save_as_csv(dataset, sample_example, tmp_path):
     df = pd.read_csv(save_path / "test_save.csv")
     assert len(df) == 1
     assert "input" in df.columns
+
+def test_save_as_yaml(dataset, sample_example, tmp_path):
+    dataset.add_example(sample_example)
+    save_path = tmp_path / "test_dir"
+    dataset.save_as("yaml", str(save_path), "test_save")
+    
+    # Check if the YAML file exists
+    yaml_file_path = save_path / "test_save.yaml"
+    assert yaml_file_path.exists(), "YAML file was not created."
+
+    # Load the YAML file and check its contents
+    with open(yaml_file_path, 'r') as file:
+        yaml_data = yaml.safe_load(file)
+
+    # Validate the structure of the YAML data
+    assert "examples" in yaml_data, "YAML data does not contain 'examples' key."
+    assert len(yaml_data["examples"]) == 1, "YAML data should contain one example."
+    
 
 def test_save_as_invalid_type(dataset):
     with pytest.raises(TypeError):

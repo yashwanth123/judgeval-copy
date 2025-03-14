@@ -268,7 +268,7 @@ class EvalDataset:
     def add_ground_truth(self, g: GroundTruthExample) -> None:
         self.ground_truths = self.ground_truths + [g]
     
-    def save_as(self, file_type: Literal["json", "csv"], dir_path: str, save_name: str = None) -> None:
+    def save_as(self, file_type: Literal["json", "csv", "yaml"], dir_path: str, save_name: str = None) -> None:
         """
         Saves the dataset as a file. Save both the ground truths and examples.
 
@@ -337,8 +337,49 @@ class EvalDataset:
                             g.trace_id
                         ]
                     )
+        elif file_type == "yaml":
+            with open(complete_path, "w") as file:
+                yaml_data = {
+                    "examples": [
+                        {
+                            "input": e.input,
+                            "actual_output": e.actual_output,
+                            "expected_output": e.expected_output,
+                            "context": e.context,
+                            "retrieval_context": e.retrieval_context,
+                            "additional_metadata": e.additional_metadata,
+                            "tools_called": e.tools_called,
+                            "expected_tools": e.expected_tools,
+                            "name": e.name,
+                            "comments": None,  # Example does not have comments
+                            "source_file": None,  # Example does not have source file
+                            "example": True,  # Adding an Example
+                            "trace_id": e.trace_id
+                        }
+                        for e in self.examples
+                    ],
+                    "ground_truths": [
+                        {
+                            "input": g.input,
+                            "actual_output": g.actual_output,
+                            "expected_output": g.expected_output,
+                            "context": g.context,
+                            "retrieval_context": g.retrieval_context,
+                            "additional_metadata": g.additional_metadata,
+                            "tools_called": g.tools_called,
+                            "expected_tools": g.expected_tools,
+                            "name": None,  # GroundTruthExample does not have name
+                            "comments": g.comments,
+                            "source_file": g.source_file,
+                            "example": False,  # Adding a GroundTruthExample, not an Example
+                            "trace_id": g.trace_id
+                        }
+                        for g in self.ground_truths
+                    ]
+                }
+                yaml.dump(yaml_data, file, default_flow_style=False)
         else:
-            ACCEPTABLE_FILE_TYPES = ["json", "csv"]
+            ACCEPTABLE_FILE_TYPES = ["json", "csv", "yaml"]
             raise TypeError(f"Invalid file type: {file_type}. Please choose from {ACCEPTABLE_FILE_TYPES}")
         
     def __iter__(self):
