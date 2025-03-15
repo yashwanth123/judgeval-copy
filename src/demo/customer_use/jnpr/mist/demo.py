@@ -9,6 +9,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from judgeval.common.tracer import Tracer, wrap, JudgevalCallbackHandler
 import os
 from judgeval.data import Example
+from judgeval.data.datasets import EvalDataset
 from judgeval.scorers import AnswerRelevancyScorer, ExecutionOrderScorer, AnswerCorrectnessScorer
 from judgeval import JudgmentClient
 
@@ -56,11 +57,11 @@ def get_menu_items(restaurant: str) -> str:
         actual_output=ans,
         model="gpt-4o-mini"
     )
-    return ans
-    
+    return ans 
 
-@judgment.observe(span_type="Helper Function", overwrite=True)
-def run_agent():
+
+@judgment.observe(span_type="Run Agent", overwrite=True)
+def run_agent(prompt: str):
     tools = [
         TavilySearchResults(max_results=2),
         check_opening_hours,
@@ -95,10 +96,7 @@ def run_agent():
     handler = JudgevalCallbackHandler(judgment.get_current_trace())
 
     result = graph.invoke({
-        "messages": [HumanMessage(content="""
-            Find me a good Italian restaurant in Manhattan. 
-            Check their opening hours and also check their most popular dishes.
-        """)]
+        "messages": [HumanMessage(content=prompt)]
     }, config=dict(callbacks=[handler]))
 
     print("\nFinal Result:")
@@ -108,28 +106,26 @@ def run_agent():
     return handler
     
 
-def evaluate_performance(handler: JudgevalCallbackHandler):
-    client = JudgmentClient()
-    print(handler.node_tool_list)
+def test_eval_dataset():
+    dataset = EvalDataset()
 
-    tool_example = Example(
-        input="Expected tool calling order",
-        actual_output=handler.node_tool_list,
-        expected_output=['assistant', 'tools', 'tools:search_restaurants', 'assistant', 'tools', 'tools:check_opening_hours', 'assistant', 'tools', 'tools:get_menu_items', 'assistant'],
-    )
-    res = client.run_evaluation(
-        examples=[tool_example],
+    # Helper to configure tests with YAML
+    dataset.add_from_yaml(os.path.join(os.path.dirname(__file__), "test.yaml"))
+    
+    for example in dataset.examples:
+        # Run your agent here
+        handler = run_agent(example.input)
+        example.actual_output = handler.executed_node_tools
+
+    client = JudgmentClient()
+    client.run_evaluation(
+        examples=dataset.examples,
         scorers=[ExecutionOrderScorer(threshold=1, should_consider_ordering=True)],
         model="gpt-4o-mini",
         project_name=PROJECT_NAME,
-        eval_run_name="mist-demo-tool-order",
-        override=True,
+        eval_run_name="mist-demo-examples"
     )
 
-@judgment.observe(span_type="Main Function", overwrite=True)
-def main():
-    handler = run_agent()
-    evaluate_performance(handler)
 
 if __name__ == "__main__":
-    main()
+    test_eval_dataset()
