@@ -17,6 +17,12 @@ anthropic = "*"
 asyncio = "*"
 nest-asyncio = "*"
 pika = "*"
+openpyxl = "*"
+langchain = "*"
+langchain-huggingface = "*"
+langchain-openai = "*"
+langchain-anthropic = "*"
+langchain-core = "*"
 
 [dev-packages]
 pytest = "*"

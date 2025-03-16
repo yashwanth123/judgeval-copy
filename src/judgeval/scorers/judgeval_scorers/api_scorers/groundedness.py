@@ -1,5 +1,5 @@
 """
-`judgeval` tool correctness scorer
+`judgeval` Groundedness scorer
 
 TODO add link to docs page for this scorer
 
@@ -10,10 +10,10 @@ from judgeval.scorers.api_scorer import APIJudgmentScorer
 from judgeval.constants import APIScorer
 
 
-class ToolCorrectnessScorer(APIJudgmentScorer):
+class GroundednessScorer(APIJudgmentScorer):
     def __init__(self, threshold: float):
-        super().__init__(threshold=threshold, score_type=APIScorer.TOOL_CORRECTNESS)
+        super().__init__(threshold=threshold, score_type=APIScorer.GROUNDEDNESS)
 
     @property
     def __name__(self):
-        return "Tool Correctness"
+        return "Groundedness"

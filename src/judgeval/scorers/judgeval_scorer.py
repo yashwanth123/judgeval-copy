@@ -11,7 +11,7 @@ from abc import abstractmethod
 from judgeval.common.logger import debug, info, warning, error
 from judgeval.judges import JudgevalJudge
 from judgeval.judges.utils import create_judge
-
+from judgeval.constants import UNBOUNDED_SCORERS
 
 class JudgevalScorer:
     """
@@ -58,8 +58,12 @@ class JudgevalScorer:
         additional_metadata: Optional[Dict] = None
         ):
             debug(f"Initializing JudgevalScorer with score_type={score_type}, threshold={threshold}")
-            if not 0 <= threshold <= 1:
-                raise ValueError("Threshold must be between 0 and 1")
+            if score_type in UNBOUNDED_SCORERS:
+                if threshold < 0:
+                    raise ValueError(f"Threshold for {score_type} must be greater than 0, got: {threshold}")
+            else:
+                if not 0 <= threshold <= 1:
+                    raise ValueError(f"Threshold for {score_type} must be between 0 and 1, got: {threshold}")
             if strict_mode:
                 warning("Strict mode enabled - scoring will be more rigorous")
             info(f"JudgevalScorer initialized with evaluation_model: {evaluation_model}")

@@ -6,17 +6,17 @@ from typing import Optional, List, Dict, Any, Union
 import requests
 
 from judgeval.constants import ROOT_API
-from judgeval.data.datasets import EvalDataset, EvalDatasetClient, GroundTruthExample
+from judgeval.data.datasets import EvalDataset, EvalDatasetClient
 from judgeval.data import (
     ScoringResult, 
-    Example
+    Example,
+    GroundTruthExample
 )
 from judgeval.scorers import (
     APIJudgmentScorer, 
     JudgevalScorer, 
     ClassifierScorer, 
     ScorerWrapper,
-    score,
 )
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.run_evaluation import (
@@ -24,7 +24,12 @@ from judgeval.run_evaluation import (
     assert_test
 )
 from judgeval.judges import JudgevalJudge
-from judgeval.constants import JUDGMENT_EVAL_FETCH_API_URL, JUDGMENT_EVAL_DELETE_API_URL, JUDGMENT_EVAL_DELETE_PROJECT_API_URL
+from judgeval.constants import (
+    JUDGMENT_EVAL_FETCH_API_URL, 
+    JUDGMENT_EVAL_DELETE_API_URL, 
+    JUDGMENT_EVAL_DELETE_PROJECT_API_URL,
+    JUDGMENT_PROJECT_DELETE_API_URL
+)
 from judgeval.common.exceptions import JudgmentAPIError
 from pydantic import BaseModel
 from judgeval.rules import Rule
@@ -306,7 +311,8 @@ class JudgmentClient:
                                     "Authorization": f"Bearer {self.judgment_api_key}",
                                     "X-Organization-Id": self.organization_id
                                  },
-                                 json=eval_run_request_body.model_dump())
+                                 json=eval_run_request_body.model_dump(),
+                                 verify=True)
         if eval_run.status_code != requests.codes.ok:
             raise ValueError(f"Error fetching eval results: {eval_run.json()}")
 
@@ -357,7 +363,6 @@ class JudgmentClient:
         response = requests.delete(JUDGMENT_EVAL_DELETE_PROJECT_API_URL, 
                         json={
                             "project_name": project_name,
-                            "judgment_api_key": self.judgment_api_key,
                         },
                         headers={
                             "Content-Type": "application/json",
@@ -366,6 +371,23 @@ class JudgmentClient:
                         })
         if response.status_code != requests.codes.ok:
             raise ValueError(f"Error deleting eval results: {response.json()}")
+        return response.json()
+    
+    def delete_project(self, project_name: str) -> bool:
+        """
+        Deletes a project from the server. Which also deletes all evaluations and traces associated with the project.
+        """
+        response = requests.delete(JUDGMENT_PROJECT_DELETE_API_URL, 
+                        json={
+                            "project_name": project_name,
+                        },
+                        headers={
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {self.judgment_api_key}",
+                            "X-Organization-Id": self.organization_id
+                        })
+        if response.status_code != requests.codes.ok:
+            raise ValueError(f"Error deleting project: {response.json()}")
         return response.json()
         
     def _validate_api_key(self):
@@ -378,7 +400,8 @@ class JudgmentClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
             },
-            json={}  # Empty body now
+            json={},  # Empty body now
+            verify=True
         )
         if response.status_code == 200:
             return True, response.json()
@@ -409,7 +432,8 @@ class JudgmentClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
                 "X-Organization-Id": self.organization_id
-            }
+            },
+            verify=True
         )
         
         if response.status_code == 500:
@@ -452,7 +476,8 @@ class JudgmentClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.judgment_api_key}",
                 "X-Organization-Id": self.organization_id
-            }
+            },
+            verify=True
         )
         
         if response.status_code == 500:

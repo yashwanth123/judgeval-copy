@@ -11,9 +11,8 @@ from judgeval.constants import (
     JUDGMENT_DATASETS_EDIT_API_URL,
     JUDGMENT_DATASETS_EXPORT_JSONL_API_URL
 )
-from judgeval.data import Example
+from judgeval.data import Example, GroundTruthExample
 from judgeval.data.datasets import EvalDataset
-from judgeval.data.datasets.ground_truth import GroundTruthExample
 
 
 
@@ -68,7 +67,8 @@ class EvalDatasetClient:
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {self.judgment_api_key}",
                         "X-Organization-Id": self.organization_id
-                    }
+                    },
+                    verify=True
                 )
                 if response.status_code == 500:
                     error(f"Server error during push: {content.get('message')}")
@@ -132,7 +132,8 @@ class EvalDatasetClient:
                             "Content-Type": "application/json",
                             "Authorization": f"Bearer {self.judgment_api_key}",
                             "X-Organization-Id": self.organization_id
-                        }
+                        },
+                        verify=True
                     )
                     response.raise_for_status()
                 except requests.exceptions.RequestException as e:
@@ -190,7 +191,8 @@ class EvalDatasetClient:
                             "Content-Type": "application/json",
                             "Authorization": f"Bearer {self.judgment_api_key}",
                             "X-Organization-Id": self.organization_id
-                        }
+                        },
+                        verify=True
                     )
                     response.raise_for_status()
                 except requests.exceptions.RequestException as e:
@@ -243,7 +245,8 @@ class EvalDatasetClient:
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {self.judgment_api_key}",
                         "X-Organization-Id": self.organization_id
-                    }
+                    },
+                    verify=True
                 )
                 response.raise_for_status()
             except requests.exceptions.RequestException as e:
@@ -274,7 +277,8 @@ class EvalDatasetClient:
                         "Authorization": f"Bearer {self.judgment_api_key}",
                         "X-Organization-Id": self.organization_id
                     },
-                    stream=True
+                    stream=True,
+                    verify=True
                 )
                 response.raise_for_status()
             except requests.exceptions.HTTPError as err:

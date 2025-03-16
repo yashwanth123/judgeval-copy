@@ -73,7 +73,7 @@ async def evaluate_example(example: Example) -> Dict:
     results = judgment_client.run_evaluation(
         examples=[example],
         scorers=[correctness_scorer, relevancy_scorer, faithfulness_scorer],
-        model="QWEN",
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
         log_results=True,
         project_name="rules-test-project",
         eval_run_name=f"rules-test-{uuid4().hex[:8]}",
@@ -251,7 +251,7 @@ async def test_complex_rules():
             results = judgment_client.run_evaluation(
                 examples=[example],
                 scorers=[correctness_scorer, relevancy_scorer, faithfulness_scorer],
-                model="QWEN",
+                model="Qwen/Qwen2.5-72B-Instruct-Turbo",
                 log_results=True,
                 project_name="rules-test-project",
                 eval_run_name=f"complex-rules-test-{uuid4().hex[:8]}",

@@ -47,7 +47,7 @@
       ]
     },
     {
-      "group": "Evaluation",
+      "group": "Evaluation (Experiments)",
       "pages": [
         "evaluation/introduction",
         "evaluation/data_examples",
@@ -58,6 +58,7 @@
             "evaluation/scorers/introduction",
             "evaluation/scorers/answer_correctness",
             "evaluation/scorers/answer_relevancy",
+            "evaluation/scorers/comparison",
             "evaluation/scorers/contextual_precision",
             "evaluation/scorers/contextual_recall",
             "evaluation/scorers/contextual_relevancy",
@@ -65,7 +66,7 @@
             "evaluation/scorers/hallucination",
             "evaluation/scorers/json_correctness",
             "evaluation/scorers/summarization",
-            "evaluation/scorers/tool_correctness",
+            "evaluation/scorers/execution_order",
             "evaluation/scorers/custom_scorers",
             "evaluation/scorers/classifier_scorer"
           ]
@@ -80,6 +81,12 @@
         "monitoring/introduction",
         "monitoring/tracing",
         "monitoring/production_insights"
+      ]
+    },
+    {
+      "group": "Integrations",
+      "pages": [
+        "integration/langgraph"
       ]
     },
     {

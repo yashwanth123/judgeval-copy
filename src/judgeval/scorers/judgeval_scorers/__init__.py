@@ -1,9 +1,8 @@
 from typing import Type, Optional, Any
-from functools import wraps
 
 # Import implementations
 from judgeval.scorers.judgeval_scorers.api_scorers import (
-    ToolCorrectnessScorer as APIToolCorrectnessScorer,
+    ExecutionOrderScorer as APIExecutionOrderScorer,
     JSONCorrectnessScorer as APIJSONCorrectnessScorer,
     SummarizationScorer as APISummarizationScorer,
     HallucinationScorer as APIHallucinationScorer,
@@ -12,7 +11,10 @@ from judgeval.scorers.judgeval_scorers.api_scorers import (
     ContextualPrecisionScorer as APIContextualPrecisionScorer,
     ContextualRecallScorer as APIContextualRecallScorer,
     AnswerRelevancyScorer as APIAnswerRelevancyScorer,
-    AnswerCorrectnessScorer as APIAnswerCorrectnessScorer,
+    AnswerCorrectnessScorer as APIAnswerCorrectnessScorer,  
+    ComparisonScorer as APIComparisonScorer,
+    InstructionAdherenceScorer as APIInstructionAdherenceScorer,
+    GroundednessScorer as APIGroundednessScorer,
 )
 
 from judgeval.scorers.judgeval_scorers.local_implementations import (
@@ -22,10 +24,12 @@ from judgeval.scorers.judgeval_scorers.local_implementations import (
     ContextualRelevancyScorer as LocalContextualRelevancyScorer,
     FaithfulnessScorer as LocalFaithfulnessScorer,
     JsonCorrectnessScorer as LocalJsonCorrectnessScorer,
-    ToolCorrectnessScorer as LocalToolCorrectnessScorer,
+    ExecutionOrderScorer as LocalExecutionOrderScorer,
     HallucinationScorer as LocalHallucinationScorer,
     SummarizationScorer as LocalSummarizationScorer,
-    AnswerCorrectnessScorer as LocalAnswerCorrectnessScorer
+    AnswerCorrectnessScorer as LocalAnswerCorrectnessScorer,
+    ComparisonScorer as LocalComparisonScorer,
+    InstructionAdherenceScorer as LocalInstructionAdherenceScorer,
 )
 
 from judgeval.scorers.judgeval_scorers.classifiers import Text2SQLScorer
@@ -94,9 +98,9 @@ AnswerRelevancyScorer = ScorerWrapper(
     local_implementation=LocalAnswerRelevancyScorer
 )
 
-ToolCorrectnessScorer = ScorerWrapper(
-    api_implementation=APIToolCorrectnessScorer,
-    local_implementation=LocalToolCorrectnessScorer
+ExecutionOrderScorer = ScorerWrapper(
+    api_implementation=APIExecutionOrderScorer,
+    local_implementation=LocalExecutionOrderScorer
 )
 
 JSONCorrectnessScorer = ScorerWrapper(
@@ -134,8 +138,23 @@ ContextualRecallScorer = ScorerWrapper(
     local_implementation=LocalContextualRecallScorer
 )
 
+InstructionAdherenceScorer = ScorerWrapper(
+    api_implementation=APIInstructionAdherenceScorer,
+    local_implementation=LocalInstructionAdherenceScorer
+)
+
+def ComparisonScorer(threshold: float, criteria: str, description: str):
+    return ScorerWrapper(
+        api_implementation=APIComparisonScorer,
+        local_implementation=LocalComparisonScorer
+    )(threshold=threshold, criteria=criteria, description=description)
+
+GroundednessScorer = ScorerWrapper(
+    api_implementation=APIGroundednessScorer,
+)
+
 __all__ = [
-    "ToolCorrectnessScorer",
+    "ExecutionOrderScorer",
     "JSONCorrectnessScorer",
     "SummarizationScorer",
     "HallucinationScorer",
@@ -145,4 +164,6 @@ __all__ = [
     "ContextualRecallScorer",
     "AnswerRelevancyScorer",
     "Text2SQLScorer",
+    "ComparisonScorer",
+    "GroundednessScorer",
 ]

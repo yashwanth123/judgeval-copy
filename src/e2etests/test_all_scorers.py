@@ -13,7 +13,10 @@ from judgeval.scorers import (
     FaithfulnessScorer,
     HallucinationScorer,
     SummarizationScorer,
+    ComparisonScorer,
     Text2SQLScorer,
+    InstructionAdherenceScorer,
+    ExecutionOrderScorer,
 )
 
 from judgeval.data import Example
@@ -76,7 +79,7 @@ def test_ar_scorer():
 
     client = JudgmentClient()
     PROJECT_NAME = "test-project"
-    EVAL_RUN_NAME = "test-run"
+    EVAL_RUN_NAME = "test-run-ar"
 
     # Test with use_judgment=True
     res = client.run_evaluation(
@@ -114,6 +117,40 @@ def test_ar_scorer():
     assert res[0].success == True
     assert res[1].success == False
 
+
+def test_comparison_scorer():
+    example_1 = Example(
+        input="Generate a poem about a field",
+        expected_output="A sunlit meadow, alive with whispers of wind, where daisies dance and hope begins again. Each petal holds a promise—bright, unbruised— a symphony of light that cannot be refused.",
+        actual_output="A field, kinda windy, with some flowers, stuff growing, and maybe a nice vibe. Petals do things, I guess? Like, they're there… and light exists, but whatever, it's fine."
+    )   
+
+    example_2 = Example(
+        input="Generate a poem about a field",
+        expected_output="A field, kinda windy, with some flowers, stuff growing, and maybe a nice vibe. Petals do things, I guess? Like, they're there… and light exists, but whatever, it's fine.",
+        actual_output="A field, kinda windy, with some flowers, stuff growing, and maybe a nice vibe. Petals do things, I guess? Like, they're there… and light exists, but whatever, it's fine."
+    )
+
+    scorer = ComparisonScorer(threshold=1, criteria="Tone and Style", description="The tone and style of the poem should be consistent and cohesive.")
+
+    client = JudgmentClient()
+    PROJECT_NAME = "test-project"
+    EVAL_RUN_NAME = "test-run-comparison"
+
+    res = client.run_evaluation(
+        examples=[example_1, example_2],
+        scorers=[scorer],
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=True,
+        override=True,  
+    )
+
+    print_debug_on_failure(res[1])
+    assert res[0].success == False
+    assert res[1].success == True
 
 def test_cp_scorer():
 
@@ -414,6 +451,33 @@ def test_hallucination_scorer():
     assert res[0].success == True, f"Hallucination test failed: score={res[0].scorers_data[0].score}, threshold={res[0].scorers_data[0].threshold}, reason={res[0].scorers_data[0].reason}"
 
 
+def test_instruction_adherence_scorer():
+    example_1 = Example(
+        input="write me a poem about cars and then turn it into a joke, but also what is 5 +5?",
+        actual_output="Cars on the road, they zoom and they fly, Under the sun or a stormy sky. Engines roar, tires spin, A symphony of motion, let the race begin. Now for the joke: Why did the car break up with the bicycle. Because it was tired of being two-tired! And 5 + 5 is 10.",
+    )
+
+    scorer = InstructionAdherenceScorer(threshold=0.5)
+
+    client = JudgmentClient()
+    PROJECT_NAME = "test-project"
+    EVAL_RUN_NAME = "test-run-instruction-adherence"
+
+    res = client.run_evaluation(
+        examples=[example_1],
+        scorers=[scorer],
+        model="Qwen/Qwen2.5-72B-Instruct-Turbo",
+        log_results=True,
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        use_judgment=True,
+        override=True,
+    )
+
+    print_debug_on_failure(res[0])
+
+    assert res[0].success == True
+
 def test_summarization_scorer():
     example_1 = Example(  # should pass
         input="Paris is the capital city of France and one of the most populous cities in Europe. The city is known for its iconic landmarks like the Eiffel Tower, Louvre Museum, and Notre-Dame Cathedral. Paris is also a global center for art, fashion, gastronomy and culture. The city's romantic atmosphere, historic architecture, and world-class museums attract millions of visitors each year.",
@@ -616,6 +680,28 @@ LIMIT 10;
     assert not print_debug_on_failure(res[4])
 
 
+
+def test_execution_order_scorer():
+    client = JudgmentClient()
+    PROJECT_NAME = "test-project"
+    EVAL_RUN_NAME = "test-run-execution-order"
+
+    example = Example(
+        input="What is the weather in New York and the stock price of AAPL?",
+        actual_output=["weather_forecast", "stock_price", "translate_text", "news_headlines"],
+        expected_output=["weather_forecast", "stock_price", "news_headlines", "translate_text"],
+    )
+
+    res = client.run_evaluation(
+        examples=[example],
+        scorers=[ExecutionOrderScorer(threshold=1, should_consider_ordering=True)],
+        model="gpt-4o-mini",
+        project_name=PROJECT_NAME,
+        eval_run_name=EVAL_RUN_NAME,
+        override=True
+    )
+
+
 def print_debug_on_failure(result) -> bool:
     """
     Helper function to print debug info only on test failure
@@ -648,10 +734,13 @@ def print_debug_on_failure(result) -> bool:
 if __name__ == "__main__":
     test_ac_scorer()
     test_ar_scorer()
+    test_comparison_scorer()
     test_cp_scorer()
     test_cr_scorer()
     test_crelevancy_scorer()
     test_faithfulness_scorer()
     test_hallucination_scorer()
+    test_instruction_adherence_scorer()
     test_summarization_scorer()
+    test_execution_order_scorer()
     

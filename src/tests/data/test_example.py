@@ -5,7 +5,7 @@ Unit tests for the Example class
 import pytest
 from datetime import datetime
 from pydantic import ValidationError
-from judgeval.data.example import Example
+from judgeval.data import Example
 
 
 def test_basic_example_creation():
@@ -77,17 +77,6 @@ def test_string_representation():
 
 
 # Error cases
-
-def test_missing_input():
-    with pytest.raises(ValidationError):
-        Example(actual_output="test output")
-
-
-def test_missing_actual_output():
-    with pytest.raises(ValidationError):
-        Example(input="test input")
-
-
 def test_invalid_context_type():
     with pytest.raises(ValidationError):
         Example(

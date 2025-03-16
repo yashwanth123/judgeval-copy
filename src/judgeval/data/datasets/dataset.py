@@ -1,13 +1,13 @@
 import ast
 import csv
-import datetime 
+import datetime
 import json
-from dataclasses import dataclass, field
 import os
-from typing import List, Optional, Union, Literal
+import yaml
+from dataclasses import dataclass, field
+from typing import List, Union, Literal
 
-from judgeval.data.datasets.ground_truth import GroundTruthExample
-from judgeval.data import Example
+from judgeval.data import Example, GroundTruthExample
 from judgeval.common.logger import debug, error, warning, info
 
 @dataclass
@@ -191,6 +191,76 @@ class EvalDataset:
         for g in ground_truths:
             self.add_ground_truth(g)
 
+    def add_from_yaml(self, file_path: str) -> None:
+        debug(f"Loading dataset from YAML file: {file_path}")
+        """
+        Adds examples and ground truths from a YAML file.
+
+        The format of the YAML file is expected to be a dictionary with two keys: "examples" and "ground_truths". 
+        The value of each key is a list of dictionaries, where each dictionary represents an example or ground truth.
+
+        The YAML file is expected to have the following format:
+        ground_truths:
+          - input: "test input"
+            actual_output: null
+            expected_output: "expected output"
+            context:
+              - "context1"
+            retrieval_context:
+              - "retrieval1"
+            additional_metadata:
+              key: "value"
+            comments: "test comment"
+            tools_called:
+              - "tool1"
+            expected_tools:
+              - "tool1"
+            source_file: "test.py"
+            trace_id: "094121"
+        examples:
+          - input: "test input"
+            actual_output: "test output"
+            expected_output: "expected output"
+            context:
+              - "context1"
+              - "context2"
+            retrieval_context:
+              - "retrieval1"
+            additional_metadata:
+              key: "value"
+            tools_called:
+              - "tool1"
+            expected_tools:
+              - "tool1"
+              - "tool2"
+            name: "test example"
+            example_id: null
+            timestamp: "20241230_160117"
+            trace_id: "123"
+        """
+        try:
+            with open(file_path, "r") as file:
+                payload = yaml.safe_load(file)
+                if payload is None:
+                    raise ValueError("The YAML file is empty.")
+                examples = payload.get("examples", [])
+                ground_truths = payload.get("ground_truths", [])
+        except FileNotFoundError:
+            error(f"YAML file not found: {file_path}")
+            raise FileNotFoundError(f"The file {file_path} was not found.")
+        except yaml.YAMLError:
+            error(f"Invalid YAML file: {file_path}")
+            raise ValueError(f"The file {file_path} is not a valid YAML file.")
+
+        info(f"Added {len(examples)} examples and {len(ground_truths)} ground truths from YAML")
+        new_examples = [Example(**e) for e in examples]
+        for e in new_examples:
+            self.add_example(e)
+
+        new_ground_truths = [GroundTruthExample(**g) for g in ground_truths]
+        for g in new_ground_truths:
+            self.add_ground_truth(g)
+
     def add_example(self, e: Example) -> None:
         self.examples = self.examples + [e]
         # TODO if we need to add rank, then we need to do it here
@@ -198,7 +268,7 @@ class EvalDataset:
     def add_ground_truth(self, g: GroundTruthExample) -> None:
         self.ground_truths = self.ground_truths + [g]
     
-    def save_as(self, file_type: Literal["json", "csv"], dir_path: str, save_name: str = None) -> None:
+    def save_as(self, file_type: Literal["json", "csv", "yaml"], dir_path: str, save_name: str = None) -> None:
         """
         Saves the dataset as a file. Save both the ground truths and examples.
 
@@ -267,8 +337,49 @@ class EvalDataset:
                             g.trace_id
                         ]
                     )
+        elif file_type == "yaml":
+            with open(complete_path, "w") as file:
+                yaml_data = {
+                    "examples": [
+                        {
+                            "input": e.input,
+                            "actual_output": e.actual_output,
+                            "expected_output": e.expected_output,
+                            "context": e.context,
+                            "retrieval_context": e.retrieval_context,
+                            "additional_metadata": e.additional_metadata,
+                            "tools_called": e.tools_called,
+                            "expected_tools": e.expected_tools,
+                            "name": e.name,
+                            "comments": None,  # Example does not have comments
+                            "source_file": None,  # Example does not have source file
+                            "example": True,  # Adding an Example
+                            "trace_id": e.trace_id
+                        }
+                        for e in self.examples
+                    ],
+                    "ground_truths": [
+                        {
+                            "input": g.input,
+                            "actual_output": g.actual_output,
+                            "expected_output": g.expected_output,
+                            "context": g.context,
+                            "retrieval_context": g.retrieval_context,
+                            "additional_metadata": g.additional_metadata,
+                            "tools_called": g.tools_called,
+                            "expected_tools": g.expected_tools,
+                            "name": None,  # GroundTruthExample does not have name
+                            "comments": g.comments,
+                            "source_file": g.source_file,
+                            "example": False,  # Adding a GroundTruthExample, not an Example
+                            "trace_id": g.trace_id
+                        }
+                        for g in self.ground_truths
+                    ]
+                }
+                yaml.dump(yaml_data, file, default_flow_style=False)
         else:
-            ACCEPTABLE_FILE_TYPES = ["json", "csv"]
+            ACCEPTABLE_FILE_TYPES = ["json", "csv", "yaml"]
             raise TypeError(f"Invalid file type: {file_type}. Please choose from {ACCEPTABLE_FILE_TYPES}")
         
     def __iter__(self):

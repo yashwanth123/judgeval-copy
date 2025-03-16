@@ -15,11 +15,8 @@ This is useful for creating datasets that can be **dynamically updated at evalua
 Creating an `EvalDataset` is as simple as supplying a list of `Example`s and/or `GroundTruthExample`s.
 
 ```python create_dataset.py
-from judgeval import (
-    EvalDataset, 
-    Example, 
-    GroundTruthExample
-)
+from judgeval.data import Example, GroundTruthExample
+from judgeval.data.datasets import EvalDataset
 
 examples = [
     Example(input="...", actual_output="..."), 
@@ -97,7 +94,7 @@ You can save/load an `EvalDataset` with a JSON file. Your JSON file should have 
 Here's an example of how use `judgeval` to save/load from JSON.
 
 ```python json_dataset.py
-from judgeval import EvalDataset
+from judgeval.data.datasets import EvalDataset
 
 # saving
 dataset = EvalDataset(...)  # filled with examples
@@ -118,7 +115,7 @@ TODO: this section needs to be updated because the CSV format is not yet finaliz
 Here's an example of how use `judgeval` to save/load from CSV.
 
 ```python csv_dataset.py
-from judgeval import EvalDataset
+from judgeval.data.datasets import EvalDataset
 
 # saving
 dataset = EvalDataset(...)  # filled with examples
@@ -127,6 +124,32 @@ dataset.save_as("csv", "/path/to/save/dir", "save_name")
 # loading
 new_dataset = EvalDataset()
 new_dataset.add_from_csv("/path/to/your/csv/file.csv")
+```
+
+### From YAML
+
+You can save/load an `EvalDataset` with a `.yaml` file. Your YAML should contain rows that can be mapped to `Example`s via column names.
+
+Here's an example of how use `judgeval` to save/load from YAML.
+
+```python yaml_dataset.py
+from judgeval.data.datasets import EvalDataset
+
+# saving
+dataset = EvalDataset(...)  # filled with examples
+dataset.save_as("yaml", "/path/to/save/dir", "save_name")
+
+# loading
+new_dataset = EvalDataset()
+new_dataset.add_from_yaml("/path/to/your/yaml/file.yaml")
+
+```
+
+```yaml example.yaml
+examples:
+  - input: ...
+    actual_output: ...
+    expected_output: ...
 ```
 
 ## Evaluate On Your Dataset

@@ -7,7 +7,7 @@ Scores `Example`s using ready-made Judgment evaluators.
 from pydantic import BaseModel, field_validator
 from judgeval.common.logger import debug, info, warning, error
 
-from judgeval.constants import APIScorer
+from judgeval.constants import APIScorer, UNBOUNDED_SCORERS
 
 
 class APIJudgmentScorer(BaseModel):
@@ -18,38 +18,44 @@ class APIJudgmentScorer(BaseModel):
         score_type (APIScorer): The Judgment metric to use for scoring `Example`s
         threshold (float): A value between 0 and 1 that determines the scoring threshold
     """
-    threshold: float
     score_type: APIScorer
+    threshold: float
 
     @field_validator('threshold')
-    def validate_threshold(cls, v):
+    def validate_threshold(cls, v, info):
         """
         Validates that the threshold is between 0 and 1 inclusive.
         """
-        if not 0 <= v <= 1:
-            error(f"Threshold must be between 0 and 1, got: {v}")
-            raise ValueError(f"Threshold must be between 0 and 1, got: {v}")
+        score_type = info.data.get('score_type')
+        if score_type in UNBOUNDED_SCORERS:
+            if v < 0:
+                error(f"Threshold for {score_type} must be greater than 0, got: {v}")
+                raise ValueError(f"Threshold for {score_type} must be greater than 0, got: {v}")
+        else:
+            if not 0 <= v <= 1:
+                error(f"Threshold for {score_type} must be between 0 and 1, got: {v}")
+                raise ValueError(f"Threshold for {score_type} must be between 0 and 1, got: {v}")
         return v
 
     @field_validator('score_type')
     def convert_to_enum_value(cls, v):
         """
-        Validates that the `score_type` is a valid `JudgmentMetric` enum value.
-        Converts string values to `JudgmentMetric` enum values.
+        Validates that the `score_type` is a valid `APIScorer` enum value.
+        Converts string values to `APIScorer` enum values.
         """
         debug(f"Attempting to convert score_type value: {v}")
         if isinstance(v, APIScorer):
-            info(f"Using existing JudgmentMetric: {v.value}")
-            return v.value
+            info(f"Using existing APIScorer: {v}")
+            return v
         elif isinstance(v, str):
-            debug(f"Converting string value to JudgmentMetric enum: {v}")
-            return APIScorer[v.upper()].value
+            debug(f"Converting string value to APIScorer enum: {v}")
+            return APIScorer[v.upper()]
         error(f"Invalid score_type value: {v}")
         raise ValueError(f"Invalid value for score_type: {v}")
-    
+
     def __str__(self):
-        return f"JudgmentScorer(score_type={self.score_type}, threshold={self.threshold})"
-    
+        return f"JudgmentScorer(score_type={self.score_type.value}, threshold={self.threshold})"
+
     def to_dict(self) -> dict:
         """
         Converts the scorer configuration to a dictionary format.
@@ -58,7 +64,6 @@ class APIJudgmentScorer(BaseModel):
             dict: A dictionary containing the scorer's configuration
         """
         return {
-            "score_type": self.score_type,
+            "score_type": str(self.score_type.value),  # Convert enum to string for serialization
             "threshold": self.threshold
         }
-    

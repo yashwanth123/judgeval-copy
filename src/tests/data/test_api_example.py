@@ -1,7 +1,6 @@
 import pytest
-from judgeval.data.api_example import ProcessExample, create_process_example
-from judgeval.data.example import Example
-from judgeval.data.scorer_data import ScorerData
+from judgeval.data import Example, ProcessExample, ScorerData
+from judgeval.data.api_example import create_process_example
 
 # Test data fixtures
 @pytest.fixture
@@ -34,24 +33,6 @@ class TestProcessExample:
         assert process_ex.name == "test"
         assert process_ex.input == "test input"
         assert process_ex.actual_output == "test output"
-
-    def test_validation_error_missing_input(self):
-        """Test validation error when input is missing"""
-        with pytest.raises(ValueError) as exc_info:
-            ProcessExample(
-                name="test",
-                actual_output="test output"
-            )
-        assert "'input' and 'actual_output' must be provided" in str(exc_info.value)
-
-    def test_validation_error_missing_actual_output(self):
-        """Test validation error when actual_output is missing"""
-        with pytest.raises(ValueError) as exc_info:
-            ProcessExample(
-                name="test",
-                input="test input"
-            )
-        assert "'input' and 'actual_output' must be provided" in str(exc_info.value)
 
     def test_update_scorer_data_initial(self, basic_scorer_data):
         """Test updating scorer data for the first time"""
