@@ -251,6 +251,11 @@ def run_with_spinner(message: str, func, *args, **kwargs) -> Any:
 
         try:
             result = func(*args, **kwargs)
+        except Exception as e:
+            error(f"An error occurred: {str(e)}")
+            stop_spinner_event.set()
+            spinner_thread.join()
+            raise e
         finally:
             stop_spinner_event.set()
             spinner_thread.join()
