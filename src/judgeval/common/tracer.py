@@ -252,7 +252,8 @@ class TraceManagerClient:
             raise ValueError(f"Failed to save trace data: {response.text}")
         
         if not empty_save and "ui_results_url" in response.json():
-            rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
+            pretty_str = f"\n🔍 You can view your trace data here: [rgb(106,0,255)][link={response.json()['ui_results_url']}]View Trace[/link]\n"
+            rprint(pretty_str)
 
     def delete_trace(self, trace_id: str):
         """

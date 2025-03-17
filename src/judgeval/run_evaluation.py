@@ -1,6 +1,10 @@
 import asyncio
 import requests
-from typing import List, Dict
+import time
+import sys
+import itertools
+import threading
+from typing import List, Dict, Any
 from datetime import datetime
 from rich import print as rprint
 
@@ -185,7 +189,7 @@ def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_k
         raise JudgmentAPIError(f"Failed to check if eval run name exists: {str(e)}")
 
 
-def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: EvaluationRun) -> None:
+def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: EvaluationRun) -> str:
     """
     Logs evaluation results to the Judgment API database.
 
@@ -221,7 +225,8 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
         
         if "ui_results_url" in res.json():
             url = res.json()['ui_results_url']
-            rprint(f"\n🔍 You can view your evaluation results here: [rgb(106,0,255)][link={url}]View Results[/link]\n")
+            pretty_str = f"\n🔍 You can view your evaluation results here: [rgb(106,0,255)][link={url}]View Results[/link]\n"
+            return pretty_str
             
     except requests.exceptions.RequestException as e:
         error(f"Request failed while saving evaluation results to DB: {str(e)}")
@@ -230,6 +235,30 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
         error(f"Failed to save evaluation results to DB: {str(e)}")
         raise ValueError(f"Failed to save evaluation results to DB: {str(e)}")
 
+def run_with_spinner(message: str, func, *args, **kwargs) -> Any:
+        """Run a function with a spinner in the terminal."""
+        spinner = itertools.cycle(['|', '/', '-', '\\'])
+
+        def display_spinner():
+            while not stop_spinner_event.is_set():
+                sys.stdout.write(f'\r{message}{next(spinner)}')
+                sys.stdout.flush() 
+                time.sleep(0.1)
+
+        stop_spinner_event = threading.Event()
+        spinner_thread = threading.Thread(target=display_spinner)
+        spinner_thread.start()
+
+        try:
+            result = func(*args, **kwargs)
+        finally:
+            stop_spinner_event.set()
+            spinner_thread.join()
+
+            sys.stdout.write('\r' + ' ' * (len(message) + 1) + '\r')
+            sys.stdout.flush()
+
+        return result
 
 
 def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[ScoringResult]:
@@ -254,7 +283,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
     Returns:
         List[ScoringResult]: The results of the evaluation. Each result is a dictionary containing the fields of a `ScoringResult` object.
     """
-    
+
     # Call endpoint to check to see if eval run name exists (if we DON'T want to override and DO want to log results)
     if not override and evaluation_run.log_results:
         check_eval_run_name_exists(
@@ -324,7 +353,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 rules=evaluation_run.rules
             )
             debug("Sending request to Judgment API")    
-            response_data: List[Dict] = execute_api_eval(api_evaluation_run)  # Dicts are `ScoringResult` objs
+            response_data: List[Dict] = run_with_spinner("Running Evaluation: ", execute_api_eval, api_evaluation_run)
             info(f"Received {len(response_data['results'])} results from API")
         except JudgmentAPIError as e:
             error(f"An error occurred while executing the Judgment API request: {str(e)}")
@@ -390,7 +419,8 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
     #     )
     
     if evaluation_run.log_results:
-        log_evaluation_results(merged_results, evaluation_run)
+        pretty_str = run_with_spinner("Logging Results: ", log_evaluation_results, merged_results, evaluation_run)
+        rprint(pretty_str)
 
     for i, result in enumerate(merged_results):
         if not result.scorers_data:  # none of the scorers could be executed on this example
