@@ -221,7 +221,7 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
         
         if "ui_results_url" in res.json():
             url = res.json()['ui_results_url']
-            rprint(f"\n🔍 You can view your evaluation results here: [link={url}]{url}[/link]\n")
+            rprint(f"\n🔍 You can view your evaluation results here: [rgb(106,0,255)][link={url}]View Results[/link]\n")
             
     except requests.exceptions.RequestException as e:
         error(f"Request failed while saving evaluation results to DB: {str(e)}")
