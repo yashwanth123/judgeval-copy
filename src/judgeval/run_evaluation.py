@@ -220,7 +220,8 @@ def log_evaluation_results(merged_results: List[ScoringResult], evaluation_run: 
             raise JudgmentAPIError(error_message)
         
         if "ui_results_url" in res.json():
-            rprint(f"\n🔍 You can view your evaluation results here: [rgb(106,0,255)]{res.json()['ui_results_url']}[/]\n")
+            url = res.json()['ui_results_url']
+            rprint(f"\n🔍 You can view your evaluation results here: [link={url}]{url}[/link]\n")
             
     except requests.exceptions.RequestException as e:
         error(f"Request failed while saving evaluation results to DB: {str(e)}")
