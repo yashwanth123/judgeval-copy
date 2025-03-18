@@ -14,10 +14,11 @@ graph_builder = StateGraph(State)
 # YOUR LANGGRAPH WORKFLOW
 
 handler = JudgevalCallbackHandler(judgment.get_current_trace())
+set_global_handler(handler)
 
 result = graph.invoke({
     "messages": [HumanMessage(content=prompt)]
-}, config=dict(callbacks=[handler]))
+})
 
 ```
 
