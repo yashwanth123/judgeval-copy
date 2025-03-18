@@ -6,7 +6,7 @@ from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
-from judgeval.common.tracer import Tracer, wrap, JudgevalCallbackHandler
+from judgeval.common.tracer import Tracer, JudgevalCallbackHandler, set_global_handler
 import os
 from judgeval.data import Example
 from judgeval.data.datasets import EvalDataset
@@ -94,10 +94,11 @@ def run_agent(prompt: str):
     graph = graph_builder.compile()
 
     handler = JudgevalCallbackHandler(judgment.get_current_trace())
+    set_global_handler(handler)
 
     result = graph.invoke({
         "messages": [HumanMessage(content=prompt)]
-    }, config=dict(callbacks=[handler]))
+    })
 
     return result, handler
 
