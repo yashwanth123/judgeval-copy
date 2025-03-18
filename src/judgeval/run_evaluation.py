@@ -10,7 +10,8 @@ from rich import print as rprint
 
 from judgeval.data import (
     ScorerData, 
-    ScoringResult
+    ScoringResult,
+    Example
 )
 from judgeval.scorers import (
     JudgevalScorer, 
@@ -18,7 +19,6 @@ from judgeval.scorers import (
     ClassifierScorer
 )
 from judgeval.scorers.score import a_execute_scoring
-
 from judgeval.constants import (
     ROOT_API,
     JUDGMENT_EVAL_API_URL,
@@ -265,6 +265,22 @@ def run_with_spinner(message: str, func, *args, **kwargs) -> Any:
 
         return result
 
+def check_examples(examples: List[Example], scorers: List[APIJudgmentScorer]) -> None:
+    """
+    Checks if the example contains the necessary parameters for the scorer.
+    """
+    for scorer in scorers:
+        if isinstance(scorer, APIJudgmentScorer):
+            for example in examples:
+                missing_params = []
+                for param in scorer.required_params:
+                    if getattr(example, param.value) is None:
+                        missing_params.append(f"'{param.value}'")
+                if missing_params:
+                    # We do this because we want to inform users that an example is missing parameters for a scorer
+                    # Example ID (usually random UUID) does not provide any helpful information for the user but printing the entire example is overdoing it
+                    print(f"WARNING: Example {example.example_id} is missing the following parameters: {missing_params} for scorer {scorer.score_type.value}")
+
 
 def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[ScoringResult]:
     """
@@ -341,6 +357,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
     
     # Execute evaluation using Judgment API
     if judgment_scorers:
+        check_examples(evaluation_run.examples, evaluation_run.scorers)
         info("Starting API evaluation")
         debug(f"Creating API evaluation run with {len(judgment_scorers)} scorers")
         try:  # execute an EvaluationRun with just JudgmentScorers
@@ -387,6 +404,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 api_results.append(ScoringResult(**filtered_result))
     # Run local evals
     if local_scorers:  # List[JudgevalScorer]
+        # We should be removing local scorers soon
         info("Starting local evaluation")
         for example in evaluation_run.examples:
             with example_logging_context(example.timestamp, example.example_id):
