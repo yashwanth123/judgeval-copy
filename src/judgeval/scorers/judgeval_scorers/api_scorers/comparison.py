@@ -9,12 +9,20 @@ TODO add link to docs page for this scorer
 from judgeval.scorers.api_scorer import APIJudgmentScorer
 from judgeval.constants import APIScorer
 from typing import Optional, Dict
-
+from judgeval.data import ExampleParams
 class ComparisonScorer(APIJudgmentScorer):
     kwargs: Optional[Dict] = None
 
     def __init__(self, threshold: float, criteria: str, description: str):
-        super().__init__(threshold=threshold, score_type=APIScorer.COMPARISON)
+        super().__init__(
+            threshold=threshold, 
+            score_type=APIScorer.COMPARISON,
+            required_params=[
+                ExampleParams.INPUT,
+                ExampleParams.ACTUAL_OUTPUT,
+                ExampleParams.EXPECTED_OUTPUT,
+            ]
+        )
         self.kwargs = {"criteria": criteria, "description": description}
 
     @property
