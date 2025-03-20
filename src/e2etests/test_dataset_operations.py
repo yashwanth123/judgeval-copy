@@ -55,6 +55,7 @@ class TestDatasetOperations:
         dataset.add_ground_truth(GroundTruthExample(input="input 1", actual_output="output 1"))
         dataset.add_ground_truth(GroundTruthExample(input="input 2", actual_output="output 2"))
         client.push_dataset(alias="test_dataset_6", dataset=dataset, overwrite=True)
+        dataset = client.pull_dataset(alias="test_dataset_6") # Pull in case dataset already has examples
 
         initial_example_count = len(dataset.examples)
         initial_ground_truth_count = len(dataset.ground_truths)
