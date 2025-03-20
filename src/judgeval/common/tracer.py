@@ -10,6 +10,7 @@ import os
 import time
 import uuid
 import warnings
+from contextvars import ContextVar
 from contextlib import contextmanager
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -55,7 +56,7 @@ from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain_core.callbacks import CallbackManager, BaseCallbackHandler
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.outputs import LLMResult
-
+from langchain_core.tracers.context import register_configure_hook
 from langchain_core.messages.ai import AIMessage
 from langchain_core.messages.tool import ToolMessage
 from langchain_core.messages.base import BaseMessage
@@ -1175,3 +1176,18 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
             'args': str(messages),
             'kwargs': kwargs
         })
+
+judgeval_callback_handler_var: ContextVar[Optional[JudgevalCallbackHandler]] = ContextVar(
+    "judgeval_callback_handler", default=None
+)
+
+def set_global_handler(handler: JudgevalCallbackHandler):
+    judgeval_callback_handler_var.set(handler)
+
+def clear_global_handler():
+    judgeval_callback_handler_var.set(None)
+
+register_configure_hook(
+    context_var=judgeval_callback_handler_var,
+    inheritable=True,
+)
