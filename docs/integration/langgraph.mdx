@@ -4,6 +4,8 @@ title: Integrating with LangGraph
 We make it easy to integrate Judgeval with LangGraph. 
 By simply adding the `JudgevalCallbackHandler` to your LangGraph workflow, you can trace your LangGraph workflow with Judgeval and also see insights from the execution.
 
+TODO: add basic understanding of langgraph and our prod
+
 ```python
 from judgeval.common.tracer import Tracer
 
@@ -20,9 +22,11 @@ result = graph.invoke({
     "messages": [HumanMessage(content=prompt)]
 })
 
+TODO: add handler attributes here
+
 ```
 
 
 View some of our demo code for more details.
 
-- [LangGraph Demo](https://github.com/JudgmentLabs/judgeval/blob/main/src/demo/cookbooks/langgraph_basic/agent.py)
+- [LangGraph Demo](https://github.com/JudgmentLabs/judgment-cookbook/blob/main/cookbooks/langgraph_basic/agent.py)
