@@ -1,0 +1,28 @@
+---
+title: Integrating with LangGraph
+---
+We make it easy to integrate Judgeval with LangGraph. 
+By simply adding the `JudgevalCallbackHandler` to your LangGraph workflow, you can trace your LangGraph workflow with Judgeval and also see insights from the execution.
+
+```python
+from judgeval.common.tracer import Tracer
+
+judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"), project_name=PROJECT_NAME)
+
+graph_builder = StateGraph(State)
+
+# YOUR LANGGRAPH WORKFLOW
+
+handler = JudgevalCallbackHandler(judgment.get_current_trace())
+set_global_handler(handler)
+
+result = graph.invoke({
+    "messages": [HumanMessage(content=prompt)]
+})
+
+```
+
+
+View some of our demo code for more details.
+
+- [LangGraph Demo](https://github.com/JudgmentLabs/judgeval/blob/main/src/demo/cookbooks/langgraph_basic/agent.py)

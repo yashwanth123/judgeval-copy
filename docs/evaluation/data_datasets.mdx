@@ -126,6 +126,32 @@ new_dataset = EvalDataset()
 new_dataset.add_from_csv("/path/to/your/csv/file.csv")
 ```
 
+### From YAML
+
+You can save/load an `EvalDataset` with a `.yaml` file. Your YAML should contain rows that can be mapped to `Example`s via column names.
+
+Here's an example of how use `judgeval` to save/load from YAML.
+
+```python yaml_dataset.py
+from judgeval.data.datasets import EvalDataset
+
+# saving
+dataset = EvalDataset(...)  # filled with examples
+dataset.save_as("yaml", "/path/to/save/dir", "save_name")
+
+# loading
+new_dataset = EvalDataset()
+new_dataset.add_from_yaml("/path/to/your/yaml/file.yaml")
+
+```
+
+```yaml example.yaml
+examples:
+  - input: ...
+    actual_output: ...
+    expected_output: ...
+```
+
 ## Evaluate On Your Dataset
 
 You can use the `JudgmentClient` to evaluate the `Example`s and `GroundTruthExample`s in your dataset using scorers.

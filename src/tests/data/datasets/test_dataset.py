@@ -1,6 +1,7 @@
 import pytest
 import json
 import pandas as pd
+import yaml
 from unittest.mock import Mock, patch, mock_open
 from judgeval.data.datasets import EvalDataset, EvalDatasetClient
 from judgeval.data import Example, GroundTruthExample
@@ -162,6 +163,24 @@ def test_save_as_csv(dataset, sample_example, tmp_path):
     assert len(df) == 1
     assert "input" in df.columns
 
+def test_save_as_yaml(dataset, sample_example, tmp_path):
+    dataset.add_example(sample_example)
+    save_path = tmp_path / "test_dir"
+    dataset.save_as("yaml", str(save_path), "test_save")
+    
+    # Check if the YAML file exists
+    yaml_file_path = save_path / "test_save.yaml"
+    assert yaml_file_path.exists(), "YAML file was not created."
+
+    # Load the YAML file and check its contents
+    with open(yaml_file_path, 'r') as file:
+        yaml_data = yaml.safe_load(file)
+
+    # Validate the structure of the YAML data
+    assert "examples" in yaml_data, "YAML data does not contain 'examples' key."
+    assert len(yaml_data["examples"]) == 1, "YAML data should contain one example."
+    
+
 def test_save_as_invalid_type(dataset):
     with pytest.raises(TypeError):
         dataset.save_as("invalid", "test_dir")
@@ -261,5 +280,39 @@ def test_load_from_csv():
     dataset = EvalDataset()
 
     dataset.add_from_csv("tests/data/datasets/sample_data/dataset.csv")
+    assert dataset.ground_truths == [gt1]
+    assert dataset.examples == [ex1]
+
+def test_load_from_yaml():
+    ex1 = Example(
+        input="test input",
+        actual_output="test output",
+        expected_output="expected output",
+        context=["context1", "context2"],
+        retrieval_context=["retrieval1"],
+        additional_metadata={"key": "value"},
+        tools_called=["tool1"],
+        expected_tools=["tool1", "tool2"],
+        name="test example",
+        trace_id="123",
+        example_id="12345"
+    )
+
+    gt1 = GroundTruthExample(
+        input="test input",
+        expected_output="expected output",
+        context=["context1"],
+        retrieval_context=["retrieval1"],
+        additional_metadata={"key": "value"},
+        tools_called=["tool1"],
+        expected_tools=["tool1"],
+        comments="test comment",
+        source_file="test.py",
+        trace_id="094121"
+    )
+
+    dataset = EvalDataset()
+
+    dataset.add_from_yaml("tests/data/datasets/sample_data/dataset.yaml")
     assert dataset.ground_truths == [gt1]
     assert dataset.examples == [ex1]
