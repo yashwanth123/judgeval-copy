@@ -24,12 +24,13 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         self.tracer = tracer
         self.trace_client = tracer.get_current_trace()
         self.previous_spans = [] # stack of previous spans
+        self.finished = False
+
+        # Attributes for users to access
         self.previous_node = None
         self.executed_node_tools = []
         self.executed_nodes = []
         self.executed_tools = []
-        self.finished = False
-        self.openai_count = 1
 
     def start_span(self, name: str, span_type: SpanType = "span"):
         start_time = time.time()
@@ -66,6 +67,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         self.trace_client._current_span = self.previous_spans.pop()
 
         if self.trace_client.tracer.depth == 0:
+            # Save the trace if we are the root, this is when users dont use any @observe decorators
             self.trace_client.save(empty_save=False, overwrite=True)
             self.trace_client._current_trace = None
                  
@@ -131,7 +133,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         metadata: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> None:
-        # Use first kwargs with LangGraph to start root trace
+        # If the user doesnt use any @observe decorators, the first action in LangGraph workflows seems tohave this attribute, so we intialize our trace client here
         if kwargs.get('name') == 'LangGraph':
             if not self.trace_client:
                 trace_id = str(uuid.uuid4())
@@ -282,8 +284,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     ) -> Any:
 
         if "openai" in serialized["id"]:
-            name = f"OPENAI_API_CALL_{self.openai_count}"
-            self.openai_count += 1
+            name = f"OPENAI_API_CALL"
         elif "anthropic" in serialized["id"]:
             name = "ANTHROPIC_API_CALL"
         elif "together" in serialized["id"]:
