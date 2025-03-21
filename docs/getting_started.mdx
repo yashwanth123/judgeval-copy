@@ -280,14 +280,10 @@ results = client.run_evaluation(
 # Create Your First Dataset 
 In most cases, you will not be running evaluations on a single example; instead, you will be scoring your LLM system on a dataset. 
 Judgeval allows you to create datasets, save them, and run evaluations on them. 
-An `EvalDataset` is a collection of `Example`s and/or `GroundTruthExample`s.
-
-<Note>
-A `GroundTruthExample` is an `Example` that has no `actual_output` field since it will be generated at test time.
-</Note>
+An `EvalDataset` is a collection of `Example`s.
 
 ```python create_dataset.py
-from judgeval.data import Example, GroundTruthExample, EvalDataset
+from judgeval.data import Example, EvalDataset
 
 example1 = Example(input="...", actual_output="...")
 example2 = Example(input="...", actual_output="...")
