@@ -157,7 +157,7 @@ class JudgmentClient:
         metadata: Optional[Dict[str, Any]] = None,
         project_name: str = "",
         eval_run_name: str = "",
-        log_results: bool = False,
+        log_results: bool = True,
         use_judgment: bool = True,
         rules: Optional[List[Rule]] = None
     ) -> List[ScoringResult]:
