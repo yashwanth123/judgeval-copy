@@ -29,8 +29,6 @@ pytest = "*"
 pytest-asyncio = "*"
 pytest-mock = "*"
 tavily-python = "*"
-patronus = "*"
-langfuse = "==2.50.3"
 
 [requires]
 python_version = "3.11"
