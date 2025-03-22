@@ -62,7 +62,7 @@ Congratulations! Your evaluation should have passed. Let's break down what happe
 - The variable `input` mimics a user input and `actual_output` is a placeholder for what your LLM system returns based on the input.
 - The variable `retrieval_context` represents the retrieved context from your RAG knowledge base.
 - `FaithfulnessScorer(threshold=0.5)` is a scorer that checks if the output is hallucinated relative to the retrieved context.
-    - <Note>All scorers produce values betweeen 0 - 1; the threshold is used in the context of [unit testing](/evaluation/unit_testing).</Note>
+    - <Note>The threshold is used in the context of [unit testing](/evaluation/unit_testing).</Note>
 - We chose `gpt-4o` as our judge model to measure faithfulness. Judgment Labs offers ANY judge model for your evaluation needs. 
 Consider trying out our state-of-the-art Osiris judge models for your next evaluation!
 
