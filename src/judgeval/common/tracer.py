@@ -313,6 +313,7 @@ class TraceClient:
         project_name: str = "default_project",
         overwrite: bool = False,
         rules: Optional[List[Rule]] = None,
+        enable_monitoring: bool = True,
     ):
         self.name = name
         self.trace_id = trace_id or str(uuid.uuid4())
@@ -321,7 +322,8 @@ class TraceClient:
         self.tracer = tracer
         # Initialize rules with either provided rules or an empty list
         self.rules = rules or []
-        
+        self.enable_monitoring = enable_monitoring
+
         self.client: JudgmentClient = tracer.client
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
@@ -381,6 +383,9 @@ class TraceClient:
         model: Optional[str] = None,
         log_results: Optional[bool] = True
     ):
+        if not self.enable_monitoring:
+            return
+        
         start_time = time.time()  # Record start time
         example = Example(
             input=input,
@@ -680,7 +685,9 @@ class Tracer:
         api_key: str = os.getenv("JUDGMENT_API_KEY"), 
         project_name: str = "default_project",
         rules: Optional[List[Rule]] = None,  # Added rules parameter
-        organization_id: str = os.getenv("JUDGMENT_ORG_ID")):
+        organization_id: str = os.getenv("JUDGMENT_ORG_ID"),
+        enable_monitoring: bool = os.getenv("JUDGMENT_MONITORING", "true").lower() == "true"
+        ):
         if not hasattr(self, 'initialized'):
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
@@ -696,6 +703,7 @@ class Tracer:
             self._current_trace: Optional[str] = None
             self.rules: List[Rule] = rules or []  # Store rules at tracer level
             self.initialized: bool = True
+            self.enable_monitoring: bool = enable_monitoring
         elif hasattr(self, 'project_name') and self.project_name != project_name:
             warnings.warn(
                 f"Attempting to initialize Tracer with project_name='{project_name}' but it was already initialized with "
@@ -722,7 +730,8 @@ class Tracer:
             name, 
             project_name=project, 
             overwrite=overwrite,
-            rules=self.rules  # Pass combined rules to the trace client
+            rules=self.rules,  # Pass combined rules to the trace client
+            enable_monitoring=self.enable_monitoring
         )
         prev_trace = self._current_trace
         self._current_trace = trace
@@ -753,6 +762,9 @@ class Tracer:
             project_name: Optional project name override
             overwrite: Whether to overwrite existing traces
         """
+        if not self.enable_monitoring:
+            return
+        
         if func is None:
             return lambda f: self.observe(f, name=name, span_type=span_type, project_name=project_name, overwrite=overwrite)
         
@@ -769,7 +781,7 @@ class Tracer:
                     trace_id = str(uuid.uuid4())
                     trace_name = func.__name__
                     project = project_name if project_name is not None else self.project_name
-                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules)
+                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules, enable_monitoring=self.enable_monitoring)
                     self._current_trace = trace
                     # Only save empty trace for the root call
                     trace.save(empty_save=True, overwrite=overwrite)
@@ -806,7 +818,7 @@ class Tracer:
                     trace_id = str(uuid.uuid4())
                     trace_name = func.__name__
                     project = project_name if project_name is not None else self.project_name
-                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules)
+                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules, enable_monitoring=self.enable_monitoring)
                     self._current_trace = trace
                     # Only save empty trace for the root call
                     trace.save(empty_save=True, overwrite=overwrite)
@@ -854,6 +866,11 @@ class Tracer:
                     self._current_trace.async_evaluate(scorers=[scorers], input=args, actual_output=kwargs, model="gpt-4o-mini", log_results=True)
             return wrapper
         
+    def async_evaluate(self, *args, **kwargs):
+        if self._current_trace:
+            self._current_trace.async_evaluate(*args, **kwargs)
+        else:
+            warnings.warn("No trace found, skipping evaluation")
 
 
 def wrap(client: Any) -> Any:
