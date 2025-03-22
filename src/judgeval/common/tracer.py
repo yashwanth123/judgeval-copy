@@ -314,6 +314,7 @@ class TraceClient:
         overwrite: bool = False,
         rules: Optional[List[Rule]] = None,
         enable_monitoring: bool = True,
+        enable_evaluations: bool = True
     ):
         self.name = name
         self.trace_id = trace_id or str(uuid.uuid4())
@@ -323,7 +324,8 @@ class TraceClient:
         # Initialize rules with either provided rules or an empty list
         self.rules = rules or []
         self.enable_monitoring = enable_monitoring
-
+        self.enable_evaluations = enable_evaluations
+        
         self.client: JudgmentClient = tracer.client
         self.entries: List[TraceEntry] = []
         self.start_time = time.time()
@@ -383,7 +385,7 @@ class TraceClient:
         model: Optional[str] = None,
         log_results: Optional[bool] = True
     ):
-        if not self.enable_monitoring:
+        if not self.enable_evaluations:
             return
         
         start_time = time.time()  # Record start time
@@ -686,7 +688,8 @@ class Tracer:
         project_name: str = "default_project",
         rules: Optional[List[Rule]] = None,  # Added rules parameter
         organization_id: str = os.getenv("JUDGMENT_ORG_ID"),
-        enable_monitoring: bool = os.getenv("JUDGMENT_MONITORING", "true").lower() == "true"
+        enable_monitoring: bool = os.getenv("JUDGMENT_MONITORING", "true").lower() == "true",
+        enable_evaluations: bool = os.getenv("JUDGMENT_EVALUATIONS", "true").lower() == "true"
         ):
         if not hasattr(self, 'initialized'):
             if not api_key:
@@ -704,6 +707,7 @@ class Tracer:
             self.rules: List[Rule] = rules or []  # Store rules at tracer level
             self.initialized: bool = True
             self.enable_monitoring: bool = enable_monitoring
+            self.enable_evaluations: bool = enable_evaluations
         elif hasattr(self, 'project_name') and self.project_name != project_name:
             warnings.warn(
                 f"Attempting to initialize Tracer with project_name='{project_name}' but it was already initialized with "
@@ -731,7 +735,8 @@ class Tracer:
             project_name=project, 
             overwrite=overwrite,
             rules=self.rules,  # Pass combined rules to the trace client
-            enable_monitoring=self.enable_monitoring
+            enable_monitoring=self.enable_monitoring,
+            enable_evaluations=self.enable_evaluations
         )
         prev_trace = self._current_trace
         self._current_trace = trace
@@ -781,7 +786,7 @@ class Tracer:
                     trace_id = str(uuid.uuid4())
                     trace_name = func.__name__
                     project = project_name if project_name is not None else self.project_name
-                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules, enable_monitoring=self.enable_monitoring)
+                    trace = TraceClient(self, trace_id, trace_name, project_name=project, overwrite=overwrite, rules=self.rules, enable_monitoring=self.enable_monitoring, enable_evaluations=self.enable_evaluations)
                     self._current_trace = trace
                     # Only save empty trace for the root call
                     trace.save(empty_save=True, overwrite=overwrite)

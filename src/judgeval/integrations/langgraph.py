@@ -138,7 +138,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
             if not self.trace_client:
                 trace_id = str(uuid.uuid4())
                 project = self.tracer.project_name
-                trace = TraceClient(self.tracer, trace_id, trace_id, project_name=project, overwrite=False, rules=self.tracer.rules, enable_monitoring=self.tracer.enable_monitoring)
+                trace = TraceClient(self.tracer, trace_id, trace_id, project_name=project, overwrite=False, rules=self.tracer.rules, enable_monitoring=self.tracer.enable_monitoring, enable_evaluations=self.tracer.enable_evaluations)
                 self.trace_client = trace
                 self.tracer._current_trace = trace # set the trace in the original tracer object
                 # Only save empty trace for the root call
