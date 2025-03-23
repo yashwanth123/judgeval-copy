@@ -10,7 +10,9 @@ import os
 import time
 import uuid
 import warnings
+from contextvars import ContextVar
 from contextlib import contextmanager
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from http import HTTPStatus
@@ -36,6 +38,7 @@ from judgeval.constants import (
     RABBITMQ_PORT,
     RABBITMQ_QUEUE,
     JUDGMENT_TRACES_DELETE_API_URL,
+    JUDGMENT_PROJECT_DELETE_API_URL,
     JUDGMENT_TRACES_ADD_TO_EVAL_QUEUE_API_URL
 )
 from judgeval.judgment_client import JudgmentClient
@@ -53,7 +56,7 @@ from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain_core.callbacks import CallbackManager, BaseCallbackHandler
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.outputs import LLMResult
-
+from langchain_core.tracers.context import register_configure_hook
 from langchain_core.messages.ai import AIMessage
 from langchain_core.messages.tool import ToolMessage
 from langchain_core.messages.base import BaseMessage
@@ -250,7 +253,8 @@ class TraceManagerClient:
             raise ValueError(f"Failed to save trace data: {response.text}")
         
         if not empty_save and "ui_results_url" in response.json():
-            rprint(f"\n🔍 You can view your trace data here: [rgb(106,0,255)]{response.json()['ui_results_url']}[/]\n")
+            pretty_str = f"\n🔍 You can view your trace data here: [rgb(106,0,255)][link={response.json()['ui_results_url']}]View Trace[/link]\n"
+            rprint(pretty_str)
 
     def delete_trace(self, trace_id: str):
         """
@@ -292,6 +296,27 @@ class TraceManagerClient:
         if response.status_code != HTTPStatus.OK:
             raise ValueError(f"Failed to delete trace: {response.text}")
         
+        return response.json()
+    
+    def delete_project(self, project_name: str):
+        """
+        Deletes a project from the server. Which also deletes all evaluations and traces associated with the project.
+        """
+        response = requests.delete(
+            JUDGMENT_PROJECT_DELETE_API_URL,
+            json={
+                "project_name": project_name,
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.judgment_api_key}",
+                "X-Organization-Id": self.organization_id
+            }
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to delete traces: {response.text}")
+            
         return response.json()
 
 
@@ -961,6 +986,10 @@ def _format_output_data(client: ApiClient, response: Any) -> dict:
 class JudgevalCallbackHandler(BaseCallbackHandler):
     def __init__(self, trace_client: TraceClient):
         self.trace_client = trace_client
+        self.previous_node = "__start__"
+        self.executed_node_tools = []
+        self.executed_nodes = []
+        self.executed_tools = []
         self.openai_count = 1
 
     def start_span(self, name: str, span_type: SpanType = "span"):
@@ -1048,6 +1077,23 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         # End the retriever span
         self.end_span(self.trace_client._current_span, span_type="retriever")
 
+    def on_chain_start(
+        self,
+        serialized: Dict[str, Any],
+        inputs: Dict[str, Any],
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any
+    ) -> None:
+        node = metadata.get("langgraph_node")
+        if node != None and node != "__start__" and node != self.previous_node:
+            self.executed_node_tools.append(node)
+            self.executed_nodes.append(node)
+        self.previous_node = node
+
     def on_tool_start(
         self,
         serialized: Optional[dict[str, Any]],
@@ -1059,6 +1105,8 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
     ):
         name = serialized["name"]
         self.start_span(name, span_type="tool")
+        self.executed_node_tools.append(f"{self.previous_node}:{name}")
+        self.executed_tools.append(name)
         self.trace_client.record_input({
             'args': input_str,
             'kwargs': kwargs
@@ -1127,3 +1175,18 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
             'args': str(messages),
             'kwargs': kwargs
         })
+
+judgeval_callback_handler_var: ContextVar[Optional[JudgevalCallbackHandler]] = ContextVar(
+    "judgeval_callback_handler", default=None
+)
+
+def set_global_handler(handler: JudgevalCallbackHandler):
+    judgeval_callback_handler_var.set(handler)
+
+def clear_global_handler():
+    judgeval_callback_handler_var.set(None)
+
+register_configure_hook(
+    context_var=judgeval_callback_handler_var,
+    inheritable=True,
+)
