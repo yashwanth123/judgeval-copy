@@ -22,7 +22,7 @@ from langchain_core.documents import Document
 class JudgevalCallbackHandler(BaseCallbackHandler):
     def __init__(self, tracer: Tracer):
         self.tracer = tracer
-        self.trace_client = tracer.get_current_trace()
+        self.trace_client = tracer.get_current_trace() if tracer.get_current_trace() else None
         self.previous_spans = [] # stack of previous spans
         self.finished = False
 
