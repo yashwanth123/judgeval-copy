@@ -56,7 +56,7 @@ If you find that none of the default scorers meet your evaluation needs, setting
 You can create a custom scorer by inheritng from the `JudgevalScorer` class and implementing three methods:
 - `score_example()`: produces a score for a single `Example`.
 - `a_score_example()`: async version of `score_example()`. You may use the same implementation logic as `score_example()`.
-- `success_check()`: determines whether an evaluation was successful.
+- `_success_check()`: determines whether an evaluation was successful.
 
 Custom scorers can be as simple or complex as you want, and **do not need to use LLMs**. 
 For sample implementations, check out the [Custom Scorers](/evaluation/scorers/custom_scorers) documentation page.
@@ -79,20 +79,8 @@ client = JudgmentClient()
 results = client.run_evaluation(
     examples=[example],
     scorers=[scorer],
-    model="gpt-4o-mini",
+    model="gpt-4o",
 )
-```
-
-If you want to execute a `JudgevalScorer` without running it through the `JudgmentClient`, you can score locally.
-Simply use the `score_example()` or `a_score_example()` method directly:
-
-```python direct_scoring.py
-...
-
-example = Example(input="...", actual_output="...")
-
-scorer = JudgevalScorer()  # Your scorer here
-score = scorer.score_example(example)
 ```
 
 <Tip>  
