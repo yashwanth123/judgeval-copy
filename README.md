@@ -1,6 +1,6 @@
 # Judgeval SDK
 
-Judgeval is an open-source evaluation framework for multi-agent LLM workflows, designed for both real-time and offline evaluations. To learn more about Judgment or sign up for free, visit our [website](https://www.judgmentlabs.ai/) or check out the [docs](https://judgment.mintlify.app/getting_started).
+Judgeval is an open-source framework for building evaluation pipelines for multi-step agent workflows, supporting both real-time and experimental evaluation setups. To learn more about Judgment or sign up for free, visit our [website](https://www.judgmentlabs.ai/) or check out our [developer docs](https://judgment.mintlify.app/getting_started).
 
 ## Features
 
