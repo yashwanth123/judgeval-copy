@@ -4,7 +4,7 @@ Judgeval is an open-source framework for building evaluation pipelines for multi
 
 ## Features
 
-- **Development and Production Evaluation Layer**: Offers a robust evaluation layer for multi-step LLM applications, particularly for agentic systems.
+- **Development and Production Evaluation Layer**: Offers a robust evaluation layer for multi-step agent applications, including unit-testing and performance monitoring.
 - **Plug-and-Evaluate**: Integrate LLM systems with 10+ research-backed metrics, including:
   - Hallucination detection
   - RAG retriever quality
