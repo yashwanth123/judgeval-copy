@@ -20,6 +20,8 @@ Judgeval is an open-source framework for building evaluation pipelines for multi
 
 ## Quickstart: Evaluations
 
+You can evaluate your workflow execution data to measure quality metrics such as hallucination.
+
 Create a file named `evaluate.py` with the following code:
 
    ```python
@@ -47,6 +49,8 @@ Create a file named `evaluate.py` with the following code:
 
 ## Quickstart: Traces
 
+Track your workflow execution for full observability with just a few lines of code.
+
 Create a file named `traces.py` with the following code:
 
    ```python
@@ -72,6 +76,8 @@ Create a file named `traces.py` with the following code:
    Click [here](https://judgment.mintlify.app/getting_started#create-your-first-trace) for a more detailed explanation 
 
 ## Quickstart: Online Evaluations
+
+Apply performance monitoring to measure the quality of your systems in production, not just on historical data.
 
 Using the same traces.py file we created earlier:
 
