@@ -282,12 +282,14 @@ def check_examples(examples: List[Example], scorers: List[APIJudgmentScorer]) ->
                     print(f"WARNING: Example {example.example_id} is missing the following parameters: {missing_params} for scorer {scorer.score_type.value}")
 
 
-def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[ScoringResult]:
+def run_eval(evaluation_run: EvaluationRun, override: bool = False, ignore_errors: bool = True) -> List[ScoringResult]:
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
     Args:
         evaluation_run (EvaluationRun): Stores example and evaluation together for running
+        override (bool, optional): Whether to override existing evaluation run with same name. Defaults to False.
+        ignore_errors (bool, optional): Whether to ignore scorer errors during evaluation. Defaults to True.
     
         Args: 
             project_name (str): The name of the project the evaluation results belong to
@@ -415,7 +417,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False) -> List[Scor
                 evaluation_run.examples,
                 local_scorers,
                 model=evaluation_run.model,
-                ignore_errors=True,
+                ignore_errors=ignore_errors,
                 skip_on_missing_params=True,
                 show_indicator=True,
                 _use_bar_indicator=True,
