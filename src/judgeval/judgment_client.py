@@ -65,6 +65,7 @@ class JudgmentClient:
         eval_run_name: str = "default_eval_run",
         override: bool = False,
         use_judgment: bool = True,
+        ignore_errors: bool = True,
         rules: Optional[List[Rule]] = None
     ) -> List[ScoringResult]:
         """
@@ -81,6 +82,7 @@ class JudgmentClient:
             eval_run_name (str): A name for this evaluation run
             override (bool): Whether to override an existing evaluation run with the same name
             use_judgment (bool): Whether to use Judgment API for evaluation
+            ignore_errors (bool): Whether to ignore errors during evaluation (safely handled)
             rules (Optional[List[Rule]]): Rules to evaluate against scoring results
             
         Returns:
@@ -141,7 +143,7 @@ class JudgmentClient:
                 rules=loaded_rules,
                 organization_id=self.organization_id
             )
-            return run_eval(eval, override)
+            return run_eval(eval, override, ignore_errors=ignore_errors)
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
         except Exception as e:
