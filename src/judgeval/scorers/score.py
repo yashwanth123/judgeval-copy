@@ -444,7 +444,7 @@ async def a_eval_examples_helper(
     
     process_example.update_run_duration(run_duration)   # Update process example with execution time duration
     
-    # Generate the scoring result and store it safely
+    # Generate the scoring result and store it safely (to avoid race conditions)
     result = generate_scoring_result(process_example)
     scoring_results[score_index] = result
     
