@@ -274,15 +274,36 @@ async def a_execute_scoring(
     semaphore = asyncio.Semaphore(max_concurrent)
 
     async def execute_with_semaphore(func: Callable, *args, **kwargs):
-        try:
-            async with semaphore:
+        async with semaphore:
+            try:
                 return await func(*args, **kwargs)
-        except Exception as e:
-            error(f"Error executing function: {e}")
-            if kwargs.get('ignore_errors', False):
-                # Return None when ignoring errors
-                return None
-            raise
+            except Exception as e:
+                error(f"Error executing function: {e}")
+                # Instead of silently returning None when ignore_errors is True,
+                # create a ScoringResult with error information
+                if kwargs.get('ignore_errors', False):
+                    # Get the example and index for creating error result
+                    example_arg = next((arg for arg in args if isinstance(arg, Example)), None)
+                    score_index = kwargs.get('score_index', -1)
+                    
+                    if example_arg:
+                        # Create a ScoringResult with error information
+                        error_result = ScoringResult(
+                            input=example_arg.input,
+                            actual_output=example_arg.actual_output,
+                            expected_output=example_arg.expected_output,
+                            context=example_arg.context,
+                            retrieval_context=example_arg.retrieval_context,
+                            additional_metadata=example_arg.additional_metadata,
+                            tools_called=example_arg.tools_called,
+                            expected_tools=example_arg.expected_tools,
+                            success=False,
+                            scorers_data=[],  # Empty but not None
+                            error=str(e)
+                        )
+                        return error_result
+                # If we're not ignoring errors or couldn't create an error result, propagate the exception
+                raise
 
     if verbose_mode is not None:
         for scorer in scorers:
@@ -391,6 +412,7 @@ async def a_eval_examples_helper(
     Returns:
         None
     """
+
     show_metrics_indicator = show_indicator and not _use_bar_indicator
 
     for scorer in scorers:
@@ -416,12 +438,15 @@ async def a_eval_examples_helper(
             continue
         scorer_data = create_scorer_data(scorer)  # Fetch scorer data from completed scorer evaluation
         process_example.update_scorer_data(scorer_data)  # Update process example with the same scorer data
-          
+        
     test_end_time = time.perf_counter()
     run_duration = test_end_time - scoring_start_time
     
     process_example.update_run_duration(run_duration)   # Update process example with execution time duration
-    scoring_results[score_index] = generate_scoring_result(process_example)  # Converts the outcomes of the executed test to a ScoringResult and saves it
-
+    
+    # Generate the scoring result and store it safely
+    result = generate_scoring_result(process_example)
+    scoring_results[score_index] = result
+    
     if pbar is not None:
         pbar.update(1)
