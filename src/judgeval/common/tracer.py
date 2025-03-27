@@ -767,6 +767,7 @@ class Tracer:
             project_name: Optional project name override
             overwrite: Whether to overwrite existing traces
         """
+        # If monitoring is disabled, return the function as is
         if not self.enable_monitoring:
             return func if func else lambda f: f
         
