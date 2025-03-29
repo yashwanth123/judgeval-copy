@@ -636,7 +636,7 @@ class TraceClient:
             "trace_id": self.trace_id,
             "name": self.name,
             "project_name": self.project_name,
-            "created_at": datetime.fromtimestamp(self.start_time).isoformat(),
+            "created_at": datetime.utcfromtimestamp(self.start_time).isoformat(),
             "duration": total_duration,
             "token_counts": {
                 "prompt_tokens": total_prompt_tokens,
