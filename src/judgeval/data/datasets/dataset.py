@@ -96,6 +96,12 @@ class EvalDataset:
         ) -> None:
         """
         Add Examples from a CSV file.
+
+        Args:
+            file_path (str): Path to the CSV file
+            header_mapping (dict): Dictionary mapping Example headers to custom headers
+            primary_delimiter (str, optional): Main delimiter used in CSV file. Defaults to ","
+            secondary_delimiter (str, optional): Secondary delimiter for list fields. Defaults to ";"
         """
         try:
             import pandas as pd
@@ -105,7 +111,7 @@ class EvalDataset:
             )
         
         # Pandas naturally reads numbers in data files as ints, not strings (can lead to unexpected behavior)
-        df = pd.read_csv(file_path, dtype={'trace_id': str})
+        df = pd.read_csv(file_path, dtype={'trace_id': str}, sep=primary_delimiter)
         """
         The user should pass in a dict mapping from Judgment Example headers to their custom defined headers.
         Available headers for Example objects are as follows:
