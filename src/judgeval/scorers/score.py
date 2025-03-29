@@ -278,7 +278,7 @@ async def a_execute_scoring(
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
-                error(f"Error executing function: {e}")
+                print(f"Error executing function: {e}")
                 if kwargs.get('ignore_errors', False):
                     # Simply return None when ignoring errors, as expected by the test
                     return None
