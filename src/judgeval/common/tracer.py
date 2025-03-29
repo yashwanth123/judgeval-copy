@@ -767,8 +767,9 @@ class Tracer:
             project_name: Optional project name override
             overwrite: Whether to overwrite existing traces
         """
+        # If monitoring is disabled, return the function as is
         if not self.enable_monitoring:
-            return
+            return func if func else lambda f: f
         
         if func is None:
             return lambda f: self.observe(f, name=name, span_type=span_type, project_name=project_name, overwrite=overwrite)
@@ -872,6 +873,9 @@ class Tracer:
             return wrapper
         
     def async_evaluate(self, *args, **kwargs):
+        if not self.enable_evaluations:
+            return
+
         if self._current_trace:
             self._current_trace.async_evaluate(*args, **kwargs)
         else:
