@@ -137,13 +137,17 @@ class EvalDataset:
             """
             # check that the CSV value is not null for entry
             null_replacement = dict() if header == 'additional_metadata' else None
-            value = ast.literal_eval(value) if header == 'additional_metadata' else str(value)
-            parsed_value = value if pd.notna(value) else null_replacement
-            if parsed_value and header in ["context", "retrieval_context", "tools_called", "expected_tools"]:
+            if pd.isna(value) or value == '':
+                return null_replacement
+            try:
+                value = ast.literal_eval(value) if header == 'additional_metadata' else str(value)
+            except (ValueError, SyntaxError):
+                value = str(value)
+            if header in ["context", "retrieval_context", "tools_called", "expected_tools"]:
                 # attempt to split the value by the secondary delimiter
-                parsed_value = parsed_value.split(secondary_delimiter)
+                value = value.split(secondary_delimiter)
                     
-            return parsed_value
+            return value
             
         for _, row in df.iterrows():
             data = {
