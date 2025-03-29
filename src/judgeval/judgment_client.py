@@ -359,7 +359,7 @@ class JudgmentClient:
             raise ValueError(f"Eval results not found: {response.json()}")
         elif response.status_code == 500:
             raise ValueError(f"Error deleting eval results: {response.json()}")
-        return response.json()
+        return bool(response.json())
     
     def delete_project_evals(self, project_name: str) -> bool:
         """
