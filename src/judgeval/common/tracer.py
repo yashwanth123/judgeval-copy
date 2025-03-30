@@ -639,7 +639,7 @@ class TraceClient:
             "trace_id": self.trace_id,
             "name": self.name,
             "project_name": self.project_name,
-            "created_at": datetime.fromtimestamp(self.start_time).isoformat(),
+            "created_at": datetime.utcfromtimestamp(self.start_time).isoformat(),
             "duration": total_duration,
             "token_counts": {
                 "prompt_tokens": total_prompt_tokens,
@@ -770,8 +770,9 @@ class Tracer:
             project_name: Optional project name override
             overwrite: Whether to overwrite existing traces
         """
+        # If monitoring is disabled, return the function as is
         if not self.enable_monitoring:
-            return
+            return func if func else lambda f: f
         
         if func is None:
             return lambda f: self.observe(f, name=name, span_type=span_type, project_name=project_name, overwrite=overwrite)
@@ -875,6 +876,9 @@ class Tracer:
             return wrapper
         
     def async_evaluate(self, *args, **kwargs):
+        if not self.enable_evaluations:
+            return
+
         if self._current_trace:
             self._current_trace.async_evaluate(*args, **kwargs)
         else:
