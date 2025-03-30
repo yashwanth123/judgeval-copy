@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from judgeval.rules import Rule, Condition, Operator, RulesEngine, AlertStatus
+from judgeval.rules import Rule, Condition, RulesEngine, AlertStatus
 from judgeval.scorers.judgeval_scorers.api_scorers.faithfulness import FaithfulnessScorer
 from judgeval.scorers.judgeval_scorers.api_scorers.answer_relevancy import AnswerRelevancyScorer
 from judgeval.judgment_client import JudgmentClient
@@ -22,8 +22,8 @@ class TestRulesWithAPIScorers:
             "quality_check": Rule(
                 name="Quality Check",
                 conditions=[
-                    Condition(metric=faithfulness_scorer, operator=Operator.GTE, threshold=0.7),
-                    Condition(metric=relevancy_scorer, operator=Operator.GTE, threshold=0.8)
+                    Condition(metric=faithfulness_scorer),
+                    Condition(metric=relevancy_scorer)
                 ],
                 combine_type="all"
             )
@@ -59,7 +59,7 @@ class TestRulesWithAPIScorers:
         faithfulness_scorer = FaithfulnessScorer(threshold=0.7)
         
         # Create condition with scorer
-        condition = Condition(metric=faithfulness_scorer, operator=Operator.GTE, threshold=0.7)
+        condition = Condition(metric=faithfulness_scorer)
         
         # Check the metric_name property
         assert condition.metric_name == "faithfulness"
@@ -107,8 +107,8 @@ class TestRulesWithAPIScorers:
                 Rule(
                     name="Quality Check",
                     conditions=[
-                        Condition(metric=FaithfulnessScorer(threshold=0.7), operator=Operator.GTE, threshold=0.7),
-                        Condition(metric=AnswerRelevancyScorer(threshold=0.8), operator=Operator.GTE, threshold=0.8)
+                        Condition(metric=FaithfulnessScorer(threshold=0.7)),
+                        Condition(metric=AnswerRelevancyScorer(threshold=0.8))
                     ],
                     combine_type="all"
                 )
@@ -159,7 +159,7 @@ class TestRulesWithAPIScorers:
                 Rule(
                     name="Quality Check",
                     conditions=[
-                        Condition(metric=FaithfulnessScorer(threshold=0.7), operator=Operator.GTE, threshold=0.7)
+                        Condition(metric=FaithfulnessScorer(threshold=0.7))
                     ],
                     combine_type="all"
                 )

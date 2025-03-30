@@ -23,6 +23,7 @@ langchain-huggingface = "*"
 langchain-openai = "*"
 langchain-anthropic = "*"
 langchain-core = "*"
+langchain-community = "*"
 
 [dev-packages]
 pytest = "*"

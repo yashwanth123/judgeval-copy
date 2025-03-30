@@ -26,13 +26,13 @@ from judgeval.constants import (
     MAX_CONCURRENT_EVALUATIONS
 )
 from judgeval.common.exceptions import JudgmentAPIError
-from judgeval.evaluation_run import EvaluationRun
 from judgeval.common.logger import (
     debug, 
     info, 
     error, 
     example_logging_context
 )
+from judgeval.evaluation_run import EvaluationRun
 
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:

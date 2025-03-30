@@ -700,7 +700,6 @@ class Tracer:
             
             if not organization_id:
                 raise ValueError("Tracer must be configured with an Organization ID")
-            
             self.api_key: str = api_key
             self.project_name: str = project_name
             self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
