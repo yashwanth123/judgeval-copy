@@ -90,9 +90,18 @@ class EvalDataset:
     def add_from_csv(
         self, 
         file_path: str,
+        header_mapping: dict,
+        primary_delimiter: str = ",",
+        secondary_delimiter: str = ";"
         ) -> None:
         """
         Add Examples from a CSV file.
+
+        Args:
+            file_path (str): Path to the CSV file
+            header_mapping (dict): Dictionary mapping Example headers to custom headers
+            primary_delimiter (str, optional): Main delimiter used in CSV file. Defaults to ","
+            secondary_delimiter (str, optional): Secondary delimiter for list fields. Defaults to ";"
         """
         try:
             import pandas as pd
@@ -102,9 +111,10 @@ class EvalDataset:
             )
         
         # Pandas naturally reads numbers in data files as ints, not strings (can lead to unexpected behavior)
-        df = pd.read_csv(file_path, dtype={'trace_id': str})
+        df = pd.read_csv(file_path, dtype={'trace_id': str}, sep=primary_delimiter)
         """
-        Expect the CSV to have headers
+        The user should pass in a dict mapping from Judgment Example headers to their custom defined headers.
+        Available headers for Example objects are as follows:
 
         "input", "actual_output", "expected_output", "context", \
         "retrieval_context", "additional_metadata", "tools_called", \
@@ -113,35 +123,48 @@ class EvalDataset:
 
         We want to collect the examples separately which can
         be determined by the "example" column. If the value is True, then it is an
-        example
+        example, and we expect the `input` and `actual_output` fields to be non-null.
 
-        We also assume that if there are multiple retrieval contexts or contexts, they are separated by semicolons.
-        This can be adjusted using the `context_delimiter` and `retrieval_context_delimiter` parameters.
+        We also assume that if there are multiple retrieval contexts, contexts, or tools called, they are separated by semicolons.
+        This can be adjusted using the `secondary_delimiter` parameter.
         """
         examples = []
-
+        
+        def process_csv_row(value, header):
+            """
+            Maps a singular value in the CSV file to the appropriate type based on the header.
+            If value exists and can be split into type List[*], we will split upon the user's provided secondary delimiter.
+            """
+            # check that the CSV value is not null for entry
+            null_replacement = dict() if header == 'additional_metadata' else None
+            if pd.isna(value) or value == '':
+                return null_replacement
+            try:
+                value = ast.literal_eval(value) if header == 'additional_metadata' else str(value)
+            except (ValueError, SyntaxError):
+                value = str(value)
+            if header in ["context", "retrieval_context", "tools_called", "expected_tools"]:
+                # attempt to split the value by the secondary delimiter
+                value = value.split(secondary_delimiter)
+                    
+            return value
+            
         for _, row in df.iterrows():
             data = {
-                "input": row["input"],
-                "actual_output": row["actual_output"] if pd.notna(row["actual_output"]) else None,
-                "expected_output": row["expected_output"] if pd.notna(row["expected_output"]) else None,
-                "context": row["context"].split(";") if pd.notna(row["context"]) else [],
-                "retrieval_context": row["retrieval_context"].split(";") if pd.notna(row["retrieval_context"]) else [],
-                "additional_metadata": ast.literal_eval(row["additional_metadata"]) if pd.notna(row["additional_metadata"]) else dict(),
-                "tools_called": row["tools_called"].split(";") if pd.notna(row["tools_called"]) else [],
-                "expected_tools": row["expected_tools"].split(";") if pd.notna(row["expected_tools"]) else [],
-                "trace_id": row["trace_id"] if pd.notna(row["trace_id"]) else None,
-                "example_id": str(row["example_id"]) if pd.notna(row["example_id"]) else None
+                header: process_csv_row(
+                    row[header_mapping[header]], header
+                )
+                for header in header_mapping
             }
-            if row["example"]:
-                data["name"] = row["name"] if pd.notna(row["name"]) else None
+            if "example" in header_mapping and row[header_mapping["example"]]:
+                if "name" in header_mapping:
+                    data["name"] = row[header_mapping["name"]] if pd.notna(row[header_mapping["name"]]) else None
                 # every Example has `input` and `actual_output` fields
                 if data["input"] is not None and data["actual_output"] is not None:
                     e = Example(**data)
                     examples.append(e)
                 else:
                     raise ValueError("Every example must have an 'input' and 'actual_output' field.")
-           
 
         for e in examples:
             self.add_example(e)

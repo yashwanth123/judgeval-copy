@@ -114,8 +114,25 @@ def test_add_from_csv(mock_read_csv, dataset):
         'example_id': ['12345', '12345']
     })
     mock_read_csv.return_value = mock_df
+    
+    mock_mapping = {
+        'input': 'input',
+        'actual_output': 'actual_output',
+        'expected_output': 'expected_output',
+        'context': 'context',
+        'retrieval_context': 'retrieval_context',
+        'additional_metadata': 'additional_metadata',
+        'tools_called': 'tools_called',
+        'expected_tools': 'expected_tools',
+        'name': 'name',
+        'comments': 'comments',
+        'source_file': 'source_file',
+        'example': 'example',
+        'trace_id': 'trace_id',
+        'example_id': 'example_id'
+    }
 
-    dataset.add_from_csv("test.csv")
+    dataset.add_from_csv("test.csv", header_mapping=mock_mapping)
     assert len(dataset.examples) == 1
 
 def test_save_as_json(dataset, sample_example, tmp_path):
@@ -222,10 +239,27 @@ def test_load_from_csv():
         trace_id="123",
         example_id="12345"
     )
+    
+    mock_mapping = {
+        'input': 'input',
+        'actual_output': 'actual_output',
+        'expected_output': 'expected_output',
+        'context': 'context',
+        'retrieval_context': 'retrieval_context',
+        'additional_metadata': 'additional_metadata',
+        'tools_called': 'tools_called',
+        'expected_tools': 'expected_tools',
+        'name': 'name',
+        'comments': 'comments',
+        'source_file': 'source_file',
+        'example': 'example',
+        'trace_id': 'trace_id',
+        'example_id': 'example_id'
+    }
 
     dataset = EvalDataset()
 
-    dataset.add_from_csv("tests/data/datasets/sample_data/dataset.csv")
+    dataset.add_from_csv("tests/data/datasets/sample_data/dataset.csv", header_mapping=mock_mapping)
     assert dataset.examples == [ex1]
 
 def test_load_from_yaml():
@@ -247,3 +281,25 @@ def test_load_from_yaml():
 
     dataset.add_from_yaml("tests/data/datasets/sample_data/dataset.yaml")
     assert dataset.examples == [ex1]
+
+@patch('pandas.read_csv')
+def test_load_csv_null_values(mock_read_csv):
+    mock_df = pd.DataFrame({
+        'input': ['test1', 'test2'],
+        'actual_output': [None, 'output2'],
+        'expected_output': ['expected1', ''],
+        'example': [False, True]
+    })
+    mock_read_csv.return_value = mock_df
+    
+    mock_mapping = {
+        'input': 'input',
+        'actual_output': 'actual_output',
+        'example': 'example'
+    }
+    
+    dataset = EvalDataset()
+    dataset.add_from_csv("test.csv", header_mapping=mock_mapping)
+    assert len(dataset.examples) == 1
+    assert dataset.examples[0].expected_output is None
+    
