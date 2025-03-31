@@ -42,7 +42,7 @@ def send_to_rabbitmq(evaluation_run: EvaluationRun) -> None:
     """
     payload = evaluation_run.model_dump(warnings=False)
     response = requests.post(
-        JUDGMENT_TRACES_ADD_TO_RUN_EVAL_QUEUE_API_URL,
+        JUDGMENT_ADD_TO_RUN_EVAL_QUEUE_API_URL,
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {evaluation_run.judgment_api_key}",
