@@ -57,7 +57,24 @@ class JudgmentClient:
             raise JudgmentAPIError(f"Issue with passed in Judgment API key: {response}")
         else:
             print(f"Successfully initialized JudgmentClient, welcome back {response.get('detail', {}).get('user_name', 'user')}!")
-            
+    
+    def a_run_evaluation(
+        self, 
+        examples: List[Example],
+        scorers: List[Union[ScorerWrapper, JudgevalScorer]],
+        model: Union[str, List[str], JudgevalJudge],
+        aggregator: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        log_results: bool = True,
+        project_name: str = "default_project",
+        eval_run_name: str = "default_eval_run",
+        override: bool = False,
+        use_judgment: bool = True,
+        ignore_errors: bool = True,
+        rules: Optional[List[Rule]] = None
+    ) -> List[ScoringResult]:
+        return self.run_evaluation(examples, scorers, model, aggregator, metadata, log_results, project_name, eval_run_name, override, use_judgment, ignore_errors, True, rules)
+
     def run_evaluation(
         self, 
         examples: List[Example],
@@ -71,6 +88,7 @@ class JudgmentClient:
         override: bool = False,
         use_judgment: bool = True,
         ignore_errors: bool = True,
+        async_execution: bool = False,
         rules: Optional[List[Rule]] = None
     ) -> List[ScoringResult]:
         """
@@ -148,7 +166,7 @@ class JudgmentClient:
                 rules=loaded_rules,
                 organization_id=self.organization_id
             )
-            return run_eval(eval, override, ignore_errors=ignore_errors)
+            return run_eval(eval, override, ignore_errors=ignore_errors, async_execution=async_execution)
         except ValueError as e:
             raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: \n{str(e)}")
         except Exception as e:
