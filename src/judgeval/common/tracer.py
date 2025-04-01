@@ -20,6 +20,7 @@ from rich import print as rprint
 # Third-party imports
 import pika
 import requests
+from litellm import cost_per_token
 from pydantic import BaseModel
 from rich import print as rprint
 from openai import OpenAI
@@ -621,18 +622,47 @@ class TraceClient:
         total_completion_tokens = 0
         total_tokens = 0
         
+        total_prompt_tokens_cost = 0.0
+        total_completion_tokens_cost = 0.0
+        total_cost = 0.0
+        
         for entry in condensed_entries:
             if entry.get("span_type") == "llm" and isinstance(entry.get("output"), dict):
                 usage = entry["output"].get("usage", {})
+                model_name = entry.get("inputs", {}).get("model", "")
+                prompt_tokens = 0
+                completion_tokens = 0
+                
                 # Handle OpenAI/Together format
                 if "prompt_tokens" in usage:
-                    total_prompt_tokens += usage.get("prompt_tokens", 0)
-                    total_completion_tokens += usage.get("completion_tokens", 0)
+                    prompt_tokens = usage.get("prompt_tokens", 0)
+                    completion_tokens = usage.get("completion_tokens", 0)
+                    total_prompt_tokens += prompt_tokens
+                    total_completion_tokens += completion_tokens
                 # Handle Anthropic format
                 elif "input_tokens" in usage:
-                    total_prompt_tokens += usage.get("input_tokens", 0)
-                    total_completion_tokens += usage.get("output_tokens", 0)
+                    prompt_tokens = usage.get("input_tokens", 0)
+                    completion_tokens = usage.get("output_tokens", 0)
+                    total_prompt_tokens += prompt_tokens
+                    total_completion_tokens += completion_tokens
+                
                 total_tokens += usage.get("total_tokens", 0)
+                
+                # Calculate costs if model name is available
+                if model_name:
+                    try:
+                        prompt_cost, completion_cost = cost_per_token(
+                            model=model_name, 
+                            prompt_tokens=prompt_tokens, 
+                            completion_tokens=completion_tokens
+                        )
+                        total_prompt_tokens_cost += prompt_cost
+                        total_completion_tokens_cost += completion_cost
+                        total_cost += prompt_cost + completion_cost
+                    except Exception as e:
+                        # If cost calculation fails, continue without adding costs
+                        print(f"Error calculating cost for model '{model_name}': {str(e)}")
+                        pass
 
         # Create trace document
         trace_data = {
@@ -645,6 +675,9 @@ class TraceClient:
                 "prompt_tokens": total_prompt_tokens,
                 "completion_tokens": total_completion_tokens,
                 "total_tokens": total_tokens,
+                "prompt_tokens_cost_usd": total_prompt_tokens_cost,
+                "completion_tokens_cost_usd": total_completion_tokens_cost,
+                "total_cost_usd": total_cost
             },
             "entries": condensed_entries,
             "empty_save": empty_save,
