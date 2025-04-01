@@ -133,11 +133,11 @@ judgment = Tracer(project_name="my_project")
 @judgment.observe(span_type="function")
 def main():
     query = "What is the capital of France?"
-    res = ...  # Your workflow logic
+    res = "The capital of France is Paris."  # Replace with your workflow logic
     
     judgment.async_evaluate(
-        scorers=[AnswerRelevancyScorer(threshold=0.5)],
-        input="",
+        scorers=[AnswerRelevancyScorer(threshold=1.0)],
+        input=query,
         actual_output=res,
         model="gpt-4o",
     )
