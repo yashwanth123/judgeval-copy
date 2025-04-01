@@ -11,10 +11,14 @@ Classifier scorers are great for prototyping new evaluation criteria on a small 
 ### `judgeval` SDK
 
 You can create a `ClassifierScorer` by providing a natural language description of your evaluation task/criteria and a set of choices that an LLM judge can choose from when evaluating an example. 
+
+Specifically, you need to provide a `conversation` that describes the task/criteria and a `options` dictionary that maps each choice to a score. 
+You can also use `Example` fields in your `conversation` by using the mustache `{{variable_name}}` syntax.
+
+
 Here's an example of creating a `ClassifierScorer` that determines if a response is friendly or not:
 
 ```python friendliness_scorer.py
-
 from judgeval.scorers import ClassifierScorer
 
 friendliness_scorer = ClassifierScorer(
@@ -31,9 +35,10 @@ friendliness_scorer = ClassifierScorer(
 ```
 
 <Tip>
-You can put variables from [`Example`s](/evaluation/data_examples) into your `conversation` by using the mustache `{{variable_name}}` syntax.
+Use variables from [`Example`s](/evaluation/data_examples) into your `conversation` by using the mustache `{{variable_name}}` syntax.
 </Tip>
 
+{/*
 ### `Judgment` Platform
 
 1. Navigate to the `Scorers` tab in the Judgment platform. You'll find this on via the sidebar on the left.
@@ -51,6 +56,7 @@ Then, you supply a set of **choices** the scorer can select from when evaluating
 Here's an example of building a similar `ClassifierScorer` that checks if the LLM's tone is too aggressive. 
 
 ![Alt text](/images/create_aggressive_scorer.png "Optional title")
+*/}
 
 
 ## Using a Classifier Scorer
@@ -84,7 +90,14 @@ client = JudgmentClient()
 friendliness_slug = client.push_classifier_scorer(friendliness_scorer)
 
 # Loading a ClassifierScorer from platform to SDK
-classifier_scorer = client.fetch_classifier_scorer("classifier-scorer-slug")
+# You can load any ClassifierScorer from your account by providing the slug
+loaded_friendliness_scorer = client.fetch_classifier_scorer("friendliness_slug") 
 ```
 
-TODO add image of slugs on the platform
+## Real World Examples
+
+You can find some real world examples of how our community has used `ClassifierScorers` to evaluate their LLM systems in our [cookbook repository](https://github.com/JudgmentLabs/judgment-cookbook/tree/main)! 
+Here are some of our favorites:
+- [Text to SQL checker](https://github.com/JudgmentLabs/judgment-cookbook/blob/main/cookbooks/classifier_scorer/text2sql.py)
+- [PII detection](https://github.com/JudgmentLabs/judgment-cookbook/blob/main/cookbooks/classifier_scorer/pii_checker.py)
+- [Competitor Brand Sentiment](https://github.com/JudgmentLabs/judgment-cookbook/blob/main/cookbooks/classifier_scorer/branding.py)
