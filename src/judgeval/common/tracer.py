@@ -628,10 +628,11 @@ class TraceClient:
         
         for entry in condensed_entries:
             if entry.get("span_type") == "llm" and isinstance(entry.get("output"), dict):
-                usage = entry["output"].get("usage", {})
+                output = entry["output"]
+                usage = output.get("usage", {})
                 model_name = entry.get("inputs", {}).get("model", "")
                 prompt_tokens = 0
-                completion_tokens = 0
+                completion_tokens = 0   
                 
                 # Handle OpenAI/Together format
                 if "prompt_tokens" in usage:
@@ -659,6 +660,13 @@ class TraceClient:
                         total_prompt_tokens_cost += prompt_cost
                         total_completion_tokens_cost += completion_cost
                         total_cost += prompt_cost + completion_cost
+                        
+                        # Add cost information directly to the usage dictionary in the condensed entry
+                        if "usage" not in output:
+                            output["usage"] = {}
+                        output["usage"]["prompt_tokens_cost_usd"] = prompt_cost
+                        output["usage"]["completion_tokens_cost_usd"] = completion_cost
+                        output["usage"]["total_cost_usd"] = prompt_cost + completion_cost
                     except Exception as e:
                         # If cost calculation fails, continue without adding costs
                         print(f"Error calculating cost for model '{model_name}': {str(e)}")
