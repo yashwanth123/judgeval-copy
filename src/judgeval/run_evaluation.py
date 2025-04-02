@@ -23,7 +23,8 @@ from judgeval.constants import (
     ROOT_API,
     JUDGMENT_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
-    MAX_CONCURRENT_EVALUATIONS
+    MAX_CONCURRENT_EVALUATIONS,
+    JUDGMENT_ADD_TO_RUN_EVAL_QUEUE_API_URL
 )
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.common.logger import (
@@ -34,6 +35,23 @@ from judgeval.common.logger import (
 )
 from judgeval.evaluation_run import EvaluationRun
 
+
+def send_to_rabbitmq(evaluation_run: EvaluationRun) -> None:
+    """
+    Sends an evaluation run to the RabbitMQ evaluation queue.
+    """
+    payload = evaluation_run.model_dump(warnings=False)
+    response = requests.post(
+        JUDGMENT_ADD_TO_RUN_EVAL_QUEUE_API_URL,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {evaluation_run.judgment_api_key}",
+            "X-Organization-Id": evaluation_run.organization_id
+        },   
+        json=payload,
+        verify=True
+    )
+    return response.json()
 
 def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
     """
@@ -51,13 +69,15 @@ def execute_api_eval(evaluation_run: EvaluationRun) -> List[Dict]:
         # submit API request to execute evals
         payload = evaluation_run.model_dump(warnings=False)
         response = requests.post(
-            JUDGMENT_EVAL_API_URL, headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {evaluation_run.judgment_api_key}",
-            "X-Organization-Id": evaluation_run.organization_id
-        }, 
-        json=payload,
-        verify=True)
+            JUDGMENT_EVAL_API_URL, 
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {evaluation_run.judgment_api_key}",
+                "X-Organization-Id": evaluation_run.organization_id
+            }, 
+            json=payload,
+            verify=True
+        )
         response_data = response.json()
     except Exception as e:
         error(f"Error: {e}")
@@ -281,8 +301,7 @@ def check_examples(examples: List[Example], scorers: List[APIJudgmentScorer]) ->
                     # Example ID (usually random UUID) does not provide any helpful information for the user but printing the entire example is overdoing it
                     print(f"WARNING: Example {example.example_id} is missing the following parameters: {missing_params} for scorer {scorer.score_type.value}")
 
-
-def run_eval(evaluation_run: EvaluationRun, override: bool = False, ignore_errors: bool = True) -> List[ScoringResult]:
+def run_eval(evaluation_run: EvaluationRun, override: bool = False, ignore_errors: bool = True, async_execution: bool = False) -> List[ScoringResult]:
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
@@ -356,101 +375,117 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False, ignore_error
     
     api_results: List[ScoringResult] = []
     local_results: List[ScoringResult] = []
-    
-    # Execute evaluation using Judgment API
-    if judgment_scorers:
+
+    if async_execution:
         check_examples(evaluation_run.examples, evaluation_run.scorers)
-        info("Starting API evaluation")
-        debug(f"Creating API evaluation run with {len(judgment_scorers)} scorers")
-        try:  # execute an EvaluationRun with just JudgmentScorers
-            api_evaluation_run: EvaluationRun = EvaluationRun(
-                eval_name=evaluation_run.eval_name,
-                project_name=evaluation_run.project_name,
-                examples=evaluation_run.examples,
-                scorers=judgment_scorers,
-                model=evaluation_run.model,
-                aggregator=evaluation_run.aggregator,
-                metadata=evaluation_run.metadata,
-                judgment_api_key=evaluation_run.judgment_api_key,
-                organization_id=evaluation_run.organization_id,
-                log_results=evaluation_run.log_results,
-                rules=evaluation_run.rules
-            )
-            debug("Sending request to Judgment API")    
-            response_data: List[Dict] = run_with_spinner("Running Evaluation: ", execute_api_eval, api_evaluation_run)
-            info(f"Received {len(response_data['results'])} results from API")
-        except JudgmentAPIError as e:
-            error(f"An error occurred while executing the Judgment API request: {str(e)}")
-            raise JudgmentAPIError(f"An error occurred while executing the Judgment API request: {str(e)}")
-        except ValueError as e:
-            raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: {str(e)}")
-        
-        # Convert the response data to `ScoringResult` objects
-        debug("Processing API results")
-        for idx, result in enumerate(response_data["results"]):  
-            with example_logging_context(evaluation_run.examples[idx].timestamp, evaluation_run.examples[idx].example_id):
-                for scorer in judgment_scorers:
-                    debug(f"Processing API result for example {idx} and scorer {scorer.score_type}")
-                # filter for key-value pairs that are used to initialize ScoringResult
-                # there may be some stuff in here that doesn't belong in ScoringResult
-                # TODO: come back and refactor this to have ScoringResult take in **kwargs
-                filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
-                
-                # Convert scorers_data dicts to ScorerData objects
-                if "scorers_data" in filtered_result and filtered_result["scorers_data"]:
-                    filtered_result["scorers_data"] = [
-                        ScorerData(**scorer_dict) 
-                        for scorer_dict in filtered_result["scorers_data"]
-                    ]
-                
-                api_results.append(ScoringResult(**filtered_result))
-    # Run local evals
-    if local_scorers:  # List[JudgevalScorer]
-        # We should be removing local scorers soon
-        info("Starting local evaluation")
-        for example in evaluation_run.examples:
-            with example_logging_context(example.timestamp, example.example_id):
-                debug(f"Processing example {example.example_id}: {example.input}")
-        
-        results: List[ScoringResult] = asyncio.run(
-            a_execute_scoring(
-                evaluation_run.examples,
-                local_scorers,
-                model=evaluation_run.model,
-                ignore_errors=ignore_errors,
-                skip_on_missing_params=True,
-                show_indicator=True,
-                _use_bar_indicator=True,
-                throttle_value=0,
-                max_concurrent=MAX_CONCURRENT_EVALUATIONS,
-            )
+        info("Starting async evaluation")
+        payload = evaluation_run.model_dump(warnings=False)
+        requests.post(
+            JUDGMENT_ADD_TO_RUN_EVAL_QUEUE_API_URL,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {evaluation_run.judgment_api_key}",
+                "X-Organization-Id": evaluation_run.organization_id
+            },
+            json=payload,
+            verify=True
         )
-        local_results = results
-        info(f"Local evaluation complete with {len(local_results)} results")
-    # Aggregate the ScorerData from the API and local evaluations
-    debug("Merging API and local results")
-    merged_results: List[ScoringResult] = merge_results(api_results, local_results)
-    merged_results = check_missing_scorer_data(merged_results)
+        print("Successfully added evaluation to queue")
+    else:
+        if judgment_scorers:
+            # Execute evaluation using Judgment API
+            check_examples(evaluation_run.examples, evaluation_run.scorers)
+            info("Starting API evaluation")
+            debug(f"Creating API evaluation run with {len(judgment_scorers)} scorers")
+            try:  # execute an EvaluationRun with just JudgmentScorers
+                api_evaluation_run: EvaluationRun = EvaluationRun(
+                    eval_name=evaluation_run.eval_name,
+                    project_name=evaluation_run.project_name,
+                    examples=evaluation_run.examples,
+                    scorers=judgment_scorers,
+                    model=evaluation_run.model,
+                    aggregator=evaluation_run.aggregator,
+                    metadata=evaluation_run.metadata,
+                    judgment_api_key=evaluation_run.judgment_api_key,
+                    organization_id=evaluation_run.organization_id,
+                    log_results=evaluation_run.log_results,
+                    rules=evaluation_run.rules
+                )
+                debug("Sending request to Judgment API")    
+                response_data: List[Dict] = run_with_spinner("Running Evaluation: ", execute_api_eval, api_evaluation_run)
+                info(f"Received {len(response_data['results'])} results from API")
+            except JudgmentAPIError as e:
+                error(f"An error occurred while executing the Judgment API request: {str(e)}")
+                raise JudgmentAPIError(f"An error occurred while executing the Judgment API request: {str(e)}")
+            except ValueError as e:
+                raise ValueError(f"Please check your EvaluationRun object, one or more fields are invalid: {str(e)}")
+            
+            # Convert the response data to `ScoringResult` objects
+            debug("Processing API results")
+            for idx, result in enumerate(response_data["results"]):  
+                with example_logging_context(evaluation_run.examples[idx].timestamp, evaluation_run.examples[idx].example_id):
+                    for scorer in judgment_scorers:
+                        debug(f"Processing API result for example {idx} and scorer {scorer.score_type}")
+                    # filter for key-value pairs that are used to initialize ScoringResult
+                    # there may be some stuff in here that doesn't belong in ScoringResult
+                    # TODO: come back and refactor this to have ScoringResult take in **kwargs
+                    filtered_result = {k: v for k, v in result.items() if k in ScoringResult.__annotations__}
+                    
+                    # Convert scorers_data dicts to ScorerData objects
+                    if "scorers_data" in filtered_result and filtered_result["scorers_data"]:
+                        filtered_result["scorers_data"] = [
+                            ScorerData(**scorer_dict) 
+                            for scorer_dict in filtered_result["scorers_data"]
+                        ]
+                    
+                    api_results.append(ScoringResult(**filtered_result))
+        # Run local evals
+        if local_scorers:  # List[JudgevalScorer]
+            # We should be removing local scorers soon
+            info("Starting local evaluation")
+            for example in evaluation_run.examples:
+                with example_logging_context(example.timestamp, example.example_id):
+                    debug(f"Processing example {example.example_id}: {example.input}")
+            
+            results: List[ScoringResult] = asyncio.run(
+                a_execute_scoring(
+                    evaluation_run.examples,
+                    local_scorers,
+                    model=evaluation_run.model,
+                    ignore_errors=ignore_errors,
+                    skip_on_missing_params=True,
+                    show_indicator=True,
+                    _use_bar_indicator=True,
+                    throttle_value=0,
+                    max_concurrent=MAX_CONCURRENT_EVALUATIONS,
+                )
+            )
+            local_results = results
+            info(f"Local evaluation complete with {len(local_results)} results")
+        # Aggregate the ScorerData from the API and local evaluations
+        debug("Merging API and local results")
+        merged_results: List[ScoringResult] = merge_results(api_results, local_results)
+        merged_results = check_missing_scorer_data(merged_results)
 
-    info(f"Successfully merged {len(merged_results)} results")
+        info(f"Successfully merged {len(merged_results)} results")
 
-    # Evaluate rules against local scoring results if rules exist (this cant be done just yet)
-    # if evaluation_run.rules and merged_results:
-    #     run_rules(
-    #         local_results=merged_results, 
-    #         rules=evaluation_run.rules, 
-    #         judgment_api_key=evaluation_run.judgment_api_key,
-    #         organization_id=evaluation_run.organization_id
-    #     )
-    
-    if evaluation_run.log_results:
-        pretty_str = run_with_spinner("Logging Results: ", log_evaluation_results, merged_results, evaluation_run)
-        rprint(pretty_str)
+        # Evaluate rules against local scoring results if rules exist (this cant be done just yet)
+        # if evaluation_run.rules and merged_results:
+        #     run_rules(
+        #         local_results=merged_results, 
+        #         rules=evaluation_run.rules, 
+        #         judgment_api_key=evaluation_run.judgment_api_key,
+        #         organization_id=evaluation_run.organization_id
+        #     )
+        
+        if evaluation_run.log_results:
+            pretty_str = run_with_spinner("Logging Results: ", log_evaluation_results, merged_results, evaluation_run)
+            rprint(pretty_str)
 
-    for i, result in enumerate(merged_results):
-        if not result.scorers_data:  # none of the scorers could be executed on this example
-            info(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
-    return merged_results
+        for i, result in enumerate(merged_results):
+            if not result.scorers_data:  # none of the scorers could be executed on this example
+                info(f"None of the scorers could be executed on example {i}. This is usually because the Example is missing the fields needed by the scorers. Try checking that the Example has the necessary fields for your scorers.")
+        return merged_results
 
 def assert_test(scoring_results: List[ScoringResult]) -> None:
     """
