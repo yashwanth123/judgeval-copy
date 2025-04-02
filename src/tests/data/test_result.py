@@ -1,5 +1,5 @@
 import pytest
-from judgeval.data import ScorerData, ProcessExample, ScoringResult
+from judgeval.data import ScorerData, Example, ScoringResult
 from judgeval.data.result import generate_scoring_result
 
 @pytest.fixture
@@ -13,8 +13,8 @@ def sample_scorer_data():
     )
 
 @pytest.fixture
-def sample_process_example(sample_scorer_data):
-    return ProcessExample(
+def sample_example():
+    return Example(
         name="test_example",
         input="test input",
         actual_output="actual output",
@@ -84,23 +84,68 @@ class TestScoringResult:
         assert "ScoringResult" in str_result
         assert "success=True" in str_result
 
+    def test_update_scorer_data_initial(self, sample_scorer_data):
+        """Test updating scorer data for the first time"""
+        result = ScoringResult(
+            success=True,
+            scorers_data=[]
+        )
+        result.update_scorer_data(sample_scorer_data)
+        
+        assert result.success == True
+        assert len(result.scorers_data) == 1
+        assert result.scorers_data[0] == sample_scorer_data
+    
+    def test_update_scorer_data_multiple(self, sample_scorer_data):
+        """Test updating scorer data multiple times"""
+        result = ScoringResult(
+            success=True,
+            scorers_data=[]
+        )
+        
+        # Add first scorer
+        result.update_scorer_data(sample_scorer_data)
+        
+        # Add second scorer with failure
+        failed_scorer = ScorerData(
+            name="failed_scorer",
+            threshold=1.0,
+            success=False,          
+            score=0.0,
+            metadata={}
+        )
+        result.update_scorer_data(failed_scorer)
+        
+        assert result.success == False
+        assert len(result.scorers_data) == 2
+        assert result.scorers_data[1] == failed_scorer
+    
+
+    def test_update_run_duration(self):
+        """Test updating run duration"""
+        result = ScoringResult(
+            success=True,
+            scorers_data=[]
+        )
+        result.update_run_duration(1.5)
+        assert result.run_duration == 1.5
+
 class TestGenerateScoringResult:
-    def test_generate_from_process_example(self, sample_process_example):
-        """Test generating ScoringResult from ProcessExample"""
-        result = generate_scoring_result(sample_process_example)
+    def test_generate_from_example(self, sample_example):
+        """Test generating ScoringResult from Example"""
+        result = generate_scoring_result(sample_example)
         
         assert isinstance(result, ScoringResult)
-        assert result.success == sample_process_example.success
-        assert result.input == sample_process_example.input
-        assert result.actual_output == sample_process_example.actual_output
-        assert result.expected_output == sample_process_example.expected_output
-        assert result.context == sample_process_example.context
-        assert result.retrieval_context == sample_process_example.retrieval_context
-        assert result.trace_id == sample_process_example.trace_id
+        assert result.input == sample_example.input
+        assert result.actual_output == sample_example.actual_output
+        assert result.expected_output == sample_example.expected_output
+        assert result.context == sample_example.context
+        assert result.retrieval_context == sample_example.retrieval_context
+        assert result.trace_id == sample_example.trace_id
 
-    def test_generate_with_minimal_process_example(self):
-        """Test generating ScoringResult from minimal ProcessExample"""
-        minimal_example = ProcessExample(
+    def test_generate_with_minimal_example(self):
+        """Test generating ScoringResult from minimal Example"""
+        minimal_example = Example(
             name="minimal",
             input="test",
             actual_output="output",

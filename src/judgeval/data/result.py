@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from typing import List, Union, Optional, Dict, Any, Union
+from judgeval.common.logger import debug, error
 
-from judgeval.data import ScorerData, ProcessExample
+from judgeval.data import ScorerData, Example
 
 @dataclass
 class ScoringResult:
@@ -27,6 +28,7 @@ class ScoringResult:
     # Fields for scoring outputs 
     success: bool  # used for unit testing
     scorers_data: Union[List[ScorerData], None]
+    name: Optional[str] = None
 
     # Inputs from the original example
     input: Optional[str] = None
@@ -41,6 +43,35 @@ class ScoringResult:
     
     example_id: Optional[str] = None
     eval_run_name: Optional[str] = None
+
+    # Additional fields for internal use
+    run_duration: Optional[float] = None
+    evaluation_cost: Optional[float] = None
+
+    def update_scorer_data(self, scorer_data: ScorerData):
+        """
+        Updates scorer data field of test case after the scorers have been
+        evaluated on this test case.
+        """
+        debug(f"Updating scorer data for example '{self.name}' with scorer: {scorer_data}")
+        # self.scorers_data is a list of ScorerData objects that contain the 
+        # evaluation results of each scorer on this test case
+        if self.scorers_data is None:
+            self.scorers_data = [scorer_data]
+        else:
+            self.scorers_data.append(scorer_data)
+
+        if self.success is None:
+            # self.success will be None when it is a message
+            # in that case we will be setting success for the first time
+            self.success = scorer_data.success
+        else:
+            if scorer_data.success is False:
+                debug(f"Example '{self.name}' marked as failed due to scorer: {scorer_data}")
+                self.success = False
+
+    def update_run_duration(self, run_duration: float):
+        self.run_duration = run_duration
     
     def to_dict(self) -> dict:
         """Convert the ScoringResult instance to a dictionary, properly serializing scorer_data."""
@@ -75,7 +106,7 @@ class ScoringResult:
 
 
 def generate_scoring_result(
-    process_example: ProcessExample,
+    example: Example,
 ) -> ScoringResult:
     """
     Creates a final ScoringResult object for an evaluation run based on the results from a completed LLMApiTestCase.
@@ -83,16 +114,29 @@ def generate_scoring_result(
     When an LLMTestCase is executed, it turns into an LLMApiTestCase and the progress of the evaluation run is tracked.
     At the end of the evaluation run, we create a TestResult object out of the completed LLMApiTestCase.
     """
-    return ScoringResult(
-        success=process_example.success,
-        scorers_data=process_example.scorers_data,
-        input=process_example.input,
-        actual_output=process_example.actual_output,
-        expected_output=process_example.expected_output,
-        context=process_example.context,
-        retrieval_context=process_example.retrieval_context,
-        additional_metadata=process_example.additional_metadata,
-        tools_called=process_example.tools_called,
-        expected_tools=process_example.expected_tools,
-        trace_id=process_example.trace_id
+    success = True
+    if example.name is not None:
+        name = example.name
+    else:
+        name = "Test Case Placeholder"
+        debug(f"No name provided for example, using default name: {name}")
+    scorers_data = []
+
+    debug(f"Creating ScoringResult for: {name}")
+    scoring_result = ScoringResult(
+        name=name,
+        input=example.input,
+        actual_output=example.actual_output,
+        expected_output=example.expected_output,
+        context=example.context,
+        retrieval_context=example.retrieval_context,
+        tools_called=example.tools_called,
+        expected_tools=example.expected_tools,
+        success=success,
+        scorers_data=scorers_data,
+        run_duration=None,
+        evaluation_cost=None,
+        additional_metadata=example.additional_metadata,
+        trace_id=example.trace_id
     )
+    return scoring_result
