@@ -11,7 +11,7 @@ from judgeval.scorers.score import (
     a_eval_examples_helper
 )
 from judgeval.scorers import JudgevalScorer
-from judgeval.data import Example, ScoringResult, ProcessExample, ScorerData
+from judgeval.data import Example, ScoringResult, ScorerData
 from judgeval.common.exceptions import MissingTestCaseParamsError
 
 
@@ -813,25 +813,11 @@ def mock_scoring_results():
     """Create a mock list to store ScoringResults"""
     return [None] * 3  # List with 3 None elements
 
-@pytest.fixture
-def mock_process_example(mock_example):
-    """Create a mock ProcessExample"""
-    return ProcessExample(
-        name=mock_example.name,
-        input=mock_example.input,
-        actual_output=mock_example.actual_output,
-        expected_output=mock_example.expected_output,
-        context=mock_example.context,
-        retrieval_context=mock_example.retrieval_context,
-        trace_id=mock_example.trace_id
-    )
-
 @pytest.mark.asyncio
 async def test_a_eval_examples_helper_success(
     mock_example,
     mock_scorer,
     mock_scoring_results,
-    mock_process_example
 ):
     """Test successful execution of a_eval_examples_helper"""
     
@@ -839,8 +825,7 @@ async def test_a_eval_examples_helper_success(
     scorers = [mock_scorer]
     
     # Mock the external functions
-    with patch('judgeval.scorers.score.create_process_example', return_value=mock_process_example) as mock_create_process, \
-         patch('judgeval.scorers.score.score_with_indicator', new_callable=AsyncMock) as mock_score_with_indicator, \
+    with patch('judgeval.scorers.score.score_with_indicator', new_callable=AsyncMock) as mock_score_with_indicator, \
          patch('judgeval.scorers.score.create_scorer_data') as mock_create_scorer_data, \
          patch('judgeval.scorers.score.generate_scoring_result') as mock_generate_result:
         
@@ -886,7 +871,6 @@ async def test_a_eval_examples_helper_success(
         )
 
         # Verify the calls
-        mock_create_process.assert_called_once_with(mock_example)
         mock_score_with_indicator.assert_called_once_with(
             scorers=scorers,
             example=mock_example,
@@ -895,7 +879,6 @@ async def test_a_eval_examples_helper_success(
             show_indicator=True
         )
         mock_create_scorer_data.assert_called_once_with(mock_scorer)
-        mock_generate_result.assert_called_once_with(mock_process_example)
         
         # Verify the result was stored correctly
         assert mock_scoring_results[0] == mock_scoring_result
@@ -905,14 +888,12 @@ async def test_a_eval_examples_helper_with_skipped_scorer(
     mock_example,
     mock_scorer,
     mock_scoring_results,
-    mock_process_example
 ):
     """Test execution when scorer is skipped"""
     
     scorers = [mock_scorer]
     
-    with patch('judgeval.scorers.score.create_process_example', return_value=mock_process_example) as mock_create_process, \
-         patch('judgeval.scorers.score.score_with_indicator', new_callable=AsyncMock) as mock_score_with_indicator, \
+    with patch('judgeval.scorers.score.score_with_indicator', new_callable=AsyncMock) as mock_score_with_indicator, \
          patch('judgeval.scorers.score.create_scorer_data') as mock_create_scorer_data, \
          patch('judgeval.scorers.score.generate_scoring_result') as mock_generate_result:
         
@@ -938,24 +919,19 @@ async def test_a_eval_examples_helper_with_skipped_scorer(
 
         # Verify that create_scorer_data was not called since scorer was skipped
         mock_create_scorer_data.assert_not_called()
-        
-        # Verify that generate_scoring_result was still called (but with no scorer data)
-        mock_generate_result.assert_called_once_with(mock_process_example)
 
 @pytest.mark.asyncio
 async def test_a_eval_examples_helper_with_progress_bar(
     mock_example,
     mock_scorer,
     mock_scoring_results,
-    mock_process_example
-):
+):  
     """Test execution with progress bar"""
     
     scorers = [mock_scorer]
     mock_pbar = Mock()
     
-    with patch('judgeval.scorers.score.create_process_example', return_value=mock_process_example), \
-         patch('judgeval.scorers.score.score_with_indicator', new_callable=AsyncMock), \
+    with patch('judgeval.scorers.score.score_with_indicator', new_callable=AsyncMock), \
          patch('judgeval.scorers.score.create_scorer_data'), \
          patch('judgeval.scorers.score.generate_scoring_result'):
         

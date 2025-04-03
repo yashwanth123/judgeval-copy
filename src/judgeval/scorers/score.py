@@ -13,7 +13,6 @@ from judgeval.data import (
     Example, 
     ScoringResult,
     generate_scoring_result,
-    create_process_example,
     create_scorer_data,
 )
 from judgeval.scorers import JudgevalScorer
@@ -400,7 +399,7 @@ async def a_eval_examples_helper(
         scorer.error = None  # Reset scorer error
 
     # scoring the Example
-    process_example = create_process_example(example)  # Creates process example to track progress
+    scoring_result = generate_scoring_result(example)  # Creates ScoringResult
     scoring_start_time = time.perf_counter()
     await score_with_indicator(
         scorers=scorers,
@@ -411,22 +410,20 @@ async def a_eval_examples_helper(
     )  # execute the scoring functions of each scorer on the example
 
     # Now that all the scoring functions of each scorer have executed, we collect 
-    # the results and update the process example with the scorer data
+    # the results and update the ScoringResult with the scorer data
     for scorer in scorers:
         # At this point, the scorer has been executed and already contains data.
         if getattr(scorer, 'skipped', False):
             continue
         scorer_data = create_scorer_data(scorer)  # Fetch scorer data from completed scorer evaluation
-        process_example.update_scorer_data(scorer_data)  # Update process example with the same scorer data
+        scoring_result.update_scorer_data(scorer_data)  # Update ScoringResult with the same scorer data
         
-    test_end_time = time.perf_counter()
-    run_duration = test_end_time - scoring_start_time
+    scoring_end_time = time.perf_counter()
+    run_duration = scoring_end_time - scoring_start_time
     
-    process_example.update_run_duration(run_duration)   # Update process example with execution time duration
+    scoring_result.update_run_duration(run_duration)   # Update ScoringResult with execution time duration
     
-    # Generate the scoring result and store it safely (to avoid race conditions)
-    result = generate_scoring_result(process_example)
-    scoring_results[score_index] = result
+    scoring_results[score_index] = scoring_result
     
     if pbar is not None:
         pbar.update(1)
