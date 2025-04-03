@@ -79,7 +79,6 @@ You can optionally set the self.reason attribute, depending on your preference.
 </Note>
 
 These methods are the core of your scorer, and you can implement them in any way you want. **Be creative!** 
-Check out this list of examples our users have implemented if you need inspiration: TODO add link here
 
 #### Handling Errors
 If you want to handle errors gracefully, you can use a `try` block and in the `except` block, set the `self.error` attribute to the error message. 
@@ -145,11 +144,37 @@ class SampleScorer(JudgevalScorer):
     def __name__(self):
         return "Sample Scorer"
 ```
-
 **Congratulations!** 🎉 
 
 You've made your first custom judgeval scorer! Now that your scorer is implemented, you can run it on your own datasets 
 just like any other `judgeval` scorer. Your scorer is fully integrated with `judgeval`'s infrastructure so you can view it on 
 the [Judgment platform](/judgment/introduction) too.
 
-For more examples, check out some of the custom scorers our users have implemented: TODO add link here.
+## Using a Custom Scorer
+
+Once you've implemented your custom scorer, you can use it in the same way as any other scorer in `judgeval`. 
+They can be run in conjunction with other scorers in a single evaluation run!
+
+```python run_custom_scorer.py
+from judgeval import JudgmentClient
+from your_custom_scorer import SampleScorer
+
+client = JudgmentClient()
+sample_scorer = SampleScorer()
+
+results = client.run_evaluation(
+    examples=[example1],
+    scorers=[sample_scorer],
+    model="gpt-4o"
+)
+```
+
+## Real World Examples
+
+You can find some real world examples of how our community has used custom `JudgevalScorer`s to evaluate their LLM systems in our [cookbook repository](https://github.com/JudgmentLabs/judgment-cookbook/tree/main/cookbooks/custom_scorers)! 
+Here are some of our favorites:
+
+- [Code Style Scorer](https://github.com/JudgmentLabs/judgment-cookbook/blob/main/cookbooks/custom_scorers/code_style_scorer.py) - Evaluates code quality and style
+- [Cold Email Scorer](https://github.com/JudgmentLabs/judgment-cookbook/blob/main/cookbooks/custom_scorers/cold_email_scorer.py) - Evaluates the effectiveness of cold emails
+
+For more examples and detailed documentation on custom scorers, check out our [Custom Scorers Cookbook](https://github.com/JudgmentLabs/judgment-cookbook/blob/main/cookbooks/custom_scorers/README.md).
