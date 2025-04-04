@@ -43,8 +43,16 @@ class DeleteEvalRunRequestBody(BaseModel):
     project_name: str
     judgment_api_key: str
 
+class SingletonMeta(type):
+    _instances = {}
 
-class JudgmentClient:
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            instance = super().__call__(*args, **kwargs)
+            cls._instances[cls] = instance
+        return cls._instances[cls]
+
+class JudgmentClient(metaclass=SingletonMeta):
     def __init__(self, judgment_api_key: str = os.getenv("JUDGMENT_API_KEY"), organization_id: str = os.getenv("JUDGMENT_ORG_ID")):
         self.judgment_api_key = judgment_api_key
         self.organization_id = organization_id
@@ -56,8 +64,8 @@ class JudgmentClient:
             # May be bad to output their invalid API key...
             raise JudgmentAPIError(f"Issue with passed in Judgment API key: {response}")
         else:
-            print(f"Successfully initialized JudgmentClient, welcome back {response.get('detail', {}).get('user_name', 'user')}!")
-    
+            print(f"Successfully initialized JudgmentClient!")
+
     def a_run_evaluation(
         self, 
         examples: List[Example],
