@@ -115,6 +115,19 @@
       ]
     },
     {
+      "group": "Self-Hosting",
+      "pages": [
+        "self_hosting/get_started"
+      ]
+    },
+    {
+      "group": "Judgment CLI",
+      "pages": [
+        "judgment_cli/installation",
+        "judgment_cli/self-hosting"
+      ]
+    },
+    {
       "group": "Synthetic Data",
       "pages": [
         "synthetic_data/synthetic_data"
