@@ -98,7 +98,8 @@
     {
       "group": "Integrations",
       "pages": [
-        "integration/langgraph"
+        "integration/langgraph",
+        "integration/tracing_integrations"
       ]
     },
     {
