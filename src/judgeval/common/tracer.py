@@ -76,6 +76,17 @@ in_traced_function_var = contextvars.ContextVar('in_traced_function', default=Fa
 ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic, AsyncOpenAI, AsyncAnthropic, AsyncTogether, genai.Client, genai.client.AsyncClient]  # Supported API clients
 TraceEntryType = Literal['enter', 'exit', 'output', 'input', 'evaluation']  # Valid trace entry types
 SpanType = Literal['span', 'tool', 'llm', 'evaluation', 'chain']
+
+# --- Evaluation Config Dataclass (Moved from langgraph.py) ---
+@dataclass
+class EvaluationConfig:
+    """Configuration for triggering an evaluation from the handler."""
+    scorers: List[Union[APIJudgmentScorer, JudgevalScorer]]
+    example: Example
+    model: Optional[str] = None
+    log_results: Optional[bool] = True
+# --- End Evaluation Config Dataclass ---
+
 @dataclass
 class TraceEntry:
     """Represents a single trace entry with its visual representation.
@@ -198,29 +209,31 @@ class TraceEntry:
         
         Handles special cases:
         - Pydantic models are converted using model_dump()
+        - Dictionaries are processed recursively to handle non-serializable values.
         - We try to serialize into JSON, then string, then the base representation (__repr__)
         - Non-serializable objects return None with a warning
         """
-        
-        if isinstance(self.output, BaseModel):
-            return self.output.model_dump()
-        
-        # NEW check: If output is the dict structure from our stream wrapper
-        if isinstance(self.output, dict) and 'streamed' in self.output:
-            # Assume it's already JSON-serializable (content is string, usage is dict or None)
-            return self.output
-        # NEW check: If output is the placeholder string before stream completes
-        elif self.output == "<pending stream>":
-             # Represent this state clearly in the serialized data
-            return {"status": "pending stream"}
 
-        try:
-            # Try to serialize the output to verify it's JSON compatible
-            json.dumps(self.output)
-            return self.output
-        except (TypeError, OverflowError, ValueError):
-            return self.safe_stringify(self.output, self.function)
-        
+        def serialize_value(value):
+            if isinstance(value, BaseModel):
+                return value.model_dump()
+            elif isinstance(value, dict):
+                # Recursively serialize dictionary values
+                return {k: serialize_value(v) for k, v in value.items()}
+            elif isinstance(value, (list, tuple)):
+                # Recursively serialize list/tuple items
+                return [serialize_value(item) for item in value]
+            else:
+                # Try direct JSON serialization first
+                try:
+                    json.dumps(value)
+                    return value
+                except (TypeError, OverflowError, ValueError):
+                    # Fallback to safe stringification
+                    return self.safe_stringify(value, self.function)
+
+        # Start serialization with the top-level output
+        return serialize_value(self.output)
 
 class TraceManagerClient:
     """
@@ -478,6 +491,7 @@ class TraceClient:
         expected_tools: Optional[List[str]] = None,
         additional_metadata: Optional[Dict[str, Any]] = None,
         model: Optional[str] = None,
+        span_id: Optional[str] = None, # <<< ADDED optional span_id parameter
         log_results: Optional[bool] = True
     ):
         if not self.enable_evaluations:
@@ -522,13 +536,21 @@ class TraceClient:
         # Check examples before creating evaluation run
         check_examples([example], scorers)
         
+        # --- Modification: Capture span_id immediately ---
+        # span_id_at_eval_call = current_span_var.get()
+        # print(f"[TraceClient.async_evaluate] Captured span ID at eval call: {span_id_at_eval_call}")
+        # Prioritize explicitly passed span_id, fallback to context var
+        span_id_to_use = span_id if span_id is not None else current_span_var.get()
+        # print(f"[TraceClient.async_evaluate] Using span_id: {span_id_to_use}")
+        # --- End Modification ---
+
         # Combine the trace-level rules with any evaluation-specific rules)
         eval_run = EvaluationRun(
             organization_id=self.tracer.organization_id,
             log_results=log_results,
             project_name=self.project_name,
             eval_name=f"{self.name.capitalize()}-"
-                f"{current_span_var.get()}-"
+                f"{current_span_var.get()}-" # Keep original eval name format using context var if available
                 f"[{','.join(scorer.score_type.capitalize() for scorer in scorers)}]",
             examples=[example],
             scorers=scorers,
@@ -536,14 +558,18 @@ class TraceClient:
             metadata={},
             judgment_api_key=self.tracer.api_key,
             override=self.overwrite,
-            trace_span_id=current_span_var.get(),
+            trace_span_id=span_id_to_use, # Pass the determined ID
             rules=self.rules # Use the combined rules
         )
         
         self.add_eval_run(eval_run, start_time)  # Pass start_time to record_evaluation
             
     def add_eval_run(self, eval_run: EvaluationRun, start_time: float):
-        current_span_id = current_span_var.get()
+        # --- Modification: Use span_id from eval_run --- 
+        current_span_id = eval_run.trace_span_id # Get ID from the eval_run object
+        # print(f"[TraceClient.add_eval_run] Using span_id from eval_run: {current_span_id}")
+        # --- End Modification ---
+
         if current_span_id:
             duration = time.time() - start_time
             prev_entry = self.entries[-1] if self.entries else None
@@ -589,7 +615,7 @@ class TraceClient:
             self.add_entry(TraceEntry(
                 type="input",
                 function=function_name,
-                span_id=current_span_id, # Use current span_id
+                span_id=current_span_id, # Use current span_id from context
                 trace_id=self.trace_id, # Use the trace_id from the trace client
                 depth=current_depth,
                 message=f"Inputs to {function_name}",
@@ -597,6 +623,7 @@ class TraceClient:
                 inputs=inputs,
                 span_type=entry_span_type,
             ))
+        # Removed else block - original didn't have one
 
     async def _update_coroutine_output(self, entry: TraceEntry, coroutine: Any):
         """Helper method to update the output of a trace entry once the coroutine completes"""
@@ -623,20 +650,22 @@ class TraceClient:
             entry = TraceEntry(
                 type="output",
                 function=function_name,
-                span_id=current_span_id, # Use current span_id
+                span_id=current_span_id, # Use current span_id from context
                 depth=current_depth,
                 message=f"Output from {function_name}",
                 created_at=time.time(),
                 output="<pending>" if inspect.iscoroutine(output) else output,
                 span_type=entry_span_type,
+                trace_id=self.trace_id # Added trace_id for consistency 
             )
             self.add_entry(entry)
             
             if inspect.iscoroutine(output):
                 asyncio.create_task(self._update_coroutine_output(entry, output))
             
-            # Return the created entry
-            return entry
+            return entry # Return the created entry
+        # Removed else block - original didn't have one
+        return None # Return None if no span_id found
 
     def add_entry(self, entry: TraceEntry):
         """Add a trace entry to this trace context"""
@@ -842,17 +871,69 @@ class TraceClient:
         # Only count tokens for actual LLM API call spans
         llm_span_names = {"OPENAI_API_CALL", "TOGETHER_API_CALL", "ANTHROPIC_API_CALL", "GOOGLE_API_CALL"}
         for entry in condensed_entries:
-            if entry.get("span_type") == "llm" and entry.get("function") in llm_span_names and isinstance(entry.get("output"), dict):
+            entry_function_name = entry.get("function", "") # Get function name safely
+            # Check if it's an LLM span AND function name CONTAINS an API call suffix AND output is dict
+            is_llm_entry = entry.get("span_type") == "llm"
+            has_api_suffix = any(suffix in entry_function_name for suffix in llm_span_names)
+            output_is_dict = isinstance(entry.get("output"), dict)
+
+            # --- DEBUG PRINT 1: Check if condition passes --- 
+            # if is_llm_entry and has_api_suffix and output_is_dict:
+            #   #  print(f"[DEBUG TraceClient.save] Processing entry: {entry.get('span_id')} ({entry_function_name}) - Condition PASSED")
+            # elif is_llm_entry:
+            #      # Print why it failed if it was an LLM entry
+            #      print(f"[DEBUG TraceClient.save] Skipping LLM entry: {entry.get('span_id')} ({entry_function_name}) - Suffix Match: {has_api_suffix}, Output is Dict: {output_is_dict}")
+            # # --- END DEBUG --- 
+
+            if is_llm_entry and has_api_suffix and output_is_dict:
                 output = entry["output"]
-                usage = output.get("usage", {})
-                model_name = entry.get("inputs", {}).get("model", "")
+                usage = output.get("usage", {}) # Gets the 'usage' dict from the 'output' field
+
+                # --- DEBUG PRINT 2: Check extracted usage --- 
+                # print(f"[DEBUG TraceClient.save]   Extracted usage dict: {usage}")
+                # --- END DEBUG --- 
+
+                # --- NEW: Extract model_name correctly from nested inputs ---
+                model_name = None
+                entry_inputs = entry.get("inputs", {})
+                # print(f"[DEBUG TraceClient.save]   Inspecting inputs for span {entry.get('span_id')}: {entry_inputs}") # DEBUG Inputs
+                if entry_inputs:
+                    # Try common locations for model name within the inputs structure
+                    invocation_params = entry_inputs.get("invocation_params", {})
+                    serialized_data = entry_inputs.get("serialized", {})
+
+                    # Look in invocation_params (often directly contains model)
+                    if isinstance(invocation_params, dict):
+                        model_name = invocation_params.get("model")
+
+                    # Fallback: Check serialized 'repr' if it contains model info
+                    if not model_name and isinstance(serialized_data, dict):
+                         serialized_repr = serialized_data.get("repr", "")
+                         if "model_name=" in serialized_repr:
+                              try: # Simple parsing attempt
+                                   model_name = serialized_repr.split("model_name='")[1].split("'")[0]
+                              except IndexError: pass # Ignore parsing errors
+
+                    # Fallback: Check top-level of invocation_params (sometimes passed flat)
+                    if not model_name and isinstance(invocation_params, dict):
+                        model_name = invocation_params.get("model") # Redundant check, but safe
+
+                    # Fallback: Check top-level of inputs itself (less likely for callbacks)
+                    if not model_name:
+                        model_name = entry_inputs.get("model")
+
+
+                # print(f"[DEBUG TraceClient.save]     Determined model_name: {model_name}") # DEBUG Model Name
+                # --- END NEW ---
+
                 prompt_tokens = 0
-                completion_tokens = 0   
-                
-                # Handle OpenAI/Together format
+                completion_tokens = 0
+
+                # Handle OpenAI/Together format (checks within the 'usage' dict)
                 if "prompt_tokens" in usage:
                     prompt_tokens = usage.get("prompt_tokens", 0)
                     completion_tokens = usage.get("completion_tokens", 0)
+
                 # Handle Anthropic format - MAP values to standard keys
                 elif "input_tokens" in usage:
                     prompt_tokens = usage.get("input_tokens", 0)       # Get value from input_tokens
@@ -897,16 +978,26 @@ class TraceClient:
                             completion_tokens=completion_tokens
                         )
                         
+                        # Add cost information directly to the usage dictionary in the condensed entry
+                        # Ensure 'usage' exists in the output dict before modifying it
                         # Add/Update cost information using standard keys
+
                         if "usage" not in output:
-                            output["usage"] = {}
+                            output["usage"] = {} # Initialize if missing
+                        elif not isinstance(output["usage"], dict): # Handle cases where 'usage' might not be a dict (e.g., placeholder string)
+                            print(f"[WARN TraceClient.save] Output 'usage' for span {entry.get('span_id')} was not a dict ({type(output['usage'])}). Resetting before adding costs.")
+                            output["usage"] = {} # Reset to dict
+
                         output["usage"]["prompt_tokens_cost_usd"] = prompt_cost
                         output["usage"]["completion_tokens_cost_usd"] = completion_cost
                         output["usage"]["total_cost_usd"] = prompt_cost + completion_cost
                     except Exception as e:
                         # If cost calculation fails, continue without adding costs
-                        print(f"Error calculating cost for model '{model_name}': {str(e)}")
+                        print(f"Error calculating cost for model '{model_name}' (span: {entry.get('span_id')}): {str(e)}")
                         pass
+                else:
+                     print(f"[WARN TraceClient.save] Could not determine model name for cost calculation (span: {entry.get('span_id')}). Inputs: {entry_inputs}")
+
 
         # Create trace document - Always use standard keys for top-level counts
         trace_data = {
@@ -922,12 +1013,6 @@ class TraceClient:
             "parent_name": self.parent_name
         }        
         # --- Log trace data before saving ---
-        try:
-            rprint(f"[TraceClient.save] Saving trace data for trace_id {self.trace_id}:")
-            # rprint(json.dumps(trace_data, indent=2)) # Optional: Disable detailed logging if too verbose
-        except Exception as log_e:
-            rprint(f"[TraceClient.save] Error logging trace data: {log_e}")
-        # --- End logging ---
         self.trace_manager_client.save_trace(trace_data)
 
         return self.trace_id, trace_data
@@ -977,6 +1062,7 @@ class Tracer:
             self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
             self.organization_id: str = organization_id
             self._current_trace: Optional[str] = None
+            self._active_trace_client: Optional[TraceClient] = None # Add active trace client attribute
             self.rules: List[Rule] = rules or []  # Store rules at tracer level
             self.initialized: bool = True
             self.enable_monitoring: bool = enable_monitoring
@@ -1010,10 +1096,29 @@ class Tracer:
     
     def get_current_trace(self) -> Optional[TraceClient]:
         """
-        Get the current trace context from contextvars
+        Get the current trace context.
+
+        Tries to get the trace client from the context variable first.
+        If not found (e.g., context lost across threads/tasks),
+        it falls back to the active trace client managed by the callback handler.
         """
-        return current_trace_var.get()
+        trace_from_context = current_trace_var.get()
+        if trace_from_context:
+            return trace_from_context
         
+        # Fallback: Check the active client potentially set by a callback handler
+        if hasattr(self, '_active_trace_client') and self._active_trace_client:
+            # warnings.warn("Falling back to _active_trace_client in get_current_trace. ContextVar might be lost.", RuntimeWarning)
+            return self._active_trace_client
+            
+        # If neither is available
+        # warnings.warn("No current trace found in context variable or active client fallback.", RuntimeWarning)
+        return None
+        
+    def get_active_trace_client(self) -> Optional[TraceClient]:
+        """Returns the TraceClient instance currently marked as active by the handler."""
+        return self._active_trace_client
+
     def _apply_deep_tracing(self, func, span_type="span"):
         """
         Apply deep tracing to all functions in the same module as the given function.
@@ -1337,13 +1442,25 @@ class Tracer:
         if not self.enable_evaluations:
             return
 
-        # Get current trace from context
+        # --- Get trace_id passed explicitly (if any) ---
+        passed_trace_id = kwargs.pop('trace_id', None) # Get and remove trace_id from kwargs
+
+        # --- Get current trace from context FIRST ---
         current_trace = current_trace_var.get()
-        
+
+        # --- Fallback Logic: Use active client only if context var is empty ---
+        if not current_trace:
+            current_trace = self._active_trace_client # Use the fallback
+        # --- End Fallback Logic ---
+
         if current_trace:
+            # Pass the explicitly provided trace_id if it exists, otherwise let async_evaluate handle it
+            # (Note: TraceClient.async_evaluate doesn't currently use an explicit trace_id, but this is for future proofing/consistency)
+            if passed_trace_id:
+                kwargs['trace_id'] = passed_trace_id # Re-add if needed by TraceClient.async_evaluate
             current_trace.async_evaluate(*args, **kwargs)
         else:
-            warnings.warn("No trace found, skipping evaluation")
+            warnings.warn("No trace found (context var or fallback), skipping evaluation") # Modified warning
 
 
 def wrap(client: Any) -> Any:
@@ -2073,3 +2190,127 @@ class _TracedSyncStreamManagerWrapper(AbstractContextManager):
         if hasattr(self._original_manager, "__exit__"):
              return self._original_manager.__exit__(exc_type, exc_val, exc_tb)
         return None
+
+# --- NEW Generalized Helper Function (Moved from demo) ---
+def prepare_evaluation_for_state(
+    scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
+    example: Optional[Example] = None,
+    # --- Individual components (alternative to 'example') ---
+    input: Optional[str] = None,
+    actual_output: Optional[Union[str, List[str]]] = None,
+    expected_output: Optional[Union[str, List[str]]] = None,
+    context: Optional[List[str]] = None,
+    retrieval_context: Optional[List[str]] = None,
+    tools_called: Optional[List[str]] = None,
+    expected_tools: Optional[List[str]] = None,
+    additional_metadata: Optional[Dict[str, Any]] = None,
+    # --- Other eval parameters ---
+    model: Optional[str] = None,
+    log_results: Optional[bool] = True
+) -> Optional[EvaluationConfig]:
+    """
+    Prepares an EvaluationConfig object, similar to TraceClient.async_evaluate.
+
+    Accepts either a pre-made Example object or individual components to construct one.
+    Returns the EvaluationConfig object ready to be placed in the state, or None.
+    """
+    final_example = example
+
+    # If example is not provided, try to construct one from individual parts
+    if final_example is None:
+        # Basic validation: Ensure at least actual_output is present for most scorers
+        if actual_output is None:
+      #      print("[prepare_evaluation_for_state] Warning: 'actual_output' is required when 'example' is not provided. Skipping evaluation setup.")
+            return None
+        try:
+            final_example = Example(
+                input=input,
+                actual_output=actual_output,
+                expected_output=expected_output,
+                context=context,
+                retrieval_context=retrieval_context,
+                tools_called=tools_called,
+                expected_tools=expected_tools,
+                additional_metadata=additional_metadata,
+                # trace_id will be set by the handler later if needed
+            )
+       #     print("[prepare_evaluation_for_state] Constructed Example from individual components.")
+        except Exception as e:
+      #      print(f"[prepare_evaluation_for_state] Error constructing Example: {e}. Skipping evaluation setup.")
+            return None
+
+    # If we have a valid example (provided or constructed) and scorers
+    if final_example and scorers:
+        # TODO: Add validation like check_examples if needed here,
+        # although the handler might implicitly handle some checks via TraceClient.
+        return EvaluationConfig(
+            scorers=scorers,
+            example=final_example,
+            model=model,
+            log_results=log_results
+        )
+    elif not scorers:
+    #    print("[prepare_evaluation_for_state] No scorers provided. Skipping evaluation setup.")
+        return None
+    else: # No valid example
+    #   print("[prepare_evaluation_for_state] No valid Example available. Skipping evaluation setup.")
+        return None
+# --- End NEW Helper Function ---
+
+# --- NEW: Helper function to simplify adding eval config to state --- 
+def add_evaluation_to_state(
+    state: Dict[str, Any], # The LangGraph state dictionary
+    scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
+    # --- Evaluation components (same as prepare_evaluation_for_state) ---
+    input: Optional[str] = None,
+    actual_output: Optional[Union[str, List[str]]] = None,
+    expected_output: Optional[Union[str, List[str]]] = None,
+    context: Optional[List[str]] = None,
+    retrieval_context: Optional[List[str]] = None,
+    tools_called: Optional[List[str]] = None,
+    expected_tools: Optional[List[str]] = None,
+    additional_metadata: Optional[Dict[str, Any]] = None,
+    # --- Other eval parameters ---
+    model: Optional[str] = None,
+    log_results: Optional[bool] = True
+) -> None:
+    """
+    Prepares an EvaluationConfig and adds it to the state dictionary 
+    under the '_judgeval_eval' key if successful.
+
+    This simplifies the process of setting up evaluations within LangGraph nodes.
+
+    Args:
+        state: The LangGraph state dictionary to modify.
+        scorers: List of scorer instances.
+        input: Input for the evaluation example.
+        actual_output: Actual output for the evaluation example.
+        expected_output: Expected output for the evaluation example.
+        context: Context for the evaluation example.
+        retrieval_context: Retrieval context for the evaluation example.
+        tools_called: Tools called for the evaluation example.
+        expected_tools: Expected tools for the evaluation example.
+        additional_metadata: Additional metadata for the evaluation example.
+        model: Model name used for generation (optional).
+        log_results: Whether to log evaluation results (optional, defaults to True).
+    """
+    eval_config = prepare_evaluation_for_state(
+        scorers=scorers,
+        input=input,
+        actual_output=actual_output,
+        expected_output=expected_output,
+        context=context,
+        retrieval_context=retrieval_context,
+        tools_called=tools_called,
+        expected_tools=expected_tools,
+        additional_metadata=additional_metadata,
+        model=model,
+        log_results=log_results
+    )
+    
+    if eval_config:
+        state["_judgeval_eval"] = eval_config
+   #     print(f"[_judgeval_eval added to state for node]") # Optional: Log confirmation
+
+     #   print("[Skipped adding _judgeval_eval to state: prepare_evaluation_for_state failed]")
+# --- End NEW Helper --- 
