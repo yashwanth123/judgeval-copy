@@ -14,29 +14,34 @@ judgment = Tracer(
     project_name="simple_trace_demo", 
 )
 
-@judgment.observe(span_type="tool")
 async def get_weather(city: str):
     """Simulated weather tool call."""
+    judgment.log(f"Fetching weather data for {city}")
     weather_data = f"It is sunny and 72°F in {city}."
-    # judgment.log(f"Weather data: {weather_data}")
+    judgment.log(f"Weather data retrieved: {weather_data}")
     return weather_data
 
-@judgment.observe(span_type="tool")
 async def get_attractions(city: str):
     """Simulated attractions tool call."""
+    judgment.log(f"Fetching attractions for {city}")
     attractions = [
         "Eiffel Tower",
         "Louvre Museum",
         "Notre-Dame Cathedral",
         "Arc de Triomphe"
     ]
+    judgment.log(f"Found {len(attractions)} attractions")
     return attractions
 
-@judgment.observe(span_type="Research")
 async def gather_information(city: str):
     """Gather all necessary travel information."""
+    judgment.log(f"Starting information gathering for {city}")
+    
     weather = await get_weather(city)
+    judgment.log("Weather information retrieved")
+    
     attractions = await get_attractions(city)
+    judgment.log("Attractions information retrieved")
 
     # judgment.async_evaluate(
     #     scorers=[AnswerRelevancyScorer(threshold=0.5)],
@@ -45,14 +50,16 @@ async def gather_information(city: str):
     #     model="gpt-4",
     # )
     
+    judgment.log("Information gathering complete")
     return {
         "weather": weather,
         "attractions": attractions
     }
 
-@judgment.observe(span_type="function")
 async def create_travel_plan(research_data):
     """Generate a travel itinerary using the researched data."""
+    judgment.log("Starting travel plan creation")
+    
     prompt = f"""
     Create a simple travel itinerary for Paris using this information:
     
@@ -60,6 +67,7 @@ async def create_travel_plan(research_data):
     Attractions: {research_data['attractions']}
     """
     
+    judgment.log("Sending prompt to GPT-4")
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -68,6 +76,8 @@ async def create_travel_plan(research_data):
         ]
     ).choices[0].message.content
 
+    judgment.log("Received response from GPT-4")
+    
     # judgment.async_evaluate(
     #     scorers=[FaithfulnessScorer(threshold=0.5)],
     #     input=prompt,
@@ -81,10 +91,18 @@ async def create_travel_plan(research_data):
 @judgment.observe(span_type="function")
 async def generate_simple_itinerary(query: str = "I want to plan a trip to Paris."):
     """Main function to generate a travel itinerary."""
+    judgment.log(f"Starting itinerary generation for query: {query}")
+    
     research_data = await gather_information(city="Paris")
+    judgment.log("Research data gathered successfully")
+    
     itinerary = await create_travel_plan(research_data)
+    judgment.log("Travel plan created successfully")
+    
     return itinerary
 
 if __name__ == "__main__":
     import asyncio
+    judgment.log("Starting main execution")
     itinerary = asyncio.run(generate_simple_itinerary("I want to plan a trip to Paris."))
+    judgment.log("Execution completed")

@@ -108,7 +108,7 @@ def process_answer(state: State) -> State:
     
     return state
 
-async def search_music_info(state: State) -> State:
+def search_music_info(state: State) -> State:
     """Search for music recommendations based on preferences."""
     preferences = state["preferences"]
     search_results = {}
@@ -144,7 +144,7 @@ async def search_music_info(state: State) -> State:
     state["search_results"] = search_results
     return state
 
-async def generate_recommendations(state: State) -> State:
+def generate_recommendations(state: State) -> State:
     """Generate personalized music recommendations using ChatOpenAI."""
     preferences = state["preferences"]
     search_results = state["search_results"]
@@ -182,7 +182,7 @@ async def generate_recommendations(state: State) -> State:
     user_message = HumanMessage(content=user_prompt)
 
     # Use the LangChain ChatOpenAI instance with ainvoke
-    response = await chat_model.ainvoke([system_message, user_message])
+    response = chat_model.invoke([system_message, user_message])
     recommendations = response.content
     state["recommendations"] = recommendations
 
@@ -238,24 +238,25 @@ workflow.set_entry_point("ask_question")
 graph = workflow.compile()
 
 # Main function
-async def music_recommendation_bot():
+def music_recommendation_bot(message2: str):
     """Main function to run the music recommendation bot."""
     print("🎵 Welcome to the Music Recommendation Bot! 🎵")
     print("I'll ask you a few questions to understand your music taste, then suggest some songs you might enjoy.")
     print("\nRunning with predefined answers for testing...\n")
+    print(message2)
     
     # Initialize state with predefined answers
     initial_state = initialize_state()
     
     try:
         # Initialize the Async handler
-        handler = AsyncJudgevalCallbackHandler(judgment) 
+
         
         # Run the entire workflow with graph.ainvoke (asynchronous)
         # Pass handler directly in config
         # The handler instance needs to be accessible inside the node later
         config_with_callbacks = {"callbacks": [handler]}
-        final_state = await graph.ainvoke(initial_state, config=config_with_callbacks) # Use ainvoke (async) and the async handler
+        final_state = graph.invoke(initial_state, config=config_with_callbacks) # Use ainvoke (async) and the async handler
         
         print("\n🎧 Your Personalized Music Recommendations 🎧")
         print(final_state.get("recommendations", "No recommendations generated."))
@@ -266,4 +267,28 @@ async def music_recommendation_bot():
 
 
 if __name__ == "__main__":
-    asyncio.run(music_recommendation_bot()) 
+    from judgeval import JudgmentClient
+    from judgeval.data import Example
+    from judgeval.scorers import ToolOrderScorer
+    handler = AsyncJudgevalCallbackHandler(judgment) 
+    client = JudgmentClient()
+    example = Example(   
+        input={"message2": "temp"},
+        expected_tools=[
+            {
+                "tool_name": "search_tavily",
+                "parameters": {
+                    "query": "Best tourist attractions in Paris"
+                }
+            }
+        ]
+    )
+
+    client.assert_test(
+        examples=[example],
+        scorers=[ToolOrderScorer(threshold=0.5)],
+        model="gpt-4o-mini",
+        function=music_recommendation_bot,
+        tracer=handler,
+        override=True
+    )

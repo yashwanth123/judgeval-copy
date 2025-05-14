@@ -25,6 +25,7 @@ pytest = "*"
 pytest-asyncio = "*"
 pytest-mock = "*"
 tavily-python = "*"
+chromadb = "*"
 langchain-community = "*"
 
 [requires]

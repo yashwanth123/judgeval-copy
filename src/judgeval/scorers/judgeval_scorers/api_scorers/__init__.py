@@ -12,6 +12,7 @@ from judgeval.scorers.judgeval_scorers.api_scorers.comparison import ComparisonS
 from judgeval.scorers.judgeval_scorers.api_scorers.instruction_adherence import InstructionAdherenceScorer
 from judgeval.scorers.judgeval_scorers.api_scorers.groundedness import GroundednessScorer
 from judgeval.scorers.judgeval_scorers.api_scorers.derailment_scorer import DerailmentScorer
+from judgeval.scorers.judgeval_scorers.api_scorers.tool_order import ToolOrderScorer
 __all__ = [
     "ExecutionOrderScorer",
     "JSONCorrectnessScorer",
@@ -27,4 +28,5 @@ __all__ = [
     "InstructionAdherenceScorer",
     "GroundednessScorer",
     "DerailmentScorer",
+    "ToolOrderScorer",
 ]

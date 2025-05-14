@@ -4,7 +4,7 @@ import time
 import sys
 import itertools
 import threading
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional, Callable
 from datetime import datetime
 from rich import print as rprint
 
@@ -12,7 +12,9 @@ from judgeval.data import (
     ScorerData, 
     ScoringResult,
     Example,
-    CustomExample
+    CustomExample,
+    Sequence,
+    Trace
 )
 from judgeval.scorers import (
     JudgevalScorer, 
@@ -26,7 +28,8 @@ from judgeval.constants import (
     JUDGMENT_SEQUENCE_EVAL_API_URL,
     JUDGMENT_EVAL_LOG_API_URL,
     MAX_CONCURRENT_EVALUATIONS,
-    JUDGMENT_ADD_TO_RUN_EVAL_QUEUE_API_URL
+    JUDGMENT_ADD_TO_RUN_EVAL_QUEUE_API_URL,
+    JUDGMENT_RETRIEVE_SEQUENCE_FROM_TRACE_API_URL
 )
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.common.logger import (
@@ -37,6 +40,8 @@ from judgeval.common.logger import (
 )
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.data.sequence_run import SequenceRun
+from judgeval.common.tracer import Tracer
+from langchain_core.callbacks import BaseCallbackHandler
 
 def send_to_rabbitmq(evaluation_run: EvaluationRun) -> None:
     """
@@ -277,7 +282,7 @@ def check_eval_run_name_exists(eval_name: str, project_name: str, judgment_api_k
         raise JudgmentAPIError(f"Failed to check if eval run name exists: {str(e)}")
 
 
-def log_evaluation_results(merged_results: List[ScoringResult], run: Union[EvaluationRun, SequenceRun]) -> str:
+def log_evaluation_results(scoring_results: List[ScoringResult], run: Union[EvaluationRun, SequenceRun]) -> str:
     """
     Logs evaluation results to the Judgment API database.
 
@@ -298,7 +303,7 @@ def log_evaluation_results(merged_results: List[ScoringResult], run: Union[Evalu
                 "X-Organization-Id": run.organization_id
             },
             json={
-                "results": merged_results,
+                "results": scoring_results,
                 "run": run.model_dump(warnings=False)
             },
             verify=True
@@ -321,6 +326,51 @@ def log_evaluation_results(merged_results: List[ScoringResult], run: Union[Evalu
     except Exception as e:
         error(f"Failed to save evaluation results to DB: {str(e)}")
         raise ValueError(f"Failed to save evaluation results to DB: {str(e)}")
+
+def retrieve_sequence_from_trace(trace_id: str, parent_span: str, judgment_api_key: str, organization_id: str) -> Sequence:
+    """
+    Retrieves a sequence from a trace ID.
+    """
+    """
+    Logs evaluation results to the Judgment API database.
+
+    Args:
+        merged_results (List[ScoringResult]): The results to log
+        evaluation_run (EvaluationRun): The evaluation run containing project info and API key
+
+    Raises:
+        JudgmentAPIError: If there's an API error during logging
+        ValueError: If there's a validation error with the results
+    """
+    try:
+        res = requests.post(
+            JUDGMENT_RETRIEVE_SEQUENCE_FROM_TRACE_API_URL,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {judgment_api_key}",
+                "X-Organization-Id": organization_id
+            },
+            json={
+                "trace_id": trace_id,
+                "trace_span_id": parent_span,
+            },
+            verify=True
+        )
+        
+        if not res.ok:
+            response_data = res.json()
+            error_message = response_data.get('detail', 'An unknown error occurred.')
+            error(f"Error {res.status_code}: {error_message}")
+            raise JudgmentAPIError(error_message)
+        
+        return Sequence(**res.json())
+    except requests.exceptions.RequestException as e:
+        error(f"Request failed while saving evaluation results to DB: {str(e)}")
+        raise JudgmentAPIError(f"Request failed while saving evaluation results to DB: {str(e)}")
+    except Exception as e:
+        error(f"Failed to save evaluation results to DB: {str(e)}")
+        raise ValueError(f"Failed to save evaluation results to DB: {str(e)}")
+
 
 def run_with_spinner(message: str, func, *args, **kwargs) -> Any:
         """Run a function with a spinner in the terminal."""
@@ -365,7 +415,7 @@ def check_examples(examples: List[Example], scorers: List[Union[APIJudgmentScore
             if missing_params:
                 print(f"WARNING: Example {example.example_id} is missing the following parameters: {missing_params} for scorer {scorer.score_type.value}")
 
-def run_sequence_eval(sequence_run: SequenceRun, override: bool = False, ignore_errors: bool = True) -> List[ScoringResult]:
+def run_sequence_eval(sequence_run: SequenceRun, override: bool = False, ignore_errors: bool = True, function: Optional[Callable] = None, tracer: Optional[Union[Tracer, BaseCallbackHandler]] = None, examples: Optional[List[Example]] = None) -> List[ScoringResult]:
     # Call endpoint to check to see if eval run name exists (if we DON'T want to override and DO want to log results)
     if not override and sequence_run.log_results and not sequence_run.append:
         check_eval_run_name_exists(
@@ -384,15 +434,32 @@ def run_sequence_eval(sequence_run: SequenceRun, override: bool = False, ignore_
             sequence_run.organization_id,
             True
         )
-    
 
+    if function and tracer:
+        new_sequences: List[Sequence] = []
+        for example in examples:
+            if example.input:
+                result = run_with_spinner("Running agent function: ", function, **example.input)
+            else:
+                result = run_with_spinner("Running agent function: ", function)
+        for i, trace in enumerate(tracer.traces):
+            trace_id = trace['trace_id']
+            parent_span = trace['entries'][0]['span_id']
+            new_sequence = retrieve_sequence_from_trace(trace_id, parent_span, sequence_run.judgment_api_key, sequence_run.organization_id)
+            new_sequence.expected_tools = examples[i].expected_tools
+            new_sequences.append(new_sequence)
+        sequence_run.sequences = new_sequences
+        
+    for sequence in sequence_run.sequences:
+        sequence.scorers = sequence_run.scorers
+        
     # Execute evaluation using Judgment API
     info("Starting API evaluation")
     try:  # execute an EvaluationRun with just JudgmentScorers
         debug("Sending request to Judgment API")    
         response_data: List[Dict] = run_with_spinner("Running Sequence Evaluation: ", execute_api_sequence_eval, sequence_run)
-
-        info(f"Received {len(response_data['results'])} results from API")
+        scoring_results = [ScoringResult(**result) for result in response_data["results"]]
+        info(f"Received {len(scoring_results)} results from API")
     except JudgmentAPIError as e:
         error(f"An error occurred while executing the Judgment API request: {str(e)}")
         raise JudgmentAPIError(f"An error occurred while executing the Judgment API request: {str(e)}")
@@ -405,6 +472,8 @@ def run_sequence_eval(sequence_run: SequenceRun, override: bool = False, ignore_
     if sequence_run.log_results:
         pretty_str = run_with_spinner("Logging Results: ", log_evaluation_results, response_data["results"], sequence_run)
         rprint(pretty_str)
+
+    return scoring_results
     
     
 
@@ -587,7 +656,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False, ignore_error
         #     )
         # print(merged_results)
         if evaluation_run.log_results:
-            send_results = [result.model_dump(warnings=False) for result in merged_results]
+            send_results = [scoring_result.model_dump(warnings=False) for scoring_result in merged_results]
             pretty_str = run_with_spinner("Logging Results: ", log_evaluation_results, send_results, evaluation_run)
             rprint(pretty_str)
 
@@ -613,34 +682,31 @@ def assert_test(scoring_results: List[ScoringResult]) -> None:
 
             # Create a test case context with all relevant fields
             test_case = {
-                'input': result.data_object.input,
-                'actual_output': result.data_object.actual_output,
-                'expected_output': result.data_object.expected_output,
-                'context': result.data_object.context,
-                'retrieval_context': result.data_object.retrieval_context,
-                'additional_metadata': result.data_object.additional_metadata,
-                'tools_called': result.data_object.tools_called,
-                'expected_tools': result.data_object.expected_tools,
-                'failed_scorers': []
+                "failed_scorers": []
             }
             if result.scorers_data:
                 # If the result was not successful, check each scorer_data
                 for scorer_data in result.scorers_data:
                     if not scorer_data.success:
+                        if scorer_data.name == "Tool Order":
+                            # Remove threshold, evaluation model for Tool Order scorer
+                            scorer_data.threshold = None
+                            scorer_data.evaluation_model = None
                         test_case['failed_scorers'].append(scorer_data)
             failed_cases.append(test_case)
 
     if failed_cases:
+
         error_msg = f"The following test cases failed: \n"
         for fail_case in failed_cases:
-            error_msg += f"\nInput: {fail_case['input']}\n"
-            error_msg += f"Actual Output: {fail_case['actual_output']}\n"
-            error_msg += f"Expected Output: {fail_case['expected_output']}\n"
-            error_msg += f"Context: {fail_case['context']}\n"
-            error_msg += f"Retrieval Context: {fail_case['retrieval_context']}\n"
-            error_msg += f"Additional Metadata: {fail_case['additional_metadata']}\n"
-            error_msg += f"Tools Called: {fail_case['tools_called']}\n"
-            error_msg += f"Expected Tools: {fail_case['expected_tools']}\n"
+            # error_msg += f"\nInput: {fail_case['input']}\n"
+            # error_msg += f"Actual Output: {fail_case['actual_output']}\n"
+            # error_msg += f"Expected Output: {fail_case['expected_output']}\n"
+            # error_msg += f"Context: {fail_case['context']}\n"
+            # error_msg += f"Retrieval Context: {fail_case['retrieval_context']}\n"
+            # error_msg += f"Additional Metadata: {fail_case['additional_metadata']}\n"
+            # error_msg += f"Tools Called: {fail_case['tools_called']}\n"
+            # error_msg += f"Expected Tools: {fail_case['expected_tools']}\n"
     
             for fail_scorer in fail_case['failed_scorers']:
 
@@ -658,6 +724,37 @@ def assert_test(scoring_results: List[ScoringResult]) -> None:
                     f"Additional Metadata: {fail_scorer.additional_metadata}\n"
                 )
             error_msg += "-"*100
-    
-        raise AssertionError(error_msg)
+
+        total_tests = len(scoring_results)
+        failed_tests = len(failed_cases)
+        passed_tests = total_tests - failed_tests
+
+        # Print summary with colors
+        rprint("\n" + "="*80)
+        if failed_tests == 0:
+            rprint(f"[bold green]🎉 ALL TESTS PASSED! {passed_tests}/{total_tests} tests successful[/bold green]")
+        else:
+            rprint(f"[bold red]⚠️  TEST RESULTS: {passed_tests}/{total_tests} passed ({failed_tests} failed)[/bold red]")
+        rprint("="*80 + "\n")
+
+        # Print individual test cases
+        for i, result in enumerate(scoring_results):
+            test_num = i + 1
+            if result.success:
+                rprint(f"[green]✓ Test {test_num}: PASSED[/green]")
+            else:
+                rprint(f"[red]✗ Test {test_num}: FAILED[/red]")
+                if result.scorers_data:
+                    for scorer_data in result.scorers_data:
+                        if not scorer_data.success:
+                            rprint(f"  [yellow]Scorer: {scorer_data.name}[/yellow]")
+                            rprint(f"  [red]  Score: {scorer_data.score}[/red]")
+                            rprint(f"  [red]  Reason: {scorer_data.reason}[/red]")
+                            if scorer_data.error:
+                                rprint(f"  [red]  Error: {scorer_data.error}[/red]")
+                rprint("  " + "-"*40)
+
+        rprint("\n" + "="*80)
+        if failed_tests > 0:
+            raise AssertionError(failed_cases)
     

@@ -2,7 +2,8 @@
 Implements the JudgmentClient to interact with the Judgment API.
 """
 import os
-from typing import Optional, List, Dict, Any, Union
+from uuid import uuid4
+from typing import Optional, List, Dict, Any, Union, Callable
 import requests
 
 from judgeval.constants import ROOT_API
@@ -33,7 +34,11 @@ from judgeval.constants import (
     JUDGMENT_PROJECT_DELETE_API_URL,
     JUDGMENT_PROJECT_CREATE_API_URL
 )
+from judgeval.utils.data_utils import add_from_yaml
 from judgeval.common.exceptions import JudgmentAPIError
+from langchain_core.callbacks import BaseCallbackHandler
+from judgeval.common.tracer import Tracer
+from judgeval.common.utils import validate_api_key
 from pydantic import BaseModel
 from judgeval.rules import Rule
 
@@ -63,7 +68,7 @@ class JudgmentClient(metaclass=SingletonMeta):
         self.eval_dataset_client = EvalDatasetClient(judgment_api_key, organization_id)
         
         # Verify API key is valid
-        result, response = self._validate_api_key()
+        result, response = validate_api_key(judgment_api_key)
         if not result:
             # May be bad to output their invalid API key...
             raise JudgmentAPIError(f"Issue with passed in Judgment API key: {response}")
@@ -74,7 +79,7 @@ class JudgmentClient(metaclass=SingletonMeta):
         self, 
         examples: List[Example],
         scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
-        model: Union[str, List[str], JudgevalJudge],
+        model: Optional[Union[str, List[str], JudgevalJudge]] = "gpt-4.1",
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         log_results: bool = True,
@@ -102,9 +107,11 @@ class JudgmentClient(metaclass=SingletonMeta):
 
     def run_sequence_evaluation(
         self,
-        sequences: List[Sequence],
-        model: Union[str, List[str], JudgevalJudge],
         scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
+        model: Optional[Union[str, List[str], JudgevalJudge]] = "gpt-4.1",
+        sequences: Optional[List[Sequence]] = None,
+        examples: Optional[List[Example]] = None,
+        test_file: Optional[str] = None,
         aggregator: Optional[str] = None,
         project_name: str = "default_project",
         eval_run_name: str = "default_eval_sequence",
@@ -112,40 +119,40 @@ class JudgmentClient(metaclass=SingletonMeta):
         append: bool = False,
         override: bool = False,
         ignore_errors: bool = True,
-        rules: Optional[List[Rule]] = None
+        rules: Optional[List[Rule]] = None,
+        function: Optional[Callable] = None,
+        tracer: Optional[Union[Tracer, BaseCallbackHandler]] = None
     ) -> List[ScoringResult]:
-        try:
-            def get_all_sequences(root: Sequence) -> List[Sequence]:
-                all_sequences = [root]
-
-                for item in root.items:
-                    if isinstance(item, Sequence):
-                        all_sequences.extend(get_all_sequences(item))
-
-                return all_sequences
-
-            def flatten_sequence_list(sequences: List[Sequence]) -> List[Sequence]:
-                flattened = []
-                for seq in sequences:
-                    flattened.extend(get_all_sequences(seq))
-                return flattened
+        try:         
             
-            flattened_sequences = flatten_sequence_list(sequences)
-            for sequence in flattened_sequences:
-                sequence.scorers = scorers
-                    
+            if test_file:
+                try:
+                    examples = add_from_yaml(test_file)
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"Test file not found: {test_file}")
+
+            if examples and not function:
+                raise ValueError("Cannot pass in examples without a function")
+            
+            if sequences and function:
+                raise ValueError("Cannot pass in sequences and function")
+            
+            if examples and sequences:
+                raise ValueError("Cannot pass in both examples and sequences")
+            
             sequence_run = SequenceRun(
                 project_name=project_name,
                 eval_name=eval_run_name,
                 sequences=sequences,
+                scorers=scorers,
                 model=model,
                 aggregator=aggregator,
                 log_results=log_results,
                 append=append,
                 judgment_api_key=self.judgment_api_key,
-                organization_id=self.organization_id
+                organization_id=self.organization_id,
             )
-            return run_sequence_eval(sequence_run, override, ignore_errors)
+            return run_sequence_eval(sequence_run, override, ignore_errors, function, tracer, examples)
         except ValueError as e:
             raise ValueError(f"Please check your SequenceRun object, one or more fields are invalid: \n{str(e)}")
         except Exception as e:
@@ -155,7 +162,7 @@ class JudgmentClient(metaclass=SingletonMeta):
         self, 
         examples: Union[List[Example], List[CustomExample]],
         scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
-        model: Union[str, List[str], JudgevalJudge],
+        model: Optional[Union[str, List[str], JudgevalJudge]] = "gpt-4.1",
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         log_results: bool = True,
@@ -396,24 +403,6 @@ class JudgmentClient(metaclass=SingletonMeta):
             raise ValueError(f"Error deleting project: {response.json()}")
         return response.json()
         
-    def _validate_api_key(self):
-        """
-        Validates that the user api key is valid
-        """
-        response = requests.post(
-            f"{ROOT_API}/validate_api_key/",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}",
-            },
-            json={},  # Empty body now
-            verify=True
-        )
-        if response.status_code == 200:
-            return True, response.json()
-        else:
-            return False, response.json().get("detail", "Error validating API key")
-
     def fetch_classifier_scorer(self, slug: str) -> ClassifierScorer:
         """
         Fetches a classifier scorer configuration from the Judgment API.
@@ -499,22 +488,26 @@ class JudgmentClient(metaclass=SingletonMeta):
     
     def assert_test(
         self, 
-        examples: List[Example],
         scorers: List[Union[APIJudgmentScorer, JudgevalScorer]],
-        model: Union[str, List[str], JudgevalJudge],
+        examples: Optional[List[Example]] = None,
+        model: Optional[Union[str, List[str], JudgevalJudge]] = "gpt-4.1",
+        test_file: Optional[str] = None,
         aggregator: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         log_results: bool = True,
-        project_name: str = "default_project",
-        eval_run_name: str = "default_eval_run",
+        project_name: str = "default_test",
+        eval_run_name: str = str(uuid4()),
         override: bool = False,
-        rules: Optional[List[Rule]] = None
+        rules: Optional[List[Rule]] = None,
+        function: Optional[Callable] = None,
+        tracer: Optional[Union[Tracer, BaseCallbackHandler]] = None
     ) -> None:
         """
         Asserts a test by running the evaluation and checking the results for success
         
         Args:
-            examples (List[Example]): The examples to evaluate
+            examples (Optional[List[Example]]): The examples to evaluate. Must be provided if test_file is not.
+            test_file (Optional[str]): Path to a YAML file containing test examples. Must be provided if examples is not.
             scorers (List[Union[APIJudgmentScorer, JudgevalScorer]]): A list of scorers to use for evaluation
             model (Union[str, List[str], JudgevalJudge]): The model used as a judge when using LLM as a Judge
             aggregator (Optional[str]): The aggregator to use for evaluation if using Mixture of Judges
@@ -525,17 +518,37 @@ class JudgmentClient(metaclass=SingletonMeta):
             override (bool): Whether to override an existing evaluation run with the same name
             rules (Optional[List[Rule]]): Rules to evaluate against scoring results
         """
-        results = self.run_evaluation(
-            examples=examples,
-            scorers=scorers,
-            model=model,
-            aggregator=aggregator,
-            metadata=metadata,
-            log_results=log_results,
-            project_name=project_name,
-            eval_run_name=eval_run_name,
-            override=override,
-            rules=rules
-        )
+        # Validate that exactly one of examples or test_file is provided
+        if (examples is None and test_file is None) or (examples is not None and test_file is not None):
+            raise ValueError("Exactly one of 'examples' or 'test_file' must be provided, but not both")
+
+        if function:
+            results = self.run_sequence_evaluation(
+                examples=examples,
+                scorers=scorers,
+                model=model,
+                aggregator=aggregator,
+                log_results=log_results,
+                project_name=project_name,
+                eval_run_name=eval_run_name,
+                override=override,
+                rules=rules,
+                function=function,
+                tracer=tracer,
+                test_file=test_file
+            )
+        else:
+            results = self.run_evaluation(
+                examples=examples,
+                scorers=scorers,
+                model=model,
+                aggregator=aggregator,
+                metadata=metadata,
+                log_results=log_results,
+                project_name=project_name,
+                eval_run_name=eval_run_name,
+                override=override,
+                rules=rules
+            )
         
         assert_test(results)

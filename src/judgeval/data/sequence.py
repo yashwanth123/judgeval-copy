@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import List, Optional, Union, Any
+from typing import List, Optional, Union, Any, Dict
 from judgeval.data.example import Example
 from judgeval.scorers import JudgevalScorer, APIJudgmentScorer
 from uuid import uuid4
@@ -12,13 +12,14 @@ class Sequence(BaseModel):
     sequence_id: str = Field(default_factory=lambda: str(uuid4()))
     name: Optional[str] = "Sequence"
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S"))
-    items: List[Union["Sequence", Example]]
+    items: List[Union["Sequence", Example]] = []
     scorers: Optional[Any] = None
     parent_sequence_id: Optional[str] = None
     sequence_order: Optional[int] = 0
     root_sequence_id: Optional[str] = None
-    inputs: Optional[str] = None
-    output: Optional[str] = None
+    inputs: Optional[Dict[str, Any]] = None
+    output: Optional[Any] = None
+    expected_tools: Optional[List[Dict[str, Any]]] = None
 
     @field_validator("scorers")
     def validate_scorer(cls, v):

@@ -24,14 +24,14 @@ class ExampleParams(Enum):
 
 
 class Example(BaseModel):
-    input: Optional[str] = None
+    input: Optional[Union[str, Dict[str, Any]]] = None
     actual_output: Optional[Union[str, List[str]]] = None
     expected_output: Optional[Union[str, List[str]]] = None
     context: Optional[List[str]] = None
     retrieval_context: Optional[List[str]] = None
     additional_metadata: Optional[Dict[str, Any]] = None
     tools_called: Optional[List[str]] = None
-    expected_tools: Optional[List[str]] = None
+    expected_tools: Optional[List[Dict[str, Any]]] = None
     name: Optional[str] = None
     example_id: str = Field(default_factory=lambda: str(uuid4()))
     example_index: Optional[int] = None
@@ -50,8 +50,18 @@ class Example(BaseModel):
     @field_validator('input', mode='before')
     @classmethod
     def validate_input(cls, v):
-        if v is not None and (not v or not isinstance(v, str)):
-            raise ValueError(f"Input must be a non-empty string but got '{v}' of type {type(v)}")
+        if v is not None:
+            if not isinstance(v, (str, dict)):
+                raise ValueError(f"Input must be a string or dictionary but got {v} of type {type(v)}")
+            
+            # If it's a string, check that it's not empty
+            if isinstance(v, str) and not v:
+                raise ValueError(f"Input string must be non-empty but got '{v}'")
+            
+            # If it's a dictionary, check that it's not empty
+            if isinstance(v, dict) and not v:
+                raise ValueError(f"Input dictionary must be non-empty but got {v}")
+        
         return v
     
     @field_validator('actual_output', mode='before')
@@ -73,7 +83,21 @@ class Example(BaseModel):
             raise ValueError(f"All items in expected_output must be strings but got {v}")
         return v
     
-    @field_validator('context', 'retrieval_context', 'tools_called', 'expected_tools', mode='before')
+    @field_validator('expected_tools', mode='before')
+    @classmethod
+    def validate_expected_tools(cls, v):
+        if v is not None:
+            if not isinstance(v, list):
+                raise ValueError(f"Expected tools must be a list of dictionaries or None but got {v} of type {type(v)}")
+            
+            # Check that each item in the list is a dictionary
+            for i, item in enumerate(v):
+                if not isinstance(item, dict):
+                    raise ValueError(f"Expected tools must be a list of dictionaries, but item at index {i} is {item} of type {type(item)}")
+        
+        return v
+    
+    @field_validator('context', 'retrieval_context', 'tools_called', mode='before')
     @classmethod
     def validate_string_lists(cls, v, info):
         field_name = info.field_name

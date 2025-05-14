@@ -243,7 +243,7 @@ async def score_with_indicator(
 async def a_execute_scoring(
     examples: Union[List[Example], List[CustomExample]],
     scorers: List[JudgevalScorer],
-    model: Optional[Union[str, List[str], JudgevalJudge]] = None,
+    model: Optional[Union[str, List[str], JudgevalJudge]] = "gpt-4.1",
     ignore_errors: bool = True,
     skip_on_missing_params: bool = True,
     show_indicator: bool = True,

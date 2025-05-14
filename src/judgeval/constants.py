@@ -27,7 +27,7 @@ class APIScorer(str, Enum):
     COMPARISON = "comparison"
     GROUNDEDNESS = "groundedness"
     DERAILMENT = "derailment"
-    
+    TOOL_ORDER = "tool_order"
     @classmethod
     def _missing_(cls, value):
         # Handle case-insensitive lookup
@@ -50,6 +50,7 @@ JUDGMENT_DATASETS_EXPORT_JSONL_API_URL = f"{ROOT_API}/datasets/export_jsonl/"
 JUDGMENT_DATASETS_PROJECT_STATS_API_URL = f"{ROOT_API}/datasets/fetch_stats_by_project/"
 JUDGMENT_DATASETS_INSERT_API_URL = f"{ROOT_API}/datasets/insert_examples/"
 JUDGMENT_EVAL_LOG_API_URL = f"{ROOT_API}/log_eval_results/"
+JUDGMENT_RETRIEVE_SEQUENCE_FROM_TRACE_API_URL = f"{ROOT_API}/traces/convert_trace_to_sequence/"
 JUDGMENT_EVAL_FETCH_API_URL = f"{ROOT_API}/fetch_experiment_run/"
 JUDGMENT_EVAL_DELETE_API_URL = f"{ROOT_API}/delete_eval_results_by_project_and_run_names/"
 JUDGMENT_EVAL_DELETE_PROJECT_API_URL = f"{ROOT_API}/delete_eval_results_by_project/"

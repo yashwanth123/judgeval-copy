@@ -7,6 +7,9 @@ import functools
 import inspect
 import json
 import os
+import site
+import sysconfig
+import threading
 import time
 import uuid
 import warnings
@@ -43,7 +46,6 @@ from openai import OpenAI, AsyncOpenAI
 from together import Together, AsyncTogether
 from anthropic import Anthropic, AsyncAnthropic
 from google import genai
-from judgeval.run_evaluation import check_examples
 
 # Local application/library-specific imports
 from judgeval.constants import (
@@ -55,21 +57,21 @@ from judgeval.constants import (
     JUDGMENT_TRACES_DELETE_API_URL,
     JUDGMENT_PROJECT_DELETE_API_URL,
 )
-from judgeval.judgment_client import JudgmentClient
-from judgeval.data import Example
+from judgeval.data import Example, Trace, TraceSpan
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
 from judgeval.rules import Rule
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.data.result import ScoringResult
+from judgeval.common.utils import validate_api_key
+from judgeval.common.exceptions import JudgmentAPIError
 
 # Standard library imports needed for the new class
 import concurrent.futures
 from collections.abc import Iterator, AsyncIterator # Add Iterator and AsyncIterator
 
 # Define context variables for tracking the current trace and the current span within a trace
-current_trace_var = contextvars.ContextVar('current_trace', default=None)
+current_trace_var = contextvars.ContextVar[Optional['TraceClient']]('current_trace', default=None)
 current_span_var = contextvars.ContextVar('current_span', default=None) # ContextVar for the active span name
-in_traced_function_var = contextvars.ContextVar('in_traced_function', default=False) # Track if we're in a traced function
 
 # Define type aliases for better code readability and maintainability
 ApiClient: TypeAlias = Union[OpenAI, Together, Anthropic, AsyncOpenAI, AsyncAnthropic, AsyncTogether, genai.Client, genai.client.AsyncClient]  # Supported API clients
@@ -234,6 +236,26 @@ class TraceEntry:
         # Start serialization with the top-level output
         return serialize_value(self.output)
 
+# Temporary as a POC to have log use the existing annotations feature until log endpoints are ready
+@dataclass
+class TraceAnnotation:
+    """Represents a single annotation for a trace span."""
+    span_id: str
+    text: str
+    label: str
+    score: int
+
+    def to_dict(self) -> dict:
+        """Convert the annotation to a dictionary format for storage/transmission."""
+        return {
+            "span_id": self.span_id,
+            "annotation": {
+                "text": self.text,
+                "label": self.label,
+                "score": self.score
+            }
+        }
+    
 class TraceManagerClient:
     """
     Client for handling trace endpoints with the Judgment API
@@ -270,8 +292,6 @@ class TraceManagerClient:
             raise ValueError(f"Failed to fetch traces: {response.text}")
         
         return response.json()
-    
-
 
     def save_trace(self, trace_data: dict):
         """
@@ -313,6 +333,33 @@ class TraceManagerClient:
         if "ui_results_url" in response.json():
             pretty_str = f"\n🔍 You can view your trace data here: [rgb(106,0,255)][link={response.json()['ui_results_url']}]View Trace[/link]\n"
             rprint(pretty_str)
+
+    ## TODO: Should have a log endpoint, endpoint should also support batched payloads
+    def save_annotation(self, annotation: TraceAnnotation):
+        json_data = {
+            "span_id": annotation.span_id,
+            "annotation": {
+                "text": annotation.text,
+                "label": annotation.label,
+                "score": annotation.score
+            }
+        }       
+
+        response = requests.post(
+            'https://api.judgmentlabs.ai/traces/add_annotation/',
+            json=json_data,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {self.judgment_api_key}',
+                'X-Organization-Id': self.organization_id
+            },
+            verify=True
+        )
+        
+        if response.status_code != HTTPStatus.OK:
+            raise ValueError(f"Failed to save annotation: {response.text}")
+        
+        return response.json()
 
     def delete_trace(self, trace_id: str):
         """
@@ -404,15 +451,14 @@ class TraceClient:
         self.enable_evaluations = enable_evaluations
         self.parent_trace_id = parent_trace_id
         self.parent_name = parent_name
-        self.client: JudgmentClient = tracer.client
         self.entries: List[TraceEntry] = []
+        self.annotations: List[TraceAnnotation] = []
         self.start_time = time.time()
         self.trace_manager_client = TraceManagerClient(tracer.api_key, tracer.organization_id, tracer)
         self.visited_nodes = []
         self.executed_tools = []
         self.executed_node_tools = []
         self._span_depths: Dict[str, int] = {} # NEW: To track depth of active spans
-    
     def get_current_span(self):
         """Get the current span from the context var"""
         return current_span_var.get()
@@ -533,7 +579,8 @@ class TraceClient:
                 raise ValueError("Either 'example' or at least one of the individual parameters (input, actual_output, etc.) must be provided")
         
         # Check examples before creating evaluation run
-        check_examples([example], scorers)
+        
+        # check_examples([example], scorers)
         
         # --- Modification: Capture span_id immediately ---
         # span_id_at_eval_call = current_span_var.get()
@@ -599,6 +646,11 @@ class TraceClient:
                 span_type="evaluation"
             ))
 
+    def add_annotation(self, annotation: TraceAnnotation):
+       """Add an annotation to this trace context"""
+       self.annotations.append(annotation)
+       return self
+    
     def record_input(self, inputs: dict):
         current_span_id = current_span_var.get()
         if current_span_id:
@@ -878,10 +930,8 @@ class TraceClient:
 
             # --- DEBUG PRINT 1: Check if condition passes --- 
             # if is_llm_entry and has_api_suffix and output_is_dict:
-            #   #  print(f"[DEBUG TraceClient.save] Processing entry: {entry.get('span_id')} ({entry_function_name}) - Condition PASSED")
             # elif is_llm_entry:
             #      # Print why it failed if it was an LLM entry
-            #      print(f"[DEBUG TraceClient.save] Skipping LLM entry: {entry.get('span_id')} ({entry_function_name}) - Suffix Match: {has_api_suffix}, Output is Dict: {output_is_dict}")
             # # --- END DEBUG --- 
 
             if is_llm_entry and has_api_suffix and output_is_dict:
@@ -889,13 +939,11 @@ class TraceClient:
                 usage = output.get("usage", {}) # Gets the 'usage' dict from the 'output' field
 
                 # --- DEBUG PRINT 2: Check extracted usage --- 
-                # print(f"[DEBUG TraceClient.save]   Extracted usage dict: {usage}")
                 # --- END DEBUG --- 
 
                 # --- NEW: Extract model_name correctly from nested inputs ---
                 model_name = None
                 entry_inputs = entry.get("inputs", {})
-                # print(f"[DEBUG TraceClient.save]   Inspecting inputs for span {entry.get('span_id')}: {entry_inputs}") # DEBUG Inputs
                 if entry_inputs:
                     # Try common locations for model name within the inputs structure
                     invocation_params = entry_inputs.get("invocation_params", {})
@@ -922,7 +970,6 @@ class TraceClient:
                         model_name = entry_inputs.get("model")
 
 
-                # print(f"[DEBUG TraceClient.save]     Determined model_name: {model_name}") # DEBUG Model Name
                 # --- END NEW ---
 
                 prompt_tokens = 0
@@ -1014,10 +1061,235 @@ class TraceClient:
         # --- Log trace data before saving ---
         self.trace_manager_client.save_trace(trace_data)
 
+        # upload annotations
+        # TODO: batch to the log endpoint
+        for annotation in self.annotations:
+            self.trace_manager_client.save_annotation(annotation)
+
         return self.trace_id, trace_data
 
     def delete(self):
         return self.trace_manager_client.delete_trace(self.trace_id)
+    
+
+class _DeepProfiler:
+    _instance: Optional["_DeepProfiler"] = None
+    _lock: threading.Lock = threading.Lock()
+    _refcount: int = 0
+    _span_stack: contextvars.ContextVar[List[Dict[str, Any]]] = contextvars.ContextVar("_deep_profiler_span_stack", default=[])
+    _skip_stack: contextvars.ContextVar[List[str]] = contextvars.ContextVar("_deep_profiler_skip_stack", default=[])
+
+    def _get_qual_name(self, frame) -> str:
+        func_name = frame.f_code.co_name
+        module_name = frame.f_globals.get("__name__", "unknown_module")
+        
+        try:
+            func = frame.f_globals.get(func_name)
+            if func is None:
+                return f"{module_name}.{func_name}"
+            if hasattr(func, "__qualname__"):
+                 return f"{module_name}.{func.__qualname__}"
+        except Exception:
+            return f"{module_name}.{func_name}"
+    
+    def __new__(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def _should_trace(self, frame):
+        # Skip stack is maintained by the tracer as an optimization to skip earlier
+        # frames in the call stack that we've already determined should be skipped
+        skip_stack = self._skip_stack.get()
+        if len(skip_stack) > 0:
+            return False
+        
+        func_name = frame.f_code.co_name
+        module_name = frame.f_globals.get("__name__", "")
+
+        if (
+            module_name == ""
+            or func_name.startswith("<") # ex: <listcomp>
+            or func_name.startswith("__") and func_name != "__call__" # dunders
+            or not self._is_user_code(frame.f_code.co_filename)
+        ):
+            return False
+                    
+        return True
+    
+    @functools.cache
+    def _is_user_code(self, filename: str):
+        return bool(filename) and not os.path.realpath(filename).startswith(_TRACE_FILEPATH_BLOCKLIST)
+    
+    def _profile(self, frame, event, *arg):
+        if event not in ("call", "return"):
+            return
+        
+        current_trace = current_trace_var.get()
+        if not current_trace:
+            return
+        
+        parent_span_id = current_span_var.get()
+        if not parent_span_id:
+            return
+
+        qual_name = self._get_qual_name(frame)
+        skip_stack = self._skip_stack.get()
+        
+        if event == "call":
+            # If we have entries in the skip stack and the current qual_name matches the top entry,
+            # push it again to track nesting depth and skip
+            # As an optimization, we only care about duplicate qual_names.
+            if skip_stack:
+                if qual_name == skip_stack[-1]:
+                    skip_stack.append(qual_name)
+                    self._skip_stack.set(skip_stack)
+                return
+            
+            should_trace = self._should_trace(frame)
+            
+            if not should_trace:
+                if not skip_stack:
+                    self._skip_stack.set([qual_name])
+                return
+        elif event == "return":
+            # If we have entries in skip stack and current qual_name matches the top entry,
+            # pop it to track exiting from the skipped section
+            if skip_stack and qual_name == skip_stack[-1]:
+                skip_stack.pop()
+                self._skip_stack.set(skip_stack)
+                return
+            
+            if skip_stack:
+                return
+            
+        span_stack = self._span_stack.get()
+        if event == "call":
+            if not self._should_trace(frame):
+                return
+                
+            span_id = str(uuid.uuid4())
+            
+            parent_depth = current_trace._span_depths.get(parent_span_id, 0)
+            depth = parent_depth + 1
+            
+            current_trace._span_depths[span_id] = depth
+            
+            start_time = time.time()
+            
+            span_stack.append({
+                "span_id": span_id,
+                "parent_span_id": parent_span_id,
+                "function": qual_name,
+                "start_time": start_time
+            })
+            self._span_stack.set(span_stack)
+            
+            token = current_span_var.set(span_id)
+            frame.f_locals["_span_token"] = token
+            
+            entry = TraceEntry(
+                type="enter",
+                function=qual_name,
+                span_id=span_id,
+                trace_id=current_trace.trace_id,
+                depth=depth,
+                message=qual_name,
+                created_at=start_time,
+                span_type="span",
+                parent_span_id=parent_span_id
+            )
+            current_trace.add_entry(entry)
+            
+            inputs = {}
+            try:
+                args_info = inspect.getargvalues(frame)
+                for arg in args_info.args:
+                    try:
+                        inputs[arg] = args_info.locals.get(arg)
+                    except:
+                        inputs[arg] = "<<Unserializable>>"
+                current_trace.record_input(inputs)
+            except Exception as e:
+                current_trace.record_input({
+                    "error": str(e)
+                })
+                
+        elif event == "return":
+            if not span_stack:
+                return
+                
+            current_id = current_span_var.get()
+            
+            span_data = None
+            for i, entry in enumerate(reversed(span_stack)):
+                if entry["span_id"] == current_id:
+                    span_data = span_stack.pop(-(i+1))
+                    self._span_stack.set(span_stack)
+                    break
+            
+            if not span_data:
+                return
+                
+            start_time = span_data["start_time"]
+            duration = time.time() - start_time
+            
+            current_trace.add_entry(TraceEntry(
+                type="exit",
+                function=span_data["function"],
+                span_id=span_data["span_id"],
+                trace_id=current_trace.trace_id,
+                depth=current_trace._span_depths.get(span_data["span_id"], 0),
+                message=f"← {span_data['function']}",
+                created_at=time.time(),
+                duration=duration,
+                span_type="span",
+            ))
+
+            # arg[0] should always be the full return object
+            # TODO: look into other possible cases
+            current_trace.record_output(None if len(arg) == 0 else arg[0])
+            
+            if span_data["span_id"] in current_trace._span_depths:
+                del current_trace._span_depths[span_data["span_id"]]
+                
+            if span_stack:
+                current_span_var.set(span_stack[-1]["span_id"])
+            else:
+                current_span_var.set(span_data["parent_span_id"])
+            
+            if "_span_token" in frame.f_locals:
+                current_span_var.reset(frame.f_locals["_span_token"])
+        
+        return
+    
+    def __enter__(self):
+        with self._lock:
+            self._refcount += 1
+            if self._refcount == 1:
+                self._skip_stack.set([])
+                self._span_stack.set([])
+                sys.setprofile(self._profile)
+                threading.setprofile(self._profile)
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        with self._lock:
+            self._refcount -= 1
+            if self._refcount == 0:
+                sys.setprofile(None)
+                threading.setprofile(None)
+
+
+def log(self, message: str, level: str = "info"):
+        """ Log a message with the span context """
+        current_trace = current_trace_var.get()
+        if current_trace:
+            current_trace.log(message, level)
+        else:
+            print(f"[{level}] {message}")
+        current_trace.record_output({"log": message})
     
 class Tracer:
     _instance = None
@@ -1041,11 +1313,15 @@ class Tracer:
         s3_aws_access_key_id: Optional[str] = None,
         s3_aws_secret_access_key: Optional[str] = None,
         s3_region_name: Optional[str] = None,
-        deep_tracing: bool = True  # NEW: Enable deep tracing by default
+        deep_tracing: bool = True  # Deep tracing is enabled by default
         ):
         if not hasattr(self, 'initialized'):
             if not api_key:
                 raise ValueError("Tracer must be configured with a Judgment API key")
+            
+            result, response = validate_api_key(api_key)
+            if not result:
+                raise JudgmentAPIError(f"Issue with passed in Judgment API key: {response}")
             
             if not organization_id:
                 raise ValueError("Tracer must be configured with an Organization ID")
@@ -1058,11 +1334,11 @@ class Tracer:
             
             self.api_key: str = api_key
             self.project_name: str = project_name
-            self.client: JudgmentClient = JudgmentClient(judgment_api_key=api_key)
             self.organization_id: str = organization_id
             self._current_trace: Optional[str] = None
             self._active_trace_client: Optional[TraceClient] = None # Add active trace client attribute
             self.rules: List[Rule] = rules or []  # Store rules at tracer level
+            self.traces: List[Trace] = []
             self.initialized: bool = True
             self.enable_monitoring: bool = enable_monitoring
             self.enable_evaluations: bool = enable_evaluations
@@ -1118,45 +1394,6 @@ class Tracer:
         """Returns the TraceClient instance currently marked as active by the handler."""
         return self._active_trace_client
 
-    def _apply_deep_tracing(self, func, span_type="span"):
-        """
-        Apply deep tracing to all functions in the same module as the given function.
-        
-        Args:
-            func: The function being traced
-            span_type: Type of span to use for traced functions
-            
-        Returns:
-            A tuple of (module, original_functions_dict) where original_functions_dict
-            contains the original functions that were replaced with traced versions.
-        """
-        module = inspect.getmodule(func)
-        if not module:
-            return None, {}
-            
-        # Save original functions
-        original_functions = {}
-        
-        # Find all functions in the module
-        for name, obj in inspect.getmembers(module, inspect.isfunction):
-            # Skip already wrapped functions
-            if hasattr(obj, '_judgment_traced'):
-                continue
-                
-            # Create a traced version of the function
-            # Always use default span type "span" for child functions
-            traced_func = _create_deep_tracing_wrapper(obj, self, "span")
-            
-            # Mark the function as traced to avoid double wrapping
-            traced_func._judgment_traced = True
-            
-            # Save the original function
-            original_functions[name] = obj
-            
-            # Replace with traced version
-            setattr(module, name, traced_func)
-            
-        return module, original_functions
 
     @contextmanager
     def trace(
@@ -1203,6 +1440,23 @@ class Tracer:
             finally:
                 # Reset the context variable
                 current_trace_var.reset(token)
+
+
+    def log(self, msg: str, label: str = "log", score: int = 1):
+        """Log a message with the current span context"""
+        current_span_id = current_span_var.get()
+        current_trace = current_trace_var.get()
+        if current_span_id:
+            annotation = TraceAnnotation(
+                span_id=current_span_id,
+                text=msg,
+                label=label,
+                score=score
+            )
+
+            current_trace.add_annotation(annotation)
+
+        rprint(f"[bold]{label}:[/bold] {msg}")
     
     def observe(self, func=None, *, name=None, span_type: SpanType = "span", project_name: str = None, overwrite: bool = False, deep_tracing: bool = None):
         """
@@ -1238,13 +1492,6 @@ class Tracer:
         if asyncio.iscoroutinefunction(func):
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
-                # Check if we're already in a traced function
-                if in_traced_function_var.get():
-                    return await func(*args, **kwargs)
-                
-                # Set in_traced_function_var to True
-                token = in_traced_function_var.set(True)
-                
                 # Get current trace from context
                 current_trace = current_trace_var.get()
                 
@@ -1274,34 +1521,25 @@ class Tracer:
                         # This sets the current_span_var
                         with current_trace.span(span_name, span_type=span_type) as span: # MODIFIED: Use span_name directly
                             # Record inputs
-                            span.record_input({
-                                'args': str(args),
-                                'kwargs': kwargs
-                            })
+                            inputs = combine_args_kwargs(func, args, kwargs)
+                            span.record_input(inputs)
                             
-                            # If deep tracing is enabled, apply monkey patching
                             if use_deep_tracing:
-                                module, original_functions = self._apply_deep_tracing(func, span_type)
-                            
-                            # Execute function
-                            result = await func(*args, **kwargs)
-                            
-                            # Restore original functions if deep tracing was enabled
-                            if use_deep_tracing and module and 'original_functions' in locals():
-                                for name, obj in original_functions.items():
-                                    setattr(module, name, obj)
-                            
+                                with _DeepProfiler():
+                                    result = await func(*args, **kwargs)
+                            else:
+                                result = await func(*args, **kwargs)
+                                                        
                             # Record output
                             span.record_output(result)
                             
                         # Save the completed trace
-                        current_trace.save(overwrite=overwrite)
+                        trace_id, trace = current_trace.save(overwrite=overwrite)
+                        self.traces.append(trace)
                         return result
                     finally:
                         # Reset trace context (span context resets automatically)
                         current_trace_var.reset(trace_token)
-                        # Reset in_traced_function_var
-                        in_traced_function_var.reset(token)
                 else:
                     # Already have a trace context, just create a span in it
                     # The span method handles current_span_var
@@ -1309,43 +1547,27 @@ class Tracer:
                     try:
                         with current_trace.span(span_name, span_type=span_type) as span: # MODIFIED: Use span_name directly
                             # Record inputs
-                            span.record_input({
-                                'args': str(args),
-                                'kwargs': kwargs
-                            })
+                            inputs = combine_args_kwargs(func, args, kwargs)
+                            span.record_input(inputs)
                             
-                            # If deep tracing is enabled, apply monkey patching
                             if use_deep_tracing:
-                                module, original_functions = self._apply_deep_tracing(func, span_type)
-                            
-                            # Execute function
-                            result = await func(*args, **kwargs)
-                            
-                            # Restore original functions if deep tracing was enabled
-                            if use_deep_tracing and module and 'original_functions' in locals():
-                                for name, obj in original_functions.items():
-                                    setattr(module, name, obj)
+                                with _DeepProfiler():
+                                    result = await func(*args, **kwargs)
+                            else:
+                                result = await func(*args, **kwargs)
                             
                             # Record output
                             span.record_output(result)
                         
                         return result
                     finally:
-                        # Reset in_traced_function_var
-                        in_traced_function_var.reset(token)
+                        pass
                 
             return async_wrapper
         else:
             # Non-async function implementation with deep tracing
             @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                # Check if we're already in a traced function
-                if in_traced_function_var.get():
-                    return func(*args, **kwargs)
-                
-                # Set in_traced_function_var to True
-                token = in_traced_function_var.set(True)
-                
+            def wrapper(*args, **kwargs):                
                 # Get current trace from context
                 current_trace = current_trace_var.get()
                 
@@ -1375,34 +1597,25 @@ class Tracer:
                         # This sets the current_span_var
                         with current_trace.span(span_name, span_type=span_type) as span: # MODIFIED: Use span_name directly
                             # Record inputs
-                            span.record_input({
-                                'args': str(args),
-                                'kwargs': kwargs
-                            })
+                            inputs = combine_args_kwargs(func, args, kwargs)
+                            span.record_input(inputs)
                             
-                            # If deep tracing is enabled, apply monkey patching
                             if use_deep_tracing:
-                                module, original_functions = self._apply_deep_tracing(func, span_type)
-                            
-                            # Execute function
-                            result = func(*args, **kwargs)
-                            
-                            # Restore original functions if deep tracing was enabled
-                            if use_deep_tracing and module and 'original_functions' in locals():
-                                for name, obj in original_functions.items():
-                                    setattr(module, name, obj)
+                                with _DeepProfiler():
+                                    result = func(*args, **kwargs)
+                            else:
+                                result = func(*args, **kwargs)
                             
                             # Record output
                             span.record_output(result)
-                            
+                        
                         # Save the completed trace
-                        current_trace.save(overwrite=overwrite)
+                        trace_id, trace = current_trace.save(overwrite=overwrite)
+                        self.traces.append(trace)
                         return result
                     finally:
                         # Reset trace context (span context resets automatically)
                         current_trace_var.reset(trace_token)
-                        # Reset in_traced_function_var
-                        in_traced_function_var.reset(token)
                 else:
                     # Already have a trace context, just create a span in it
                     # The span method handles current_span_var
@@ -1410,30 +1623,21 @@ class Tracer:
                     try:
                         with current_trace.span(span_name, span_type=span_type) as span: # MODIFIED: Use span_name directly
                             # Record inputs
-                            span.record_input({
-                                'args': str(args),
-                                'kwargs': kwargs
-                            })
+                            inputs = combine_args_kwargs(func, args, kwargs)
+                            span.record_input(inputs)
                             
-                            # If deep tracing is enabled, apply monkey patching
                             if use_deep_tracing:
-                                module, original_functions = self._apply_deep_tracing(func, span_type)
-                            
-                            # Execute function
-                            result = func(*args, **kwargs)
-                            
-                            # Restore original functions if deep tracing was enabled
-                            if use_deep_tracing and module and 'original_functions' in locals():
-                                for name, obj in original_functions.items():
-                                    setattr(module, name, obj)
+                                with _DeepProfiler():
+                                    result = func(*args, **kwargs)
+                            else:
+                                result = func(*args, **kwargs)
                             
                             # Record output
                             span.record_output(result)
                         
                         return result
                     finally:
-                        # Reset in_traced_function_var
-                        in_traced_function_var.reset(token)
+                        pass
                 
             return wrapper
         
@@ -1468,7 +1672,7 @@ def wrap(client: Any) -> Any:
     Supports OpenAI, Together, Anthropic, and Google GenAI clients.
     Patches both '.create' and Anthropic's '.stream' methods using a wrapper class.
     """
-    span_name, original_create, original_stream = _get_client_config(client)
+    span_name, original_create, responses_create, original_stream = _get_client_config(client)
 
     # --- Define Traced Async Functions ---
     async def traced_create_async(*args, **kwargs):
@@ -1566,7 +1770,41 @@ def wrap(client: Any) -> Any:
                  span.record_output(output_data)
                  return response_or_iterator
 
+        # --- Define Traced Sync Functions ---
+    def traced_response_create_sync(*args, **kwargs):
+         # [Existing logic - unchanged]
+        current_trace = current_trace_var.get()
+        if not current_trace:
+             return responses_create(*args, **kwargs)
 
+        is_streaming = kwargs.get("stream", False)
+        with current_trace.span(span_name, span_type="llm") as span:
+             span.record_input(kwargs)
+
+             # Warn about token counting limitations with streaming
+             if isinstance(client, (AsyncOpenAI, OpenAI)) and is_streaming:
+                 if not kwargs.get("stream_options", {}).get("include_usage"):
+                     warnings.warn(
+                         "OpenAI streaming calls don't include token counts by default. "
+                         "To enable token counting with streams, set stream_options={'include_usage': True} "
+                         "in your API call arguments.",
+                         UserWarning
+                     )
+
+             try:
+                 response_or_iterator = responses_create(*args, **kwargs)
+             except Exception as e:
+                 print(f"Error during wrapped sync API call ({span_name}): {e}")
+                 span.record_output({"error": str(e)})
+                 raise
+             if is_streaming:
+                 output_entry = span.record_output("<pending stream>")
+                 return _sync_stream_wrapper(response_or_iterator, client, output_entry)
+             else:
+                 output_data = _format_response_output_data(client, response_or_iterator)
+                 span.record_output(output_data)
+                 return response_or_iterator
+             
     # Function replacing sync .stream()
     def traced_stream_sync(*args, **kwargs):
          current_trace = current_trace_var.get()
@@ -1617,6 +1855,7 @@ def wrap(client: Any) -> Any:
         client.generate_content = traced_create_async
     elif isinstance(client, (OpenAI, Together)):
          client.chat.completions.create = traced_create_sync
+         client.responses.create = traced_response_create_sync
     elif isinstance(client, Anthropic):
          client.messages.create = traced_create_sync
          if original_stream:
@@ -1638,19 +1877,20 @@ def _get_client_config(client: ApiClient) -> tuple[str, callable, Optional[calla
         tuple: (span_name, create_method, stream_method)
             - span_name: String identifier for tracing
             - create_method: Reference to the client's creation method
+            - responses_method: Reference to the client's responses method (if applicable)
             - stream_method: Reference to the client's stream method (if applicable)
             
     Raises:
         ValueError: If client type is not supported
     """
     if isinstance(client, (OpenAI, AsyncOpenAI)):
-        return "OPENAI_API_CALL", client.chat.completions.create, None
+        return "OPENAI_API_CALL", client.chat.completions.create, client.responses.create, None
     elif isinstance(client, (Together, AsyncTogether)):
-        return "TOGETHER_API_CALL", client.chat.completions.create, None
+        return "TOGETHER_API_CALL", client.chat.completions.create, None, None
     elif isinstance(client, (Anthropic, AsyncAnthropic)):
-        return "ANTHROPIC_API_CALL", client.messages.create, client.messages.stream
+        return "ANTHROPIC_API_CALL", client.messages.create, None, client.messages.stream
     elif isinstance(client, (genai.Client, genai.client.AsyncClient)):
-        return "GOOGLE_API_CALL", client.models.generate_content, None
+        return "GOOGLE_API_CALL", client.models.generate_content, None, None
     raise ValueError(f"Unsupported client type: {type(client)}")
 
 def _format_input_data(client: ApiClient, **kwargs) -> dict:
@@ -1675,6 +1915,26 @@ def _format_input_data(client: ApiClient, **kwargs) -> dict:
         "messages": kwargs.get("messages"),
         "max_tokens": kwargs.get("max_tokens")
     }
+
+def _format_response_output_data(client: ApiClient, response: Any) -> dict:
+    """Format API response data based on client type.
+    
+    Normalizes different response formats into a consistent structure
+    for tracing purposes.
+    """
+    if isinstance(client, (OpenAI, Together, AsyncOpenAI, AsyncTogether)):
+        return {
+            "content": response.output,
+            "usage": {
+                "prompt_tokens": response.usage.input_tokens,
+                "completion_tokens": response.usage.output_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+        }
+    else:
+        warnings.warn(f"Unsupported client type: {type(client)}")
+        return {}
+
 
 def _format_output_data(client: ApiClient, response: Any) -> dict:
     """Format API response data based on client type.
@@ -1715,117 +1975,51 @@ def _format_output_data(client: ApiClient, response: Any) -> dict:
         }
     }
 
-# Define a blocklist of functions that should not be traced
-# These are typically utility functions, print statements, logging, etc.
-_TRACE_BLOCKLIST = {
-    # Built-in functions
-    'print', 'str', 'int', 'float', 'bool', 'list', 'dict', 'set', 'tuple',
-    'len', 'range', 'enumerate', 'zip', 'map', 'filter', 'sorted', 'reversed',
-    'min', 'max', 'sum', 'any', 'all', 'abs', 'round', 'format',
-    # Logging functions
-    'debug', 'info', 'warning', 'error', 'critical', 'exception', 'log',
-    # Common utility functions
-    'sleep', 'time', 'datetime', 'json', 'dumps', 'loads',
-    # String operations
-    'join', 'split', 'strip', 'lstrip', 'rstrip', 'replace', 'lower', 'upper',
-    # Dict operations
-    'get', 'items', 'keys', 'values', 'update',
-    # List operations
-    'append', 'extend', 'insert', 'remove', 'pop', 'clear', 'index', 'count', 'sort',
-}
-
-
-# Add a new function for deep tracing at the module level
-def _create_deep_tracing_wrapper(func, tracer, span_type="span"):
+def combine_args_kwargs(func, args, kwargs):
     """
-    Creates a wrapper for a function that automatically traces it when called within a traced function.
-    This enables deep tracing without requiring explicit @observe decorators on every function.
+    Combine positional arguments and keyword arguments into a single dictionary.
     
     Args:
-        func: The function to wrap
-        tracer: The Tracer instance
-        span_type: Type of span (default "span")
+        func: The function being called
+        args: Tuple of positional arguments
+        kwargs: Dictionary of keyword arguments
         
     Returns:
-        A wrapped function that will be traced when called
+        A dictionary combining both args and kwargs
     """
-    # Skip wrapping if the function is not callable or is a built-in
-    if not callable(func) or isinstance(func, type) or func.__module__ == 'builtins':
-        return func
-    
-    # Skip functions in the blocklist
-    if func.__name__ in _TRACE_BLOCKLIST:
-        return func
-    
-    # Skip functions from certain modules (logging, sys, etc.)
-    if func.__module__ and any(func.__module__.startswith(m) for m in ['logging', 'sys', 'os', 'json', 'time', 'datetime']):
-        return func
-    
+    try:
+        import inspect
+        sig = inspect.signature(func)
+        param_names = list(sig.parameters.keys())
+        
+        args_dict = {}
+        for i, arg in enumerate(args):
+            if i < len(param_names):
+                args_dict[param_names[i]] = arg
+            else:
+                args_dict[f"arg{i}"] = arg
+        
+        return {**args_dict, **kwargs}
+    except Exception as e:
+        # Fallback if signature inspection fails
+        return {**{f"arg{i}": arg for i, arg in enumerate(args)}, **kwargs}
 
-    # Get function name for the span - check for custom name set by @observe
-    func_name = getattr(func, '_judgment_span_name', func.__name__)
-    
-    # Check for custom span_type set by @observe
-    func_span_type = getattr(func, '_judgment_span_type', "span")
-    
-    # Store original function to prevent losing reference
-    original_func = func
-    
-    # Create appropriate wrapper based on whether the function is async or not
-    if asyncio.iscoroutinefunction(func):
-        @functools.wraps(func)
-        async def async_deep_wrapper(*args, **kwargs):
-            # Get current trace from context
-            current_trace = current_trace_var.get()
-            
-            # If no trace context, just call the function
-            if not current_trace:
-                return await original_func(*args, **kwargs)
-            
-            # Create a span for this function call - use custom span_type if available
-            with current_trace.span(func_name, span_type=func_span_type) as span:
-                # Record inputs
-                span.record_input({
-                    'args': str(args),
-                    'kwargs': kwargs
-                })
-                
-                # Execute function
-                result = await original_func(*args, **kwargs)
-                
-                # Record output
-                span.record_output(result)
-                
-                return result
-                
-        return async_deep_wrapper
-    else:
-        @functools.wraps(func)
-        def deep_wrapper(*args, **kwargs):
-            # Get current trace from context
-            current_trace = current_trace_var.get()
-            
-            # If no trace context, just call the function
-            if not current_trace:
-                return original_func(*args, **kwargs)
-            
-            # Create a span for this function call - use custom span_type if available
-            with current_trace.span(func_name, span_type=func_span_type) as span:
-                # Record inputs
-                span.record_input({
-                    'args': str(args),
-                    'kwargs': kwargs
-                })
-                
-                # Execute function
-                result = original_func(*args, **kwargs)
-                
-                # Record output
-                span.record_output(result)
-                
-                return result
-                
-        return deep_wrapper
+# NOTE: This builds once, can be tweaked if we are missing / capturing other unncessary modules
+# @link https://docs.python.org/3.13/library/sysconfig.html
+_TRACE_FILEPATH_BLOCKLIST = tuple(
+    os.path.realpath(p) + os.sep
+    for p in {
+        sysconfig.get_paths()['stdlib'],
+        sysconfig.get_paths().get('platstdlib', ''),
+        *site.getsitepackages(),
+        site.getusersitepackages(),
+        *(
+            [os.path.join(os.path.dirname(__file__), '../../judgeval/')]
+            if os.environ.get('JUDGMENT_DEV')
+            else []
+        ),
+    } if p
+)
 
 # Add the new TraceThreadPoolExecutor class
 class TraceThreadPoolExecutor(concurrent.futures.ThreadPoolExecutor):

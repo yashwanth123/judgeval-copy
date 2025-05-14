@@ -68,6 +68,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         self.executed_nodes: List[str] = []
         self.executed_tools: List[str] = []
         self.executed_node_tools: List[str] = []
+        self.traces: List[Dict[str, Any]] = []
     # --- END NEW __init__ ---
 
     # --- MODIFIED _ensure_trace_client ---
@@ -354,7 +355,8 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
                 if self._trace_client and not self._trace_saved: # Check if not already saved
                     try:
                         # TODO: Check if trace_client.save needs await if TraceClient becomes async
-                        trace_id, _ = self._trace_client.save(overwrite=self._trace_client.overwrite) # Use client's overwrite setting
+                        trace_id, trace_data = self._trace_client.save(overwrite=self._trace_client.overwrite) # Use client's overwrite setting
+                        self.traces.append(trace_data)
                         self._log(f"Trace {trace_id} successfully saved.")
                         self._trace_saved = True # Set flag only after successful save
                         trace_saved_successfully = True # Mark success
@@ -605,6 +607,9 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
         # More robust root detection: Often the first chain event with parent_run_id=None *is* the root.
         is_potential_root_event = parent_run_id is None
 
+        if 'langsmith:hidden' in tags:
+            pass
+
         if node_name:
             name = node_name # Use node name if available
             self._log(f"  LangGraph Node Start: '{name}', run_id={run_id}")
@@ -631,7 +636,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
 
             # --- Start Span Tracking ---
             combined_inputs = {'inputs': inputs, 'tags': tags, 'metadata': metadata, 'kwargs': kwargs, 'serialized': serialized}
-            self._start_span_tracking(trace_client, run_id, parent_run_id, name, span_type=span_type, inputs=combined_inputs)
+            self._start_span_tracking(trace_client, run_id, parent_run_id, name, span_type=span_type, inputs=inputs)
             # --- Store inputs for potential evaluation later --- 
             self._run_id_to_start_inputs[run_id] = inputs # Store the raw inputs dict
             self._log(f"  Stored inputs for run_id {run_id}")
@@ -650,6 +655,9 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
 
         # --- Define instance_id for logging --- 
         instance_id = handler_instance_id # Use the already obtained id
+
+        if 'langsmith:hidden' in tags:
+            pass
 
         try:
             # Pass parent_run_id
@@ -744,7 +752,8 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
                     try:
                         # Save might need to be async if TraceClient methods become async
                         # Pass overwrite=True based on client's setting
-                        trace_id_saved, _ = trace_client.save(overwrite=trace_client.overwrite)
+                        trace_id_saved, trace_data = trace_client.save(overwrite=trace_client.overwrite)
+                        self.traces.append(trace_data)
                         self._trace_saved = True
                         self._log(f"Trace {trace_id_saved} successfully saved.")
                         # Reset tracer's active client *after* successful save
@@ -888,7 +897,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
                 return
 
             combined_inputs = {'input_str': input_str, 'inputs': inputs, 'tags': tags, 'metadata': metadata, 'kwargs': kwargs, 'serialized': serialized}
-            self._start_span_tracking(trace_client, run_id, parent_run_id, name, span_type="tool", inputs=combined_inputs)
+            self._start_span_tracking(trace_client, run_id, parent_run_id, name, span_type="tool", inputs=inputs)
 
             # --- Track executed tools (remains the same) ---
             if name not in self.executed_tools: self.executed_tools.append(name)
@@ -962,7 +971,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
                 # print(f"{log_prefix} No trace client obtained in on_llm_start for {run_id}.")
                 return
             inputs = {'prompts': prompts, 'invocation_params': invocation_params or kwargs, 'options': options, 'tags': tags, 'metadata': metadata, 'serialized': serialized}
-            self._start_span_tracking(trace_client, run_id, parent_run_id, llm_name, span_type="llm", inputs=inputs)
+            self._start_span_tracking(trace_client, run_id, parent_run_id, llm_name, span_type="llm", inputs=prompts)
         except Exception as e:
             tc_id_on_error = id(self._trace_client) if self._trace_client else 'None'
             self._log(f"{log_prefix} UNCAUGHT EXCEPTION in on_llm_start for run_id={run_id} (TraceClient ID: {tc_id_on_error}): {e}")
@@ -1093,7 +1102,7 @@ class JudgevalCallbackHandler(BaseCallbackHandler):
             trace_client = self._ensure_trace_client(run_id, parent_run_id, chat_model_name) # Corrected call with parent_run_id
             if not trace_client: return
             inputs = {'messages': messages, 'invocation_params': invocation_params or kwargs, 'options': options, 'tags': tags, 'metadata': metadata, 'serialized': serialized}
-            self._start_span_tracking(trace_client, run_id, parent_run_id, chat_model_name, span_type="llm", inputs=inputs) # Use 'llm' span_type for consistency
+            self._start_span_tracking(trace_client, run_id, parent_run_id, chat_model_name, span_type="llm", inputs=messages) # Use 'llm' span_type for consistency
         except Exception as e:
             tc_id_on_error = id(self._trace_client) if self._trace_client else 'None'
             self._log(f"{log_prefix} UNCAUGHT EXCEPTION in on_chat_model_start for run_id={run_id} (TraceClient ID: {tc_id_on_error}): {e}")
@@ -1162,6 +1171,7 @@ class AsyncJudgevalCallbackHandler(AsyncCallbackHandler):
         self.executed_nodes: List[str] = []
         self.executed_tools: List[str] = []
         self.executed_node_tools: List[str] = []
+        self.traces: List[Dict[str, Any]] = []
 
     # NOTE: _ensure_trace_client remains synchronous as it doesn't involve async I/O
     def _ensure_trace_client(self, run_id: UUID, event_name: str) -> Optional[TraceClient]:
@@ -1378,7 +1388,8 @@ class AsyncJudgevalCallbackHandler(AsyncCallbackHandler):
                 if self._trace_client and not self._trace_saved: # Check if not already saved
                     try:
                         # TODO: Check if trace_client.save needs await if TraceClient becomes async
-                        trace_id, _ = self._trace_client.save(overwrite=self._trace_client.overwrite) # Use client's overwrite setting
+                        trace_id, trace_data = self._trace_client.save(overwrite=self._trace_client.overwrite) # Use client's overwrite setting
+                        self.traces.append(trace_data)
                         self._log(f"Trace {trace_id} successfully saved.")
                         self._trace_saved = True # Set flag only after successful save
                         trace_saved_successfully = True # Mark success

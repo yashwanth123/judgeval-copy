@@ -1,6 +1,6 @@
 
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, Callable
 from judgeval.data import Sequence
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
 from judgeval.judges import JudgevalJudge
@@ -29,8 +29,9 @@ class SequenceRun(BaseModel):
     organization_id: Optional[str] = None
     project_name: Optional[str] = None
     eval_name: Optional[str] = None
-    sequences: List[Sequence]
-    model: Union[str, List[str], JudgevalJudge]
+    sequences: Optional[List[Sequence]] = None
+    scorers: List[Union[APIJudgmentScorer, JudgevalScorer]]
+    model: Optional[Union[str, List[str], JudgevalJudge]] = "gpt-4.1"
     aggregator: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
     trace_span_id: Optional[str] = None
