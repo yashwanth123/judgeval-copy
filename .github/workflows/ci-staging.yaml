@@ -1,10 +1,10 @@
-name: CI Tests
+name: Staging CI Tests
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - main
+      - staging
 
 permissions: read-all
 
@@ -44,9 +44,9 @@ jobs:
           cd src
           pipenv run pytest tests
 
-  run-e2e-tests:
+  run-e2e-tests-staging:
     if: "!contains(github.actor, '[bot]')"  # Exclude if the actor is a bot
-    name: E2E Tests
+    name: Staging E2E Tests
     runs-on: ubuntu-latest
     steps:
       - name: Wait for turn
@@ -54,7 +54,7 @@ jobs:
         with:
           poll-interval-seconds: 10
           same-branch-only: false
-          job-to-wait-for: "E2E Tests"
+          job-to-wait-for: "Staging E2E Tests"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -78,16 +78,16 @@ jobs:
 
       - name: Check if server is running
         run: |
-          if ! curl -s https://api.judgmentlabs.ai/health > /dev/null; then
-            echo "Production Judgment server is not running properly. Check logs on AWS CloudWatch for more details."
+          if ! curl -s https://staging.api.judgmentlabs.ai/health > /dev/null; then
+            echo "Staging Judgment server is not running properly. Check logs on AWS CloudWatch for more details."
             exit 1
           else
-            echo "Server is running."
+            echo "Staging server is running."
           fi
         
       - name: Run E2E tests
         working-directory: src
         run: |      
-          SECRET_VARS=$(aws secretsmanager get-secret-value --secret-id gh-actions-judgeval/api-keys/judgeval --query SecretString --output text)
+          SECRET_VARS=$(aws secretsmanager get-secret-value --secret-id gh-actions-stg-judgeval/api-keys/judgeval --query SecretString --output text)
           export $(echo "$SECRET_VARS" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"')
           timeout 600s pipenv run pytest --durations=0 ./e2etests
