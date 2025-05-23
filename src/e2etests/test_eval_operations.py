@@ -128,7 +128,8 @@ class TestEvalOperations:
         with pytest.raises(ValueError, match="Error fetching eval results"):
             client.pull_eval(project_name=PROJECT_NAME, eval_run_name=EVAL_RUN_NAME2)
 
-    def test_assert_test(self, client: JudgmentClient):
+    @pytest.mark.asyncio
+    async def test_assert_test(self, client: JudgmentClient):
         """Test assertion functionality."""
         # Create examples and scorers as before
         example = Example(
@@ -151,7 +152,7 @@ class TestEvalOperations:
         scorer1 = AnswerRelevancyScorer(threshold=0.5)
 
         with pytest.raises(AssertionError):
-            client.assert_test(
+            await client.assert_test(
                 eval_run_name="test_eval",
                 project_name="test_project",
                 examples=[example, example1, example2],
