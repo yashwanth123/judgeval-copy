@@ -394,6 +394,7 @@ def run_trace_eval(trace_run: TraceRun, override: bool = False, ignore_errors: b
     if function and tracer:
         new_traces: List[Trace] = []
         tracer.offline_mode = True
+        tracer.traces = []
         for example in examples:
             if example.input:
                 result = run_with_spinner("Running agent function: ", function, **example.input)
@@ -405,6 +406,7 @@ def run_trace_eval(trace_run: TraceRun, override: bool = False, ignore_errors: b
             trace.entries[0].expected_tools = examples[i].expected_tools
             new_traces.append(trace)
         trace_run.traces = new_traces
+        tracer.traces = []
         
     # Execute evaluation using Judgment API
     info("Starting API evaluation")
