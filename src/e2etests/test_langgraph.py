@@ -108,6 +108,7 @@ def fetch_and_validate_trace(trace_id: str, expected_project: str):
 def test_sync_graph_execution():
     """Tests synchronous graph execution with JudgevalCallbackHandler."""
     print("\n--- Running Sync Test ---")
+    Tracer._instance = None
     tracer_sync = Tracer(api_key=API_KEY, organization_id=ORG_ID, project_name=PROJECT_NAME_SYNC)
     handler_sync = JudgevalCallbackHandler(tracer_sync)
     trace_client_sync: TraceClient = None # Keep this for type hinting
@@ -168,6 +169,7 @@ def test_sync_graph_execution():
 async def test_async_graph_execution():
     """Tests asynchronous graph execution with JudgevalCallbackHandler."""
     print("\n--- Running Async Test ---")
+    Tracer._instance = None
     tracer_async = Tracer(api_key=API_KEY, organization_id=ORG_ID, project_name=PROJECT_NAME_ASYNC)
     handler_async = JudgevalCallbackHandler(tracer_async)
     trace_client_async: TraceClient = None

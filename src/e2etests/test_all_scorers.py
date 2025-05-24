@@ -502,7 +502,7 @@ LIMIT 10;
             most_popular_tracks_all_users_incorrect
         ],
         scorers=[Text2SQLScorer],
-        model="gpt-4.1-mini",
+        model="gpt-4.1",
         project_name="text2sql",
         eval_run_name="text2sql_test",
         override=True
@@ -608,10 +608,6 @@ def test_classifier_scorer(client: JudgmentClient, random_name: str):
     )
     assert res, "Classifier scorer evaluation failed" 
 
-
-        
-
-
 def print_debug_on_failure(result) -> bool:
     """
     Helper function to print debug info only on test failure
@@ -639,18 +635,4 @@ def print_debug_on_failure(result) -> bool:
 
         return False
     return True
-
-
-if __name__ == "__main__":
-    test_ac_scorer()
-    test_ar_scorer()
-    test_comparison_scorer()
-    test_cp_scorer()
-    test_cr_scorer()
-    test_crelevancy_scorer()
-    test_faithfulness_scorer()
-    test_hallucination_scorer()
-    test_instruction_adherence_scorer()
-    test_summarization_scorer()
-    test_execution_order_scorer()
     

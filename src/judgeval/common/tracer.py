@@ -616,23 +616,26 @@ class _DeepTracer:
         return bool(filename) and not filename.startswith("<") and not os.path.realpath(filename).startswith(_TRACE_FILEPATH_BLOCKLIST)
     
     def _trace(self, frame: types.FrameType, event: str, arg: Any):
+        # Store the original trace function
+        original_trace = frame.f_trace
+        
+        # Disable line and opcode tracing for our tracer
         frame.f_trace_lines = False
         frame.f_trace_opcodes = False
 
-
         if not self._should_trace(frame):
-            return
+            return original_trace
         
         if event not in ("call", "return", "exception"):
-            return
+            return original_trace
         
         current_trace = current_trace_var.get()
         if not current_trace:
-            return
+            return original_trace
         
         parent_span_id = current_span_var.get()
         if not parent_span_id:
-            return
+            return original_trace
 
         qual_name = self._get_qual_name(frame)
         instance_name = None
@@ -651,29 +654,29 @@ class _DeepTracer:
                 if qual_name == skip_stack[-1]:
                     skip_stack.append(qual_name)
                     self._skip_stack.set(skip_stack)
-                return
+                return original_trace
             
             should_trace = self._should_trace(frame)
             
             if not should_trace:
                 if not skip_stack:
                     self._skip_stack.set([qual_name])
-                return
+                return original_trace
         elif event == "return":
             # If we have entries in skip stack and current qual_name matches the top entry,
             # pop it to track exiting from the skipped section
             if skip_stack and qual_name == skip_stack[-1]:
                 skip_stack.pop()
                 self._skip_stack.set(skip_stack)
-                return
+                return original_trace
             
             if skip_stack:
-                return
+                return original_trace
             
         span_stack = self._span_stack.get()
         if event == "call":
             if not self._should_trace(frame):
-                return
+                return original_trace
                 
             span_id = str(uuid.uuid4())
             
@@ -723,7 +726,7 @@ class _DeepTracer:
                 
         elif event == "return":
             if not span_stack:
-                return
+                return original_trace
                 
             current_id = current_span_var.get()
             
@@ -735,7 +738,7 @@ class _DeepTracer:
                     break
             
             if not span_data:
-                return
+                return original_trace
                 
             start_time = span_data["start_time"]
             duration = time.time() - start_time
@@ -769,7 +772,7 @@ class _DeepTracer:
                 "error": formatted_exception
             })
         
-        return self._trace
+        return original_trace
     
     def __enter__(self):
         with self._lock:
@@ -777,6 +780,10 @@ class _DeepTracer:
             if self._refcount == 1:
                 self._skip_stack.set([])
                 self._span_stack.set([])
+                # Store the original trace functions
+                self._original_sys_trace = sys.gettrace()
+                self._original_threading_trace = threading.gettrace()
+                # Set our trace function, chaining with the original
                 sys.settrace(self._trace)
                 threading.settrace(self._trace)
         return self
@@ -785,8 +792,9 @@ class _DeepTracer:
         with self._lock:
             self._refcount -= 1
             if self._refcount == 0:
-                sys.settrace(None)
-                threading.settrace(None)
+                # Restore the original trace functions
+                sys.settrace(self._original_sys_trace)
+                threading.settrace(self._original_threading_trace)
 
 
 def log(self, message: str, level: str = "info"):
@@ -835,10 +843,6 @@ class Tracer:
                 raise ValueError("Tracer must be configured with an Organization ID")
             if use_s3 and not s3_bucket_name:
                 raise ValueError("S3 bucket name must be provided when use_s3 is True")
-            if use_s3 and not (s3_aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")):
-                raise ValueError("AWS Access Key ID must be provided when use_s3 is True")
-            if use_s3 and not (s3_aws_secret_access_key or os.getenv("AWS_SECRET_ACCESS_KEY")):
-                raise ValueError("AWS Secret Access Key must be provided when use_s3 is True")
             
             self.api_key: str = api_key
             self.project_name: str = project_name

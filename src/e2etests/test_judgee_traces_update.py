@@ -49,6 +49,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize the tracer and clients
+Tracer._instance = None
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
 openai_client = wrap(OpenAI())
 anthropic_client = wrap(Anthropic())
@@ -387,6 +388,7 @@ async def test_real_trace_tracking(client):
     try:
         # Initialize tracer
         print("Initializing Tracer...")
+        Tracer._instance = None
         tracer = Tracer(
             api_key=os.getenv("JUDGMENT_API_KEY"),
             project_name="test_project",
