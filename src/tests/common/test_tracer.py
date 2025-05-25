@@ -102,6 +102,12 @@ def test_trace_span_to_dict():
     assert data["evaluation_runs"] == []
     assert data["span_id"] == "test-span-1"
     assert data["parent_span_id"] == "test-parent-span-id"
+    assert data["has_evaluation"] == False  # Verify default value
+    
+    # Test with has_evaluation set to True
+    span.has_evaluation = True
+    data = span.model_dump()
+    assert data["has_evaluation"] == True  # Verify updated value
 
 def test_trace_client_span(trace_client):
     """Test span context manager"""
@@ -207,3 +213,40 @@ def test_observe_decorator_with_error(tracer):
     with tracer.trace("test_trace"):
         with pytest.raises(ValueError):
             failing_function()
+
+def test_async_evaluate_sets_has_evaluation_flag(trace_client):
+    """Test that async_evaluate sets has_evaluation flag on the span"""
+    from judgeval.scorers import AnswerCorrectnessScorer
+    from judgeval.data import Example
+    
+    # Create a span and get its span_id
+    with trace_client.span("test_evaluation_span") as span:
+        current_span_id = current_span_var.get()
+        
+        # Get the actual span object
+        test_span = trace_client.span_id_to_span[current_span_id]
+        
+        # Verify has_evaluation is initially False
+        assert test_span.has_evaluation == False
+        
+        # Create a mock example and scorer
+        example = Example(
+            input="What is the capital of France?",
+            actual_output="The capital of France is Paris.",
+            expected_output="Paris"
+        )
+        scorers = [AnswerCorrectnessScorer(threshold=0.9)]
+        
+        # Call async_evaluate
+        trace_client.async_evaluate(
+            scorers=scorers,
+            example=example,
+            model="gpt-4o-mini",
+            span_id=current_span_id
+        )
+        
+        # Verify has_evaluation is now True
+        assert test_span.has_evaluation == True
+        
+        # Verify the span has evaluation runs
+        assert len(test_span.evaluation_runs) > 0
