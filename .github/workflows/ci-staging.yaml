@@ -93,4 +93,11 @@ jobs:
         run: |      
           SECRET_VARS=$(aws secretsmanager get-secret-value --secret-id gh-actions-stg-judgeval/api-keys/judgeval --query SecretString --output text)
           export $(echo "$SECRET_VARS" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"')
-          timeout ${TEST_TIMEOUT_SECONDS}s pipenv run pytest --durations=0 ./e2etests
+          timeout ${TEST_TIMEOUT_SECONDS}s pipenv run pytest --durations=0 --cov=. --cov-config=.coveragerc --cov-report=html ./e2etests
+
+      - name: Upload coverage HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: src/htmlcov
