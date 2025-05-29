@@ -569,6 +569,8 @@ class _DeepTracer:
     _refcount: int = 0
     _span_stack: contextvars.ContextVar[List[Dict[str, Any]]] = contextvars.ContextVar("_deep_profiler_span_stack", default=[])
     _skip_stack: contextvars.ContextVar[List[str]] = contextvars.ContextVar("_deep_profiler_skip_stack", default=[])
+    _original_sys_trace: Optional[Callable] = None
+    _original_threading_trace: Optional[Callable] = None
 
     def _get_qual_name(self, frame) -> str:
         func_name = frame.f_code.co_name
@@ -616,28 +618,66 @@ class _DeepTracer:
     @functools.cache
     def _is_user_code(self, filename: str):
         return bool(filename) and not filename.startswith("<") and not os.path.realpath(filename).startswith(_TRACE_FILEPATH_BLOCKLIST)
-    
-    def _trace(self, frame: types.FrameType, event: str, arg: Any):
-        # Store the original trace function
-        original_trace = frame.f_trace
+
+    def _cooperative_sys_trace(self, frame: types.FrameType, event: str, arg: Any):
+        """Cooperative trace function for sys.settrace that chains with existing tracers."""
+        # First, call the original sys trace function if it exists
+        original_result = None
+        if self._original_sys_trace:
+            try:
+                original_result = self._original_sys_trace(frame, event, arg)
+            except Exception:
+                # If the original tracer fails, continue with our tracing
+                pass
         
-        # Disable line and opcode tracing for our tracer
+        # Then do our own tracing
+        our_result = self._trace(frame, event, arg, self._cooperative_sys_trace)
+        
+        # Return our tracer to continue tracing, but respect the original's decision
+        # If the original tracer returned None (stop tracing), we should respect that
+        if original_result is None and self._original_sys_trace:
+            return None
+        
+        return our_result or original_result
+    
+    def _cooperative_threading_trace(self, frame: types.FrameType, event: str, arg: Any):
+        """Cooperative trace function for threading.settrace that chains with existing tracers."""
+        # First, call the original threading trace function if it exists
+        original_result = None
+        if self._original_threading_trace:
+            try:
+                original_result = self._original_threading_trace(frame, event, arg)
+            except Exception:
+                # If the original tracer fails, continue with our tracing
+                pass
+        
+        # Then do our own tracing
+        our_result = self._trace(frame, event, arg, self._cooperative_threading_trace)
+        
+        # Return our tracer to continue tracing, but respect the original's decision
+        # If the original tracer returned None (stop tracing), we should respect that
+        if original_result is None and self._original_threading_trace:
+            return None
+        
+        return our_result or original_result
+    
+    def _trace(self, frame: types.FrameType, event: str, arg: Any, continuation_func: Callable):
         frame.f_trace_lines = False
         frame.f_trace_opcodes = False
 
         if not self._should_trace(frame):
-            return original_trace
+            return
         
         if event not in ("call", "return", "exception"):
-            return original_trace
+            return
         
         current_trace = current_trace_var.get()
         if not current_trace:
-            return original_trace
+            return
         
         parent_span_id = current_span_var.get()
         if not parent_span_id:
-            return original_trace
+            return
 
         qual_name = self._get_qual_name(frame)
         instance_name = None
@@ -656,29 +696,29 @@ class _DeepTracer:
                 if qual_name == skip_stack[-1]:
                     skip_stack.append(qual_name)
                     self._skip_stack.set(skip_stack)
-                return original_trace
+                return
             
             should_trace = self._should_trace(frame)
             
             if not should_trace:
                 if not skip_stack:
                     self._skip_stack.set([qual_name])
-                return original_trace
+                return
         elif event == "return":
             # If we have entries in skip stack and current qual_name matches the top entry,
             # pop it to track exiting from the skipped section
             if skip_stack and qual_name == skip_stack[-1]:
                 skip_stack.pop()
                 self._skip_stack.set(skip_stack)
-                return original_trace
+                return
             
             if skip_stack:
-                return original_trace
+                return
             
         span_stack = self._span_stack.get()
         if event == "call":
             if not self._should_trace(frame):
-                return original_trace
+                return
                 
             span_id = str(uuid.uuid4())
             
@@ -728,7 +768,7 @@ class _DeepTracer:
                 
         elif event == "return":
             if not span_stack:
-                return original_trace
+                return
                 
             current_id = current_span_var.get()
             
@@ -740,7 +780,7 @@ class _DeepTracer:
                     break
             
             if not span_data:
-                return original_trace
+                return
                 
             start_time = span_data["start_time"]
             duration = time.time() - start_time
@@ -774,29 +814,34 @@ class _DeepTracer:
                 "error": formatted_exception
             })
         
-        return original_trace
+        return continuation_func
     
     def __enter__(self):
         with self._lock:
             self._refcount += 1
             if self._refcount == 1:
-                self._skip_stack.set([])
-                self._span_stack.set([])
-                # Store the original trace functions
+                # Store the existing trace functions before setting ours
                 self._original_sys_trace = sys.gettrace()
                 self._original_threading_trace = threading.gettrace()
-                # Set our trace function, chaining with the original
-                sys.settrace(self._trace)
-                threading.settrace(self._trace)
+                
+                self._skip_stack.set([])
+                self._span_stack.set([])
+                
+                sys.settrace(self._cooperative_sys_trace)
+                threading.settrace(self._cooperative_threading_trace)
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         with self._lock:
             self._refcount -= 1
             if self._refcount == 0:
-                # Restore the original trace functions
+                # Restore the original trace functions instead of setting to None
                 sys.settrace(self._original_sys_trace)
                 threading.settrace(self._original_threading_trace)
+                
+                # Clean up the references
+                self._original_sys_trace = None
+                self._original_threading_trace = None
 
 
 def log(self, message: str, level: str = "info"):
