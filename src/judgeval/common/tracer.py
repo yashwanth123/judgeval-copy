@@ -477,6 +477,12 @@ class TraceClient:
         if current_span_id:
             span = self.span_id_to_span[current_span_id]
             span.inputs = inputs
+    
+    def record_agent_name(self, agent_name: str):
+        current_span_id = current_span_var.get()
+        if current_span_id:
+            span = self.span_id_to_span[current_span_id]
+            span.agent_name = agent_name
 
     async def _update_coroutine(self, span: TraceSpan, coroutine: Any, field: str):
         """Helper method to update the output of a trace entry once the coroutine completes"""
@@ -685,7 +691,7 @@ class _DeepTracer:
             instance = frame.f_locals['self']
             class_name = instance.__class__.__name__
             class_identifiers = getattr(Tracer._instance, 'class_identifiers', {})
-            qual_name = get_instance_prefixed_name(instance, class_name, class_identifiers, qual_name)
+            instance_name = get_instance_prefixed_name(instance, class_name, class_identifiers)
         skip_stack = self._skip_stack.get()
         
         if event == "call":
@@ -748,7 +754,8 @@ class _DeepTracer:
                 created_at=start_time,
                 span_type="span",
                 parent_span_id=parent_span_id,
-                function=qual_name
+                function=qual_name,
+                agent_name=instance_name
             )
             current_trace.add_span(span)
             
@@ -1089,10 +1096,11 @@ class Tracer:
                 class_name = None
                 instance_name = None
                 span_name = original_span_name
+                agent_name = None
 
                 if args and hasattr(args[0], '__class__'):
                     class_name = args[0].__class__.__name__
-                    span_name = get_instance_prefixed_name(args[0], class_name, self.class_identifiers, span_name)
+                    agent_name = get_instance_prefixed_name(args[0], class_name, self.class_identifiers)
 
                 # Get current trace from context
                 current_trace = current_trace_var.get()
@@ -1125,6 +1133,8 @@ class Tracer:
                             # Record inputs
                             inputs = combine_args_kwargs(func, args, kwargs)
                             span.record_input(inputs)
+                            if agent_name:
+                                span.record_agent_name(agent_name)
                             
                             if use_deep_tracing:
                                 with _DeepTracer():
@@ -1146,7 +1156,9 @@ class Tracer:
                     with current_trace.span(span_name, span_type=span_type) as span:
                         inputs = combine_args_kwargs(func, args, kwargs)
                         span.record_input(inputs)
-                        
+                        if agent_name:
+                            span.record_agent_name(agent_name)
+
                         if use_deep_tracing:
                             with _DeepTracer():
                                 result = await func(*args, **kwargs)
@@ -1165,9 +1177,10 @@ class Tracer:
                 class_name = None
                 instance_name = None
                 span_name = original_span_name
+                agent_name = None
                 if args and hasattr(args[0], '__class__'):
                     class_name = args[0].__class__.__name__
-                    span_name = get_instance_prefixed_name(args[0], class_name, self.class_identifiers, span_name)               
+                    agent_name = get_instance_prefixed_name(args[0], class_name, self.class_identifiers)               
                 # Get current trace from context
                 current_trace = current_trace_var.get()
 
@@ -1199,7 +1212,8 @@ class Tracer:
                             # Record inputs
                             inputs = combine_args_kwargs(func, args, kwargs)
                             span.record_input(inputs)
-                            
+                            if agent_name:
+                                span.record_agent_name(agent_name)
                             if use_deep_tracing:
                                 with _DeepTracer():
                                     result = func(*args, **kwargs)
@@ -1221,7 +1235,9 @@ class Tracer:
                         
                         inputs = combine_args_kwargs(func, args, kwargs)
                         span.record_input(inputs)
-                        
+                        if agent_name:
+                            span.record_agent_name(agent_name)
+
                         if use_deep_tracing:
                             with _DeepTracer():
                                 result = func(*args, **kwargs)
@@ -1916,16 +1932,16 @@ class _TracedSyncStreamManagerWrapper(_BaseStreamManagerWrapper, AbstractContext
         return self._original_manager.__exit__(exc_type, exc_val, exc_tb)
 
 # --- Helper function for instance-prefixed qual_name ---
-def get_instance_prefixed_name(instance, class_name, class_identifiers, name):
+def get_instance_prefixed_name(instance, class_name, class_identifiers):
     """
-    Returns the name prefixed with the instance name if the class and attribute are found in class_identifiers.
-    Otherwise, returns the original name.
+    Returns the agent name (prefix) if the class and attribute are found in class_identifiers.
+    Otherwise, returns None.
     """
     if class_name in class_identifiers:
         attr = class_identifiers[class_name]
         if hasattr(instance, attr):
             instance_name = getattr(instance, attr)
-            return f"{instance_name}.{name}"
+            return instance_name
         else:
             raise Exception(f"Attribute {class_identifiers[class_name]} does not exist for {class_name}. Check your identify() decorator.")
-    return name
+    return None

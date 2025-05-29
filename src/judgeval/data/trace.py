@@ -17,7 +17,7 @@ class TraceUsage(BaseModel):
 class TraceSpan(BaseModel):
     span_id: str
     trace_id: str
-    function: Optional[str] = None
+    function: str
     depth: int
     created_at: Optional[Any] = None
     parent_span_id: Optional[str] = None
@@ -31,6 +31,7 @@ class TraceSpan(BaseModel):
     expected_tools: Optional[List[Tool]] = None
     additional_metadata: Optional[Dict[str, Any]] = None
     has_evaluation: Optional[bool] = False
+    agent_name: Optional[str] = None
 
     def model_dump(self, **kwargs):
         return {
@@ -47,7 +48,8 @@ class TraceSpan(BaseModel):
             "duration": self.duration,
             "span_type": self.span_type,
             "usage": self.usage.model_dump() if self.usage else None,
-            "has_evaluation": self.has_evaluation
+            "has_evaluation": self.has_evaluation,
+            "agent_name": self.agent_name
         }
     
     def print_span(self):
