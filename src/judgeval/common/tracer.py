@@ -307,7 +307,7 @@ class TraceClient:
         tracer: Optional["Tracer"],
         trace_id: Optional[str] = None,
         name: str = "default",
-        project_name: str = "default_project",
+        project_name: str = None,
         overwrite: bool = False,
         rules: Optional[List[Rule]] = None,
         enable_monitoring: bool = True,
@@ -317,7 +317,7 @@ class TraceClient:
     ):
         self.name = name
         self.trace_id = trace_id or str(uuid.uuid4())
-        self.project_name = project_name
+        self.project_name = project_name or str(uuid.uuid4())
         self.overwrite = overwrite
         self.tracer = tracer
         self.rules = rules or []
@@ -907,7 +907,7 @@ class Tracer:
     def __init__(
         self, 
         api_key: str = os.getenv("JUDGMENT_API_KEY"), 
-        project_name: str = "default_project",
+        project_name: str = None,
         rules: Optional[List[Rule]] = None,  # Added rules parameter
         organization_id: str = os.getenv("JUDGMENT_ORG_ID"),
         enable_monitoring: bool = os.getenv("JUDGMENT_MONITORING", "true").lower() == "true",
@@ -935,7 +935,7 @@ class Tracer:
                 raise ValueError("S3 bucket name must be provided when use_s3 is True")
             
             self.api_key: str = api_key
-            self.project_name: str = project_name
+            self.project_name: str = project_name or str(uuid.uuid4())
             self.organization_id: str = organization_id
             self._current_trace: Optional[str] = None
             self._active_trace_client: Optional[TraceClient] = None # Add active trace client attribute
