@@ -49,6 +49,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize the tracer and clients
+Tracer._instance = None
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"))
 openai_client = wrap(OpenAI())
 anthropic_client = wrap(Anthropic())
@@ -184,7 +185,7 @@ async def test_trace_save_increment(client, cleanup_traces):
                 {
                     "timestamp": datetime.fromtimestamp(timestamp).isoformat(),
                     "type": "span",
-                    "name": "test_span",
+                    "function": "test_span",
                     "inputs": {"test": "input"},
                     "outputs": {"test": "output"},
                     "duration": 0.1,
@@ -275,7 +276,7 @@ async def test_concurrent_trace_saves(client, cleanup_traces):
                         {
                             "timestamp": datetime.fromtimestamp(timestamp).isoformat(),
                             "type": "span",
-                            "name": f"test_span_{index}",
+                            "function": f"test_span_{index}",
                             "inputs": {"test": f"input_{index}"},
                             "outputs": {"test": f"output_{index}"},
                             "duration": 0.1,
@@ -387,6 +388,7 @@ async def test_real_trace_tracking(client):
     try:
         # Initialize tracer
         print("Initializing Tracer...")
+        Tracer._instance = None
         tracer = Tracer(
             api_key=os.getenv("JUDGMENT_API_KEY"),
             project_name="test_project",
@@ -465,7 +467,7 @@ async def test_burst_request_handling(client):
             {
                 "timestamp": datetime.fromtimestamp(timestamp).isoformat(),
                 "type": "span",
-                "name": "test_span",
+                "function": "test_span",
                 "inputs": {"test": "input"},
                 "outputs": {"test": "output"},
                 "duration": 0.1,

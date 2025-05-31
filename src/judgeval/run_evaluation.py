@@ -390,13 +390,18 @@ def run_trace_eval(trace_run: TraceRun, override: bool = False, ignore_errors: b
             trace_run.organization_id,
             True
         )
-
     if function and tracer:
         new_traces: List[Trace] = []
         tracer.offline_mode = True
+        tracer.traces = []
         for example in examples:
             if example.input:
-                result = run_with_spinner("Running agent function: ", function, **example.input)
+                if isinstance(example.input, str):
+                    result = run_with_spinner("Running agent function: ", function, example.input)
+                elif isinstance(example.input, dict):
+                    result = run_with_spinner("Running agent function: ", function, **example.input)
+                else:
+                    raise ValueError(f"Input must be string or dict, got {type(example.input)}")
             else:
                 result = run_with_spinner("Running agent function: ", function)
         for i, trace in enumerate(tracer.traces):
@@ -405,6 +410,7 @@ def run_trace_eval(trace_run: TraceRun, override: bool = False, ignore_errors: b
             trace.entries[0].expected_tools = examples[i].expected_tools
             new_traces.append(trace)
         trace_run.traces = new_traces
+        tracer.traces = []
         
     # Execute evaluation using Judgment API
     info("Starting API evaluation")
@@ -423,7 +429,7 @@ def run_trace_eval(trace_run: TraceRun, override: bool = False, ignore_errors: b
     debug("Processing API results")
     # TODO: allow for custom scorer on traces
     if trace_run.log_results:
-        pretty_str = run_with_spinner("Logging Results: ", log_evaluation_results, response_data["results"], trace_run)
+        pretty_str = run_with_spinner("Logging Results: ", log_evaluation_results, response_data["agent_results"], trace_run)
         rprint(pretty_str)
 
     return scoring_results
@@ -504,7 +510,8 @@ async def _poll_evaluation_until_complete(eval_name: str, project_name: str, jud
                 info(f"Polling for evaluation '{eval_name}' in project '{project_name}' (attempt {poll_count})")
             
             # Check status
-            response = requests.get(
+            response = await asyncio.to_thread(
+                requests.get,
                 JUDGMENT_GET_EVAL_STATUS_API_URL,
                 headers={
                     "Content-Type": "application/json",
@@ -531,7 +538,8 @@ async def _poll_evaluation_until_complete(eval_name: str, project_name: str, jud
             # If complete, get results and return
             if status == "completed" or status == "complete":
                 info(f"Evaluation '{eval_name}' reported as completed, fetching and verifying results...")
-                results_response = requests.post(
+                results_response = await asyncio.to_thread(
+                    requests.post,
                     JUDGMENT_EVAL_FETCH_API_URL,
                     headers={
                         "Content-Type": "application/json",
@@ -723,7 +731,18 @@ class SpinnerWrappedTask:
         
     def __await__(self):
         async def _spin_and_await():
-            return await await_with_spinner(self.task, self.message)
+            # self.task resolves to (scoring_results, pretty_str_to_print)
+            task_result_tuple = await await_with_spinner(self.task, self.message)
+            
+            # Unpack the tuple
+            scoring_results, pretty_str_to_print = task_result_tuple
+            
+            # Print the pretty string if it exists, after spinner is cleared
+            if pretty_str_to_print:
+                rprint(pretty_str_to_print)
+            
+            # Return only the scoring_results to the original awaiter
+            return scoring_results
         return _spin_and_await().__await__()
         
     # Proxy all Task attributes and methods to the underlying task
@@ -769,8 +788,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False, ignore_error
     debug("Initializing examples with IDs and timestamps")
     for idx, example in enumerate(evaluation_run.examples):
         example.example_index = idx  # Set numeric index
-        example.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        with example_logging_context(example.timestamp, example.example_id):
+        with example_logging_context(example.created_at, example.example_id):
             debug(f"Initialized example {example.example_id} (index: {example.example_index})")
             debug(f"Input: {example.input}")
             debug(f"Actual output: {example.actual_output}")
@@ -824,7 +842,8 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False, ignore_error
             payload = evaluation_run.model_dump(warnings=False)
             
             # Send the evaluation to the queue
-            response = requests.post(
+            response = await asyncio.to_thread(
+                requests.post,
                 JUDGMENT_ADD_TO_RUN_EVAL_QUEUE_API_URL,
                 headers={
                     "Content-Type": "application/json",
@@ -843,13 +862,28 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False, ignore_error
             info(f"Successfully added evaluation '{evaluation_run.eval_name}' to queue")
             
             # Poll until the evaluation is complete
-            return await _poll_evaluation_until_complete(
+            results = await _poll_evaluation_until_complete(
                 eval_name=evaluation_run.eval_name,
                 project_name=evaluation_run.project_name,
                 judgment_api_key=evaluation_run.judgment_api_key,
                 organization_id=evaluation_run.organization_id,
                 original_examples=evaluation_run.examples  # Pass the original examples
             )
+
+            pretty_str_to_print = None
+            if evaluation_run.log_results and results: # Ensure results exist before logging
+                send_results = [scoring_result.model_dump(warnings=False) for scoring_result in results]
+                try:
+                    # Run the blocking log_evaluation_results in a separate thread
+                    pretty_str_to_print = await asyncio.to_thread(
+                        log_evaluation_results,
+                        send_results,
+                        evaluation_run
+                    )
+                except Exception as e:
+                    error(f"Error logging results after async evaluation: {str(e)}")
+            
+            return results, pretty_str_to_print
         
         # Create a regular task
         task = asyncio.create_task(_async_evaluation_workflow())
@@ -895,7 +929,7 @@ def run_eval(evaluation_run: EvaluationRun, override: bool = False, ignore_error
             # We should be removing local scorers soon
             info("Starting local evaluation")
             for example in evaluation_run.examples:
-                with example_logging_context(example.timestamp, example.example_id):
+                with example_logging_context(example.created_at, example.example_id):
                     debug(f"Processing example {example.example_id}: {example.input}")
             
             results: List[ScoringResult] = asyncio.run(

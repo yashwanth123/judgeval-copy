@@ -54,6 +54,7 @@ rules = [
 ]
 
 # Initialize tracer with rules
+Tracer._instance = None
 judgment = Tracer(api_key=os.getenv("JUDGMENT_API_KEY"), project_name="rules_test", rules=rules)
 client = wrap(OpenAI())
 

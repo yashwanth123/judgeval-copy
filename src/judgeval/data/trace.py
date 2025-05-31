@@ -5,10 +5,19 @@ from judgeval.data.tool import Tool
 import json
 from datetime import datetime, timezone
 
+class TraceUsage(BaseModel):
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+    prompt_tokens_cost_usd: Optional[float] = None
+    completion_tokens_cost_usd: Optional[float] = None
+    total_cost_usd: Optional[float] = None
+    model_name: Optional[str] = None
+
 class TraceSpan(BaseModel):
     span_id: str
     trace_id: str
-    function: Optional[str] = None
+    function: str
     depth: int
     created_at: Optional[Any] = None
     parent_span_id: Optional[str] = None
@@ -16,11 +25,14 @@ class TraceSpan(BaseModel):
     inputs: Optional[Dict[str, Any]] = None
     error: Optional[Dict[str, Any]] = None
     output: Optional[Any] = None
+    usage: Optional[TraceUsage] = None
     duration: Optional[float] = None
     annotation: Optional[List[Dict[str, Any]]] = None
     evaluation_runs: Optional[List[EvaluationRun]] = []
     expected_tools: Optional[List[Tool]] = None
     additional_metadata: Optional[Dict[str, Any]] = None
+    has_evaluation: Optional[bool] = False
+    agent_name: Optional[str] = None
 
     def model_dump(self, **kwargs):
         return {
@@ -35,7 +47,10 @@ class TraceSpan(BaseModel):
             "parent_span_id": self.parent_span_id,
             "function": self.function,
             "duration": self.duration,
-            "span_type": self.span_type
+            "span_type": self.span_type,
+            "usage": self.usage.model_dump() if self.usage else None,
+            "has_evaluation": self.has_evaluation,
+            "agent_name": self.agent_name
         }
     
     def print_span(self):
@@ -65,10 +80,6 @@ class TraceSpan(BaseModel):
             return repr(output)
         except (TypeError, OverflowError, ValueError):
             pass
-
-        warnings.warn(
-            f"Output for function {function_name} is not JSON serializable and could not be converted to string. Setting to None."
-        )
         return None
         
     def _serialize_value(self, value: Any) -> Any:

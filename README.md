@@ -1,15 +1,20 @@
 <div align="center">
 
-<img src="assets/logo-light.svg#gh-light-mode-only" alt="Judgment Logo" width="400" />
-<img src="assets/logo-dark.svg#gh-dark-mode-only" alt="Judgment Logo" width="400" />
+<img src="assets/new_lightmode.svg#gh-light-mode-only" alt="Judgment Logo" width="400" />
+<img src="assets/new_darkmode.svg#gh-dark-mode-only" alt="Judgment Logo" width="400" />
 
 **Build monitoring & evaluation pipelines for complex agents**
 
-<img src="assets/experiments_page.png" alt="Judgment Platform Experiments Page" width="800" />
+<img src="assets/experiments_pagev2.png" alt="Judgment Platform Experiments Page" width="800" />
 
 <br>
 
-## [🌐 Landing Page](https://www.judgmentlabs.ai/) • [Twitter/X](https://x.com/JudgmentLabs) • [💼 LinkedIn](https://www.linkedin.com/company/judgmentlabs) • [📚 Docs](https://docs.judgmentlabs.ai/introduction) • [🚀 Demos](https://www.youtube.com/@AlexShan-j3o) • [🎮 Discord](https://discord.gg/taAufyhf)
+## [🌐 Landing Page](https://www.judgmentlabs.ai/)  • [📚 Docs](https://judgment.mintlify.app/getting_started) • [🚀 Demos](https://www.youtube.com/@AlexShan-j3o) 
+
+[![X](https://img.shields.io/badge/-X/Twitter-000?logo=x&logoColor=white)](https://x.com/JudgmentLabs)
+[![LinkedIn](https://custom-icon-badges.demolab.com/badge/LinkedIn%20-0A66C2?logo=linkedin-white&logoColor=fff)](https://www.linkedin.com/company/judgmentlabs)
+[![Discord](https://img.shields.io/badge/-Discord-5865F2?logo=discord&logoColor=white)](https://discord.gg/FMxHkYTtFE)
+
 </div>
 
 ## Judgeval: open-source testing, monitoring, and optimization for AI agents

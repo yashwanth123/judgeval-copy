@@ -1,6 +1,6 @@
 [project]
 name = "judgeval"
-version = "0.0.32"
+version = "<version_placeholder>"
 authors = [
     { name="Andrew Li", email="andrew@judgmentlabs.ai" },
     { name="Alex Shan", email="alex@judgmentlabs.ai" },
@@ -16,7 +16,7 @@ classifiers = [
 license = "Apache-2.0"
 license-files = ["LICENSE.md"]
 dependencies = [
-    "litellm==1.38.12",
+    "litellm==1.61.15",
     "python-dotenv==1.0.1",
     "requests",
     "pandas",

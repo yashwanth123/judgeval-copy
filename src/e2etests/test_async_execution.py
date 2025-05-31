@@ -52,7 +52,7 @@ def tools_examples() -> List[Example]:
             ],
             expected_tools=[
                 {
-                    "name": "get_weather",
+                    "tool_name": "get_weather",
                     "parameters": {"location": "San Francisco"}
                 }
             ]
@@ -66,7 +66,7 @@ def tools_examples() -> List[Example]:
             ],
             expected_tools=[
                 {
-                    "name": "search_news",
+                    "tool_name": "search_news",
                     "parameters": {"query": "AI"}
                 }
             ]

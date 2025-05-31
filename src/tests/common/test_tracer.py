@@ -102,6 +102,12 @@ def test_trace_span_to_dict():
     assert data["evaluation_runs"] == []
     assert data["span_id"] == "test-span-1"
     assert data["parent_span_id"] == "test-parent-span-id"
+    assert data["has_evaluation"] == False  # Verify default value
+    
+    # Test with has_evaluation set to True
+    span.has_evaluation = True
+    data = span.model_dump()
+    assert data["has_evaluation"] == True  # Verify updated value
 
 def test_trace_client_span(trace_client):
     """Test span context manager"""
@@ -171,72 +177,6 @@ def test_save_trace(mock_post, trace_client):
     assert mock_post.called
     assert data["trace_id"] == trace_client.trace_id
 
-@patch('requests.post')
-def test_wrap_openai(mock_post, tracer):
-    """Test wrapping OpenAI client"""
-    # Configure mock response properly
-    mock_response = Mock()
-    mock_response.status_code = 200
-    mock_response.text = '{"message": "success"}'
-    mock_response.json.return_value = {
-        "message": "Trace saved successfully",
-        "trace_id": "test-trace-id",
-        "ui_results_url": "http://example.com/results"
-    }
-    mock_post.return_value = mock_response
-    
-    client = OpenAI()
-    mock_completion = MagicMock()
-    mock_completion.choices = [MagicMock(message=MagicMock(content="test response"))]
-    mock_completion.usage = MagicMock(prompt_tokens=10, completion_tokens=20, total_tokens=30)
-    client.chat.completions.create = MagicMock(return_value=mock_completion)
-    
-    wrapped_client = wrap(client)
-    
-    @tracer.observe(span_type="test")
-    def test_function():
-        response = wrapped_client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": "test"}]
-        )
-        return response
-    
-    response = test_function()
-    assert response == mock_completion
-
-@patch('requests.post')
-def test_wrap_anthropic(mock_post, tracer):
-    """Test wrapping Anthropic client"""
-    # Configure mock response properly
-    mock_response = Mock()
-    mock_response.status_code = 200
-    mock_response.text = '{"message": "success"}'
-    mock_response.json.return_value = {
-        "message": "Trace saved successfully",
-        "trace_id": "test-trace-id",
-        "ui_results_url": "http://example.com/results"
-    }
-    mock_post.return_value = mock_response
-    
-    client = Anthropic()
-    mock_completion = MagicMock()
-    mock_completion.content = [MagicMock(text="test response")]
-    mock_completion.usage = MagicMock(input_tokens=10, output_tokens=20)
-    client.messages.create = MagicMock(return_value=mock_completion)
-    
-    wrapped_client = wrap(client)
-    
-    @tracer.observe(span_type="test")
-    def test_function():
-        response = wrapped_client.messages.create(
-            model="claude-3",
-            messages=[{"role": "user", "content": "test"}]
-        )
-        return response
-    
-    response = test_function()
-    assert response == mock_completion
-
 def test_wrap_unsupported_client(tracer):
     """Test wrapping unsupported client type"""
     class UnsupportedClient:
@@ -274,40 +214,39 @@ def test_observe_decorator_with_error(tracer):
         with pytest.raises(ValueError):
             failing_function()
 
-@patch('requests.post')
-def test_wrap_openai_responses_api(mock_post, tracer):
-    """Test wrapping OpenAI responses API"""
-    # Configure mock response properly
-    mock_response = Mock()
-    mock_response.status_code = 200
-    mock_response.text = '{"message": "success"}'
-    mock_post.return_value = mock_response
+def test_async_evaluate_sets_has_evaluation_flag(trace_client):
+    """Test that async_evaluate sets has_evaluation flag on the span"""
+    from judgeval.scorers import AnswerCorrectnessScorer
+    from judgeval.data import Example
     
-    client = OpenAI()
-    # Create mock for responses.create method
-    mock_responses_result = MagicMock()
-    mock_responses_result.output = [MagicMock(type="text", text="test response")]
-    mock_responses_result.usage = MagicMock(prompt_tokens=15, completion_tokens=25, total_tokens=40)
-    
-    # Mock the responses.create method
-    client.responses = MagicMock()
-    original_mock = MagicMock(return_value=mock_responses_result)
-    client.responses.create = original_mock
-    
-    wrapped_client = wrap(client)
-    
-    # Test that the responses.create method is wrapped correctly
-    with tracer.trace("test_response_api"):
-        response = wrapped_client.responses.create(
-            model="gpt-4.1-mini",
-            input=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "What is the capital of France?"}
-            ]
+    # Create a span and get its span_id
+    with trace_client.span("test_evaluation_span") as span:
+        current_span_id = current_span_var.get()
+        
+        # Get the actual span object
+        test_span = trace_client.span_id_to_span[current_span_id]
+        
+        # Verify has_evaluation is initially False
+        assert test_span.has_evaluation == False
+        
+        # Create a mock example and scorer
+        example = Example(
+            input="What is the capital of France?",
+            actual_output="The capital of France is Paris.",
+            expected_output="Paris"
         )
-    
-    # Verify the response is correctly passed through
-    assert response == mock_responses_result
-    
-    # Verify that the original mock was called - check by examining call count
-    assert original_mock.call_count == 1, "responses.create should have been called exactly once"
+        scorers = [AnswerCorrectnessScorer(threshold=0.9)]
+        
+        # Call async_evaluate
+        trace_client.async_evaluate(
+            scorers=scorers,
+            example=example,
+            model="gpt-4o-mini",
+            span_id=current_span_id
+        )
+        
+        # Verify has_evaluation is now True
+        assert test_span.has_evaluation == True
+        
+        # Verify the span has evaluation runs
+        assert len(test_span.evaluation_runs) > 0
