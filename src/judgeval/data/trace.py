@@ -33,6 +33,8 @@ class TraceSpan(BaseModel):
     additional_metadata: Optional[Dict[str, Any]] = None
     has_evaluation: Optional[bool] = False
     agent_name: Optional[str] = None
+    state_before: Optional[Dict[str, Any]] = None
+    state_after: Optional[Dict[str, Any]] = None
 
     def model_dump(self, **kwargs):
         return {
@@ -50,7 +52,9 @@ class TraceSpan(BaseModel):
             "span_type": self.span_type,
             "usage": self.usage.model_dump() if self.usage else None,
             "has_evaluation": self.has_evaluation,
-            "agent_name": self.agent_name
+            "agent_name": self.agent_name,
+            "state_before": self.state_before,
+            "state_after": self.state_after 
         }
     
     def print_span(self):
