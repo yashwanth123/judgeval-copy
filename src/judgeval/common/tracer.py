@@ -5,7 +5,6 @@ Tracing system for judgeval that allows for function tracing using decorators.
 import asyncio
 import functools
 import inspect
-import json
 import os
 import site
 import sysconfig
@@ -16,6 +15,7 @@ import uuid
 import warnings
 import contextvars
 import sys
+import json
 from contextlib import contextmanager, asynccontextmanager, AbstractAsyncContextManager, AbstractContextManager # Import context manager bases
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -29,20 +29,16 @@ from typing import (
     Literal,
     Optional,
     Tuple,
-    Type,
-    TypeVar,
     Union,
     AsyncGenerator,
     TypeAlias,
-    Set
 )
 from rich import print as rprint
-import types # <--- Add this import
+import types
 
 # Third-party imports
 import requests
 from litellm import cost_per_token as _original_cost_per_token
-from pydantic import BaseModel
 from rich import print as rprint
 from openai import OpenAI, AsyncOpenAI
 from together import Together, AsyncTogether
@@ -64,8 +60,7 @@ from judgeval.data import Example, Trace, TraceSpan, TraceUsage
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
 from judgeval.rules import Rule
 from judgeval.evaluation_run import EvaluationRun
-from judgeval.data.result import ScoringResult
-from judgeval.common.utils import validate_api_key
+from judgeval.common.utils import ExcInfo, validate_api_key
 from judgeval.common.exceptions import JudgmentAPIError
 
 # Standard library imports needed for the new class
@@ -307,7 +302,7 @@ class TraceClient:
         tracer: Optional["Tracer"],
         trace_id: Optional[str] = None,
         name: str = "default",
-        project_name: str = "default_project",
+        project_name: str = None,
         overwrite: bool = False,
         rules: Optional[List[Rule]] = None,
         enable_monitoring: bool = True,
@@ -317,7 +312,7 @@ class TraceClient:
     ):
         self.name = name
         self.trace_id = trace_id or str(uuid.uuid4())
-        self.project_name = project_name
+        self.project_name = project_name or str(uuid.uuid4())
         self.overwrite = overwrite
         self.tracer = tracer
         self.rules = rules or []
@@ -507,6 +502,28 @@ class TraceClient:
             span = self.span_id_to_span[current_span_id]
             span.agent_name = agent_name
 
+    def record_state_before(self, state: dict):
+        """Records the agent's state before a tool execution on the current span.
+
+        Args:
+            state: A dictionary representing the agent's state.
+        """
+        current_span_id = current_span_var.get()
+        if current_span_id:
+            span = self.span_id_to_span[current_span_id]
+            span.state_before = state
+            
+    def record_state_after(self, state: dict):
+        """Records the agent's state after a tool execution on the current span.
+
+        Args:
+            state: A dictionary representing the agent's state.
+        """
+        current_span_id = current_span_var.get()
+        if current_span_id:
+            span = self.span_id_to_span[current_span_id]
+            span.state_after = state
+
     async def _update_coroutine(self, span: TraceSpan, coroutine: Any, field: str):
         """Helper method to update the output of a trace entry once the coroutine completes"""
         try:
@@ -540,7 +557,7 @@ class TraceClient:
         # Removed else block - original didn't have one
         return None # Return None if no span_id found
     
-    def record_error(self, error: Any):
+    def record_error(self, error: Dict[str, Any]):
         current_span_id = current_span_var.get()
         if current_span_id:
             span = self.span_id_to_span[current_span_id]
@@ -579,7 +596,7 @@ class TraceClient:
             "project_name": self.project_name,
             "created_at": datetime.utcfromtimestamp(self.start_time).isoformat(),
             "duration": total_duration,
-            "entries": [span.model_dump() for span in self.trace_spans],
+            "trace_spans": [span.model_dump() for span in self.trace_spans],
             "evaluation_runs": [run.model_dump() for run in self.evaluation_runs],
             "overwrite": overwrite,
             "offline_mode": self.tracer.offline_mode,
@@ -599,7 +616,7 @@ class TraceClient:
     def delete(self):
         return self.trace_manager_client.delete_trace(self.trace_id)
     
-def _capture_exception_for_trace(current_trace: Optional['TraceClient'], exc_info: Tuple[Optional[type], Optional[BaseException], Optional[types.TracebackType]]):
+def _capture_exception_for_trace(current_trace: Optional['TraceClient'], exc_info: ExcInfo):
     if not current_trace:
         return
 
@@ -609,6 +626,27 @@ def _capture_exception_for_trace(current_trace: Optional['TraceClient'], exc_inf
         "message": str(exc_value) if exc_value else "No exception message",
         "traceback": traceback.format_tb(exc_traceback_obj) if exc_traceback_obj else []
     }
+    
+    # This is where we specially handle exceptions that we might want to collect additional data for.
+    # When we do this, always try checking the module from sys.modules instead of importing. This will
+    # Let us support a wider range of exceptions without needing to import them for all clients.
+    
+    # Most clients (requests, httpx, urllib) support the standard format of exposing error.request.url and error.response.status_code 
+    # The alternative is to hand select libraries we want from sys.modules and check for them:
+    # As an example:  requests_module = sys.modules.get("requests", None) // then do things with requests_module;
+
+     # General HTTP Like errors
+    try:
+        url = getattr(getattr(exc_value, "request", None), "url", None)
+        status_code = getattr(getattr(exc_value, "response", None), "status_code", None)
+        if status_code:
+            formatted_exception["http"] = {
+                "url": url if url else "Unknown URL",
+                "status_code": status_code if status_code else None,
+            }
+    except Exception as e:
+        pass
+
     current_trace.record_error(formatted_exception)
 class _DeepTracer:
     _instance: Optional["_DeepTracer"] = None
@@ -907,7 +945,7 @@ class Tracer:
     def __init__(
         self, 
         api_key: str = os.getenv("JUDGMENT_API_KEY"), 
-        project_name: str = "default_project",
+        project_name: str = None,
         rules: Optional[List[Rule]] = None,  # Added rules parameter
         organization_id: str = os.getenv("JUDGMENT_ORG_ID"),
         enable_monitoring: bool = os.getenv("JUDGMENT_MONITORING", "true").lower() == "true",
@@ -935,7 +973,7 @@ class Tracer:
                 raise ValueError("S3 bucket name must be provided when use_s3 is True")
             
             self.api_key: str = api_key
-            self.project_name: str = project_name
+            self.project_name: str = project_name or str(uuid.uuid4())
             self.organization_id: str = organization_id
             self._current_trace: Optional[str] = None
             self._active_trace_client: Optional[TraceClient] = None # Add active trace client attribute
@@ -1068,32 +1106,92 @@ class Tracer:
 
         rprint(f"[bold]{label}:[/bold] {msg}")
     
-    def identify(self, identifier: str):
+    def identify(self, identifier: str, track_state: bool = False, track_attributes: Optional[List[str]] = None, field_mappings: Optional[Dict[str, str]] = None):
         """
-        Class decorator that associates a class with a custom identifier.
+        Class decorator that associates a class with a custom identifier and enables state tracking.
         
         This decorator creates a mapping between the class name and the provided
         identifier, which can be useful for tagging, grouping, or referencing
-        classes in a standardized way.
+        classes in a standardized way. It also enables automatic state capture
+        for instances of the decorated class when used with tracing.
         
         Args:
-            identifier: The identifier to associate with the decorated class
-            
-        Returns:
-            A decorator function that registers the class with the given identifier
+            identifier: The identifier to associate with the decorated class.
+                    This will be used as the instance name in traces.
+            track_state: Whether to automatically capture the state (attributes) 
+                        of instances before and after function execution. Defaults to False.
+            track_attributes: Optional list of specific attribute names to track.
+                            If None, all non-private attributes (not starting with '_') 
+                            will be tracked when track_state=True.
+            field_mappings: Optional dictionary mapping internal attribute names to 
+                        display names in the captured state. For example:
+                        {"system_prompt": "instructions"} will capture the 
+                        'instructions' attribute as 'system_prompt' in the state.
             
         Example:
-            @tracer.identify(identifier="user_model")
+            @tracer.identify(identifier="user_model", track_state=True, track_attributes=["name", "age"], field_mappings={"system_prompt": "instructions"})
             class User:
                 # Class implementation
         """
         def decorator(cls):
             class_name = cls.__name__
-            self.class_identifiers[class_name] = identifier
+            self.class_identifiers[class_name] = {
+                "identifier": identifier,
+                "track_state": track_state,
+                "track_attributes": track_attributes,
+                "field_mappings": field_mappings or {}
+            }
             return cls
         
         return decorator
     
+    def _capture_instance_state(self, instance: Any, class_config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Capture the state of an instance based on class configuration.
+        Args:
+            instance: The instance to capture the state of.
+            class_config: Configuration dictionary for state capture, 
+                          expected to contain 'track_attributes' and 'field_mappings'.
+        """
+        track_attributes = class_config.get('track_attributes')
+        field_mappings = class_config.get('field_mappings')
+        
+        if track_attributes:
+        
+            state = {attr: getattr(instance, attr, None) for attr in track_attributes}
+        else:
+
+            state = {k: v for k, v in instance.__dict__.items() if not k.startswith('_')}
+
+        if field_mappings:
+            state['field_mappings'] = field_mappings
+
+        return state
+        
+        
+    def _get_instance_state_if_tracked(self, args):
+        """
+        Extract instance state if the instance should be tracked.
+        
+        Returns the captured state dict if tracking is enabled, None otherwise.
+        """
+        if args and hasattr(args[0], '__class__'):
+            instance = args[0]
+            class_name = instance.__class__.__name__
+            if (class_name in self.class_identifiers and 
+                isinstance(self.class_identifiers[class_name], dict) and
+                self.class_identifiers[class_name].get('track_state', False)):
+                return self._capture_instance_state(instance, self.class_identifiers[class_name])
+            
+    def _conditionally_capture_and_record_state(self, trace_client_instance: TraceClient, args: tuple, is_before: bool):
+        """Captures instance state if tracked and records it via the trace_client."""
+        state = self._get_instance_state_if_tracked(args)
+        if state:
+            if is_before:
+                trace_client_instance.record_state_before(state)
+            else:
+                trace_client_instance.record_state_after(state)
+        
     def observe(self, func=None, *, name=None, span_type: SpanType = "span", project_name: str = None, overwrite: bool = False, deep_tracing: bool = None):
         """
         Decorator to trace function execution with detailed entry/exit information.
@@ -1171,6 +1269,9 @@ class Tracer:
                             span.record_input(inputs)
                             if agent_name:
                                 span.record_agent_name(agent_name)
+
+                            # Capture state before execution
+                            self._conditionally_capture_and_record_state(span, args, is_before=True)
                             
                             if use_deep_tracing:
                                 with _DeepTracer():
@@ -1181,7 +1282,10 @@ class Tracer:
                                 except Exception as e:
                                     _capture_exception_for_trace(current_trace, sys.exc_info())
                                     raise e
-                                                   
+                                    
+                            # Capture state after execution  
+                            self._conditionally_capture_and_record_state(span, args, is_before=False)
+                                                        
                             # Record output
                             span.record_output(result)
                         return result
@@ -1199,6 +1303,9 @@ class Tracer:
                         if agent_name:
                             span.record_agent_name(agent_name)
 
+                        # Capture state before execution
+                        self._conditionally_capture_and_record_state(span, args, is_before=True)
+                            
                         if use_deep_tracing:
                             with _DeepTracer():
                                 result = await func(*args, **kwargs)
@@ -1208,6 +1315,9 @@ class Tracer:
                             except Exception as e:
                                 _capture_exception_for_trace(current_trace, sys.exc_info())
                                 raise e
+                                
+                        # Capture state after execution  
+                        self._conditionally_capture_and_record_state(span, args, is_before=False)
                             
                         span.record_output(result)
                     return result
@@ -1258,6 +1368,9 @@ class Tracer:
                             span.record_input(inputs)
                             if agent_name:
                                 span.record_agent_name(agent_name)
+                            # Capture state before execution
+                            self._conditionally_capture_and_record_state(span, args, is_before=True)
+                                    
                             if use_deep_tracing:
                                 with _DeepTracer():
                                     result = func(*args, **kwargs)
@@ -1267,6 +1380,10 @@ class Tracer:
                                 except Exception as e:
                                     _capture_exception_for_trace(current_trace, sys.exc_info())
                                     raise e
+                                    
+                            # Capture state after execution
+                            self._conditionally_capture_and_record_state(span, args, is_before=False)
+
                             
                             # Record output
                             span.record_output(result)
@@ -1286,6 +1403,9 @@ class Tracer:
                         if agent_name:
                             span.record_agent_name(agent_name)
 
+                        # Capture state before execution
+                        self._conditionally_capture_and_record_state(span, args, is_before=True)
+
                         if use_deep_tracing:
                             with _DeepTracer():
                                 result = func(*args, **kwargs)
@@ -1295,6 +1415,9 @@ class Tracer:
                             except Exception as e:
                                 _capture_exception_for_trace(current_trace, sys.exc_info())
                                 raise e
+                            
+                        # Capture state after execution
+                        self._conditionally_capture_and_record_state(span, args, is_before=False)
                             
                         span.record_output(result)
                     return result
@@ -1369,13 +1492,6 @@ def wrap(client: Any) -> Any:
             span.record_usage(usage)
             return response
     
-    def _handle_error(span, e, is_async):
-        """Handle and record errors"""
-        call_type = "async" if is_async else "sync"
-        print(f"Error during wrapped {call_type} API call ({span_name}): {e}")
-        span.record_output({"error": str(e)})
-        raise
-    
     # --- Traced Async Functions ---
     async def traced_create_async(*args, **kwargs):
         current_trace = current_trace_var.get()
@@ -1389,7 +1505,8 @@ def wrap(client: Any) -> Any:
                 response_or_iterator = await original_create(*args, **kwargs)
                 return _format_and_record_output(span, response_or_iterator, is_streaming, True, False)
             except Exception as e:
-                return _handle_error(span, e, True)
+                _capture_exception_for_trace(span, sys.exc_info())
+                raise e
     
     # Async responses for OpenAI clients
     async def traced_response_create_async(*args, **kwargs):
@@ -1404,7 +1521,8 @@ def wrap(client: Any) -> Any:
                 response_or_iterator = await original_responses_create(*args, **kwargs)
                 return _format_and_record_output(span, response_or_iterator, is_streaming, True, True)
             except Exception as e:
-                return _handle_error(span, e, True)
+                _capture_exception_for_trace(span, sys.exc_info())
+                raise e
     
     # Function replacing .stream() for async clients
     def traced_stream_async(*args, **kwargs):
@@ -1435,7 +1553,8 @@ def wrap(client: Any) -> Any:
                 response_or_iterator = original_create(*args, **kwargs)
                 return _format_and_record_output(span, response_or_iterator, is_streaming, False, False)
             except Exception as e:
-                return _handle_error(span, e, False)
+                _capture_exception_for_trace(span, sys.exc_info())
+                raise e
     
     def traced_response_create_sync(*args, **kwargs):
         current_trace = current_trace_var.get()
@@ -1449,7 +1568,8 @@ def wrap(client: Any) -> Any:
                 response_or_iterator = original_responses_create(*args, **kwargs)
                 return _format_and_record_output(span, response_or_iterator, is_streaming, False, True)
             except Exception as e:
-                return _handle_error(span, e, False)
+                _capture_exception_for_trace(span, sys.exc_info())
+                raise e
     
     # Function replacing sync .stream()
     def traced_stream_sync(*args, **kwargs):
@@ -1990,10 +2110,12 @@ def get_instance_prefixed_name(instance, class_name, class_identifiers):
     Otherwise, returns None.
     """
     if class_name in class_identifiers:
-        attr = class_identifiers[class_name]
+        class_config = class_identifiers[class_name]
+        attr = class_config['identifier']
+            
         if hasattr(instance, attr):
             instance_name = getattr(instance, attr)
             return instance_name
         else:
-            raise Exception(f"Attribute {class_identifiers[class_name]} does not exist for {class_name}. Check your identify() decorator.")
+            raise Exception(f"Attribute {attr} does not exist for {class_name}. Check your identify() decorator.")
     return None
