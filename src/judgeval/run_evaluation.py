@@ -406,8 +406,15 @@ def run_trace_eval(trace_run: TraceRun, override: bool = False, ignore_errors: b
         )
     if function and tracer:
         new_traces: List[Trace] = []
-        tracer.offline_mode = True
-        tracer.traces = []
+        
+        # Handle case where tracer is actually a callback handler
+        actual_tracer = tracer
+        if hasattr(tracer, 'tracer') and hasattr(tracer.tracer, 'traces'):
+            # This is a callback handler, get the underlying tracer
+            actual_tracer = tracer.tracer
+        
+        actual_tracer.offline_mode = True
+        actual_tracer.traces = []
         for example in examples:
             if example.input:
                 if isinstance(example.input, str):
@@ -418,13 +425,15 @@ def run_trace_eval(trace_run: TraceRun, override: bool = False, ignore_errors: b
                     raise ValueError(f"Input must be string or dict, got {type(example.input)}")
             else:
                 result = run_with_spinner("Running agent function: ", function)
-        for i, trace in enumerate(tracer.traces):
+        
+        
+        for i, trace in enumerate(actual_tracer.traces):
             # We set the root-level trace span with the expected tools of the Trace
             trace = Trace(**trace)
             trace.trace_spans[0].expected_tools = examples[i].expected_tools
             new_traces.append(trace)
         trace_run.traces = new_traces
-        tracer.traces = []
+        actual_tracer.traces = []
         
     # Execute evaluation using Judgment API
     info("Starting API evaluation")
