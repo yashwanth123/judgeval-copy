@@ -1004,17 +1004,28 @@ class BackgroundSpanService:
         last_flush_time = time.time()
         pending_task_count = 0  # Track how many tasks we've taken from queue but not marked done
         
-        while not self._shutdown_event.is_set():
-            # print(f"Worker loop queue size: {self._span_queue.qsize()}")
+        while not self._shutdown_event.is_set() or self._span_queue.qsize() > 0:
             try:
-                # Try to get a span with timeout
-                try:
-                    span_data = self._span_queue.get(timeout=1.0)
-                    batch.append(span_data)
-                    pending_task_count += 1  # Increment instead of calling task_done() immediately
-                except queue.Empty:
-                    # No new spans, continue to check for flush conditions
-                    pass
+                # First, do a blocking get to wait for at least one item
+                if not batch:  # Only block if we don't have items already
+                    try:
+                        span_data = self._span_queue.get(timeout=1.0)
+                        batch.append(span_data)
+                        pending_task_count += 1
+                    except queue.Empty:
+                        # No new spans, continue to check for flush conditions
+                        pass
+                
+                # Then, do non-blocking gets to drain any additional available items
+                # up to our batch size limit
+                while len(batch) < self.batch_size:
+                    try:
+                        span_data = self._span_queue.get_nowait()  # Non-blocking
+                        batch.append(span_data)
+                        pending_task_count += 1
+                    except queue.Empty:
+                        # No more items immediately available
+                        break
                 
                 current_time = time.time()
                 should_flush = (
