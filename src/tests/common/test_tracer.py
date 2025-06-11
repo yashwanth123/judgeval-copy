@@ -1,15 +1,9 @@
 import pytest
-import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from uuid import uuid4
-from openai import OpenAI
-from anthropic import Anthropic
 import requests
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any, Union
 
 from judgeval.common.tracer import Tracer, wrap, current_span_var, current_trace_var, TraceClient
-from judgeval.judgment_client import JudgmentClient
 from judgeval.common.exceptions import JudgmentAPIError
 from judgeval.data.trace import TraceSpan
 
