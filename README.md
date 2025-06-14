@@ -5,7 +5,7 @@
 
 <br>
 <div style="font-size: 1.5em;">
-  Open source traces, evals, and metrics to debug, test, and monitor LLM agents.
+  Open source tracing, evals, and metrics to debug, test, and monitor LLM agents.
 </div>
 
 ## [Judgment Cloud](https://app.judgmentlabs.ai/register)  • [Self-Host](https://docs.judgmentlabs.ai/self-hosting/get_started) • [Demo](https://www.youtube.com/watch?v=1S4LixpVbcc) 
