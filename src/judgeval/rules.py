@@ -9,13 +9,13 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import time
 import uuid
+import os
+import re
+import json
+from datetime import datetime
 
 from judgeval.scorers import APIJudgmentScorer, JudgevalScorer
-
-class AlertStatus(str, Enum):
-    """Status of an alert evaluation."""
-    TRIGGERED = "triggered"
-    NOT_TRIGGERED = "not_triggered"
+from judgeval.utils.alerts import AlertStatus, AlertResult
 
 class Condition(BaseModel):
     """
@@ -68,6 +68,36 @@ class Condition(BaseModel):
             # Fallback to default comparison (greater than or equal)
             return value >= self.threshold if self.threshold is not None else False
 
+class PagerDutyConfig(BaseModel):
+    """
+    Configuration for PagerDuty notifications.
+    
+    Attributes:
+        routing_key: PagerDuty integration routing key
+        severity: Severity level (critical, error, warning, info)
+        source: Source of the alert (defaults to "judgeval")
+        component: Optional component that triggered the alert
+        group: Optional logical grouping for the alert
+        class_type: Optional class/type of alert event
+    """
+    routing_key: str
+    severity: str = "error"  # critical, error, warning, info
+    source: str = "judgeval"
+    component: Optional[str] = None
+    group: Optional[str] = None
+    class_type: Optional[str] = None
+    
+    def model_dump(self, **kwargs):
+        """Convert the PagerDutyConfig to a dictionary for JSON serialization."""
+        return {
+            "routing_key": self.routing_key,
+            "severity": self.severity,
+            "source": self.source,
+            "component": self.component,
+            "group": self.group,
+            "class_type": self.class_type
+        }
+
 class NotificationConfig(BaseModel):
     """
     Configuration for notifications when a rule is triggered.
@@ -75,8 +105,12 @@ class NotificationConfig(BaseModel):
     Example:
         {
             "enabled": true,
-            "communication_methods": ["email", "broadcast_slack", "broadcast_email"],
+            "communication_methods": ["email", "broadcast_slack", "broadcast_email", "pagerduty"],
             "email_addresses": ["user1@example.com", "user2@example.com"],
+            "pagerduty_config": {
+                "routing_key": "R0ABCD1234567890123456789",
+                "severity": "error"
+            },
             "send_at": 1632150000  # Unix timestamp (specific date/time)
         }
         
@@ -84,10 +118,12 @@ class NotificationConfig(BaseModel):
         - "email": Send emails to specified email addresses
         - "broadcast_slack": Send broadcast notifications to all configured Slack channels
         - "broadcast_email": Send broadcast emails to all organization emails
+        - "pagerduty": Send alerts to PagerDuty using the configured routing key
     """
     enabled: bool = True
     communication_methods: List[str] = []
     email_addresses: Optional[List[str]] = None
+    pagerduty_config: Optional[PagerDutyConfig] = None
     send_at: Optional[int] = None  # Unix timestamp for scheduled notifications
     
     def model_dump(self, **kwargs):
@@ -96,6 +132,7 @@ class NotificationConfig(BaseModel):
             "enabled": self.enabled,
             "communication_methods": self.communication_methods,
             "email_addresses": self.email_addresses,
+            "pagerduty_config": self.pagerduty_config.model_dump() if self.pagerduty_config else None,
             "send_at": self.send_at
         }
 
@@ -144,7 +181,8 @@ class Rule(BaseModel):
                     # Create standardized metric representation needed by server API
                     metric_data = {
                         "score_type": "",
-                        "threshold": 0.0
+                        "threshold": 0.0,
+                        "name": ""
                     }
                     
                     # First try to use object's own serialization methods
@@ -182,6 +220,16 @@ class Rule(BaseModel):
                             # Use condition threshold if metric doesn't have one
                             metric_data['threshold'] = self.conditions[i].threshold
                     
+                    # Make sure name is set
+                    if not metric_data.get('name'):
+                        if hasattr(metric_obj, '__name__'):
+                            metric_data['name'] = metric_obj.__name__
+                        elif hasattr(metric_obj, 'name'):
+                            metric_data['name'] = metric_obj.name
+                        else:
+                            # Fallback to score_type if available
+                            metric_data['name'] = metric_data.get('score_type', str(metric_obj))
+                    
                     # Update the condition with our properly serialized metric
                     condition["metric"] = metric_data
         
@@ -198,47 +246,6 @@ class Rule(BaseModel):
         if v not in ["all", "any"]:
             raise ValueError(f"combine_type must be 'all' or 'any', got: {v}")
         return v
-
-class AlertResult(BaseModel):
-    """
-    Result of evaluating a rule.
-    
-    Example:
-        {
-            "status": "triggered",
-            "rule_name": "Quality Check",
-            "conditions_result": [
-                {"metric": "faithfulness", "value": 0.6, "threshold": 0.7, "passed": False},
-                {"metric": "relevancy", "value": 0.9, "threshold": 0.8, "passed": True}
-            ],
-            "rule_id": "123e4567-e89b-12d3-a456-426614174000",
-            "metadata": {
-                "example_id": "example_123",
-                "timestamp": "20240321_123456"
-            },
-            "notification": {
-                "enabled": true,
-                "communication_methods": ["slack", "email"],
-                "email_addresses": ["user1@example.com", "user2@example.com"]
-            }
-        }
-    """
-    status: AlertStatus
-    rule_id: Optional[str] = None  # The unique identifier of the rule
-    rule_name: str
-    conditions_result: List[Dict[str, Any]]
-    metadata: Dict[str, Any] = {}
-    notification: Optional[NotificationConfig] = None  # Configuration for notifications
-    
-    @property
-    def example_id(self) -> Optional[str]:
-        """Get example_id from metadata for backward compatibility"""
-        return self.metadata.get("example_id")
-        
-    @property
-    def timestamp(self) -> Optional[str]:
-        """Get timestamp from metadata for backward compatibility"""
-        return self.metadata.get("timestamp")
 
 class RulesEngine:
     """
@@ -406,7 +413,7 @@ class RulesEngine:
                 # If rule has a notification config and the alert is triggered, include it in the result
                 notification_config = rule.notification
             
-            # Set the alert status based on whether the rule was triggered
+            # Set the alert status based on whether the rule was triggered using proper enum values
             status = AlertStatus.TRIGGERED if triggered else AlertStatus.NOT_TRIGGERED
             
             # Create the alert result
@@ -416,7 +423,10 @@ class RulesEngine:
                 rule_name=rule.name,
                 conditions_result=condition_results,
                 notification=notification_config,
-                metadata=example_metadata or {}
+                metadata=example_metadata or {},
+                combine_type=rule.combine_type,
+                project_id=example_metadata.get("project_id") if example_metadata else None,
+                trace_span_id=example_metadata.get("trace_span_id") if example_metadata else None
             )
             
             results[rule_id] = alert_result
