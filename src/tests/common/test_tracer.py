@@ -49,16 +49,6 @@ def trace_client(tracer):
         # Clean up the trace context
         current_trace_var.reset(token)
 
-def test_tracer_singleton(mocker):
-    """Test that Tracer maintains singleton pattern"""
-    Tracer._instance = None
-    
-    with patch('judgeval.common.tracer.validate_api_key', return_value=(True, "Valid API key")) as mock_validate_api_key:
-        tracer1 = Tracer(api_key=str(uuid4()), organization_id="test_org")
-        tracer2 = Tracer(api_key=str(uuid4()), organization_id="test_org")
-        assert tracer1 is tracer2
-        assert tracer1.api_key == tracer2.api_key
-
 def test_tracer_requires_api_key():
     """Test that Tracer requires an API key"""
     # Clear any existing singleton instance first

@@ -1557,7 +1557,6 @@ class _DeepTracer:
 #         current_trace.record_output({"log": message})
     
 class Tracer:
-    _instance = None
 
     # Tracer.current_trace class variable is currently used in wrap()
     # TODO: Keep track of cross-context state for current trace and current span ID solely through class variables instead of instance variables?
@@ -1566,11 +1565,6 @@ class Tracer:
     # current_span_id: Optional[str] = None
 
     trace_across_async_contexts: bool = False # BY default, we don't trace across async contexts
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(Tracer, cls).__new__(cls)
-        return cls._instance
 
     def __init__(
         self, 
@@ -1595,66 +1589,56 @@ class Tracer:
         span_flush_interval: float = 1.0,  # Time in seconds between automatic flushes
         span_num_workers: int = 10  # Number of worker threads for span processing
         ):
-        if not hasattr(self, 'initialized'):
-            if not api_key:
-                raise ValueError("Tracer must be configured with a Judgment API key")
-            
-            result, response = validate_api_key(api_key)
-            if not result:
-                raise JudgmentAPIError(f"Issue with passed in Judgment API key: {response}")
-            
-            if not organization_id:
-                raise ValueError("Tracer must be configured with an Organization ID")
-            if use_s3 and not s3_bucket_name:
-                raise ValueError("S3 bucket name must be provided when use_s3 is True")
-            
-            self.api_key: str = api_key
-            self.project_name: str = project_name or str(uuid.uuid4())
-            self.organization_id: str = organization_id
-            self.rules: List[Rule] = rules or []  # Store rules at tracer level
-            self.traces: List[Trace] = []
-            self.initialized: bool = True
-            self.enable_monitoring: bool = enable_monitoring
-            self.enable_evaluations: bool = enable_evaluations
-            self.class_identifiers: Dict[str, str] = {}  # Dictionary to store class identifiers
-            self.span_id_to_previous_span_id: Dict[str, str] = {}
-            self.trace_id_to_previous_trace: Dict[str, TraceClient] = {}
-            self.current_span_id: Optional[str] = None
-            self.current_trace: Optional[TraceClient] = None
-            self.trace_across_async_contexts: bool = trace_across_async_contexts
-            Tracer.trace_across_async_contexts = trace_across_async_contexts
+        if not api_key:
+            raise ValueError("Tracer must be configured with a Judgment API key")
+        
+        result, response = validate_api_key(api_key)
+        if not result:
+            raise JudgmentAPIError(f"Issue with passed in Judgment API key: {response}")
+        
+        if not organization_id:
+            raise ValueError("Tracer must be configured with an Organization ID")
+        if use_s3 and not s3_bucket_name:
+            raise ValueError("S3 bucket name must be provided when use_s3 is True")
+        
+        self.api_key: str = api_key
+        self.project_name: str = project_name or str(uuid.uuid4())
+        self.organization_id: str = organization_id
+        self.rules: List[Rule] = rules or []  # Store rules at tracer level
+        self.traces: List[Trace] = []
+        self.enable_monitoring: bool = enable_monitoring
+        self.enable_evaluations: bool = enable_evaluations
+        self.class_identifiers: Dict[str, str] = {}  # Dictionary to store class identifiers
+        self.span_id_to_previous_span_id: Dict[str, str] = {}
+        self.trace_id_to_previous_trace: Dict[str, TraceClient] = {}
+        self.current_span_id: Optional[str] = None
+        self.current_trace: Optional[TraceClient] = None
+        self.trace_across_async_contexts: bool = trace_across_async_contexts
+        Tracer.trace_across_async_contexts = trace_across_async_contexts
 
-            # Initialize S3 storage if enabled
-            self.use_s3 = use_s3
-            if use_s3:
-                from judgeval.common.s3_storage import S3Storage
-                self.s3_storage = S3Storage(
-                    bucket_name=s3_bucket_name,
-                    aws_access_key_id=s3_aws_access_key_id,
-                    aws_secret_access_key=s3_aws_secret_access_key,
-                    region_name=s3_region_name
-                )
-            self.offline_mode: bool = offline_mode
-            self.deep_tracing: bool = deep_tracing  # NEW: Store deep tracing setting
-            
-            # Initialize background span service
-            self.enable_background_spans: bool = enable_background_spans
-            self.background_span_service: Optional[BackgroundSpanService] = None
-            if enable_background_spans and not offline_mode:
-                self.background_span_service = BackgroundSpanService(
-                    judgment_api_key=api_key,
-                    organization_id=organization_id,
-                    batch_size=span_batch_size,
-                    flush_interval=span_flush_interval,
-                    num_workers=span_num_workers
-                )
-
-        elif hasattr(self, 'project_name') and self.project_name != project_name:
-            warnings.warn(
-                f"Attempting to initialize Tracer with project_name='{project_name}' but it was already initialized with "
-                f"project_name='{self.project_name}'. Due to the singleton pattern, the original project_name will be used. "
-                "To use a different project name, ensure the first Tracer initialization uses the desired project name.",
-                RuntimeWarning
+        # Initialize S3 storage if enabled
+        self.use_s3 = use_s3
+        if use_s3:
+            from judgeval.common.s3_storage import S3Storage
+            self.s3_storage = S3Storage(
+                bucket_name=s3_bucket_name,
+                aws_access_key_id=s3_aws_access_key_id,
+                aws_secret_access_key=s3_aws_secret_access_key,
+                region_name=s3_region_name
+            )
+        self.offline_mode: bool = offline_mode
+        self.deep_tracing: bool = deep_tracing  # NEW: Store deep tracing setting
+        
+        # Initialize background span service
+        self.enable_background_spans: bool = enable_background_spans
+        self.background_span_service: Optional[BackgroundSpanService] = None
+        if enable_background_spans and not offline_mode:
+            self.background_span_service = BackgroundSpanService(
+                judgment_api_key=api_key,
+                organization_id=organization_id,
+                batch_size=span_batch_size,
+                flush_interval=span_flush_interval,
+                num_workers=span_num_workers
             )
 
     def set_current_span(self, span_id: str):
