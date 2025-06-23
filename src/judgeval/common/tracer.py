@@ -2567,9 +2567,13 @@ def wrap(
     Supports OpenAI, Together, Anthropic, and Google GenAI clients.
     Patches both '.create' and Anthropic's '.stream' methods using a wrapper class.
     """
-    span_name, original_create, original_responses_create, original_stream = (
-        _get_client_config(client)
-    )
+    (
+        span_name,
+        original_create,
+        original_responses_create,
+        original_stream,
+        original_beta_parse,
+    ) = _get_client_config(client)
 
     def _get_current_trace():
         if trace_across_async_contexts:
@@ -2645,6 +2649,23 @@ def wrap(
                 _capture_exception_for_trace(span, sys.exc_info())
                 raise e
 
+    async def traced_beta_parse_async(*args, **kwargs):
+        current_trace = _get_current_trace()
+        if not current_trace:
+            return await original_beta_parse(*args, **kwargs)
+
+        with current_trace.span(span_name, span_type="llm") as span:
+            is_streaming = _record_input_and_check_streaming(span, kwargs)
+
+            try:
+                response_or_iterator = await original_beta_parse(*args, **kwargs)
+                return _format_and_record_output(
+                    span, response_or_iterator, is_streaming, True, False
+                )
+            except Exception as e:
+                _capture_exception_for_trace(span, sys.exc_info())
+                raise e
+
     # Async responses for OpenAI clients
     async def traced_response_create_async(*args, **kwargs):
         current_trace = _get_current_trace()
@@ -2699,6 +2720,23 @@ def wrap(
                 _capture_exception_for_trace(span, sys.exc_info())
                 raise e
 
+    def traced_beta_parse_sync(*args, **kwargs):
+        current_trace = _get_current_trace()
+        if not current_trace:
+            return original_beta_parse(*args, **kwargs)
+
+        with current_trace.span(span_name, span_type="llm") as span:
+            is_streaming = _record_input_and_check_streaming(span, kwargs)
+
+            try:
+                response_or_iterator = original_beta_parse(*args, **kwargs)
+                return _format_and_record_output(
+                    span, response_or_iterator, is_streaming, False, False
+                )
+            except Exception as e:
+                _capture_exception_for_trace(span, sys.exc_info())
+                raise e
+
     def traced_response_create_sync(*args, **kwargs):
         current_trace = _get_current_trace()
         if not current_trace:
@@ -2745,7 +2783,7 @@ def wrap(
             and hasattr(client.beta.chat, "completions")
             and hasattr(client.beta.chat.completions, "parse")
         ):
-            client.beta.chat.completions.parse = traced_create_async
+            client.beta.chat.completions.parse = traced_beta_parse_async
     elif isinstance(client, AsyncAnthropic):
         client.messages.create = traced_create_async
         if original_stream:
@@ -2762,7 +2800,7 @@ def wrap(
             and hasattr(client.beta.chat, "completions")
             and hasattr(client.beta.chat.completions, "parse")
         ):
-            client.beta.chat.completions.parse = traced_create_sync
+            client.beta.chat.completions.parse = traced_beta_parse_sync
     elif isinstance(client, Anthropic):
         client.messages.create = traced_create_sync
         if original_stream:
@@ -2778,18 +2816,19 @@ def wrap(
 
 def _get_client_config(
     client: ApiClient,
-) -> tuple[str, Callable, Optional[Callable], Optional[Callable]]:
+) -> tuple[str, Callable, Optional[Callable], Optional[Callable], Optional[Callable]]:
     """Returns configuration tuple for the given API client.
 
     Args:
         client: An instance of OpenAI, Together, or Anthropic client
 
     Returns:
-        tuple: (span_name, create_method, responses_method, stream_method)
+        tuple: (span_name, create_method, responses_method, stream_method, beta_parse_method)
             - span_name: String identifier for tracing
             - create_method: Reference to the client's creation method
             - responses_method: Reference to the client's responses method (if applicable)
             - stream_method: Reference to the client's stream method (if applicable)
+            - beta_parse_method: Reference to the client's beta parse method (if applicable)
 
     Raises:
         ValueError: If client type is not supported
@@ -2800,18 +2839,20 @@ def _get_client_config(
             client.chat.completions.create,
             client.responses.create,
             None,
+            client.beta.chat.completions.parse,
         )
     elif isinstance(client, (Together, AsyncTogether)):
-        return "TOGETHER_API_CALL", client.chat.completions.create, None, None
+        return "TOGETHER_API_CALL", client.chat.completions.create, None, None, None
     elif isinstance(client, (Anthropic, AsyncAnthropic)):
         return (
             "ANTHROPIC_API_CALL",
             client.messages.create,
             None,
             client.messages.stream,
+            None,
         )
     elif isinstance(client, (genai.Client, genai.client.AsyncClient)):
-        return "GOOGLE_API_CALL", client.models.generate_content, None, None
+        return "GOOGLE_API_CALL", client.models.generate_content, None, None, None
     raise ValueError(f"Unsupported client type: {type(client)}")
 
 
@@ -2822,10 +2863,13 @@ def _format_input_data(client: ApiClient, **kwargs) -> dict:
     to ensure consistent tracing across different APIs.
     """
     if isinstance(client, (OpenAI, Together, AsyncOpenAI, AsyncTogether)):
-        return {
+        input_data = {
             "model": kwargs.get("model"),
             "messages": kwargs.get("messages"),
         }
+        if kwargs.get("response_format"):
+            input_data["response_format"] = kwargs.get("response_format")
+        return input_data
     elif isinstance(client, (genai.Client, genai.client.AsyncClient)):
         return {"model": kwargs.get("model"), "contents": kwargs.get("contents")}
     # Anthropic requires additional max_tokens parameter
@@ -2897,7 +2941,13 @@ def _format_output_data(
         model_name = response.model
         prompt_tokens = response.usage.prompt_tokens
         completion_tokens = response.usage.completion_tokens
-        message_content = response.choices[0].message.content
+        if (
+            hasattr(response.choices[0].message, "parsed")
+            and response.choices[0].message.parsed
+        ):
+            message_content = response.choices[0].message.parsed
+        else:
+            message_content = response.choices[0].message.content
     elif isinstance(client, (genai.Client, genai.client.AsyncClient)):
         model_name = response.model_version
         prompt_tokens = response.usage_metadata.prompt_token_count
