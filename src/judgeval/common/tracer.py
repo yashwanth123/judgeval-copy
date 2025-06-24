@@ -1565,7 +1565,7 @@ class _DeepTracer:
         if "self" in frame.f_locals:
             instance = frame.f_locals["self"]
             class_name = instance.__class__.__name__
-            class_identifiers = getattr(Tracer._instance, "class_identifiers", {})
+            class_identifiers = getattr(self._tracer, "class_identifiers", {})
             instance_name = get_instance_prefixed_name(
                 instance, class_name, class_identifiers
             )
@@ -1735,8 +1735,6 @@ class _DeepTracer:
 
 
 class Tracer:
-    _instance = None
-
     # Tracer.current_trace class variable is currently used in wrap()
     # TODO: Keep track of cross-context state for current trace and current span ID solely through class variables instead of instance variables?
     # Should be fine to do so as long as we keep Tracer as a singleton
@@ -1746,11 +1744,6 @@ class Tracer:
     trace_across_async_contexts: bool = (
         False  # BY default, we don't trace across async contexts
     )
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(Tracer, cls).__new__(cls)
-        return cls._instance
 
     def __init__(
         self,
@@ -1777,71 +1770,59 @@ class Tracer:
         span_flush_interval: float = 1.0,  # Time in seconds between automatic flushes
         span_num_workers: int = 10,  # Number of worker threads for span processing
     ):
-        if not hasattr(self, "initialized"):
-            if not api_key:
-                raise ValueError("Tracer must be configured with a Judgment API key")
+        if not api_key:
+            raise ValueError("Tracer must be configured with a Judgment API key")
 
-            result, response = validate_api_key(api_key)
-            if not result:
-                raise JudgmentAPIError(
-                    f"Issue with passed in Judgment API key: {response}"
-                )
+        result, response = validate_api_key(api_key)
+        if not result:
+            raise JudgmentAPIError(f"Issue with passed in Judgment API key: {response}")
 
-            if not organization_id:
-                raise ValueError("Tracer must be configured with an Organization ID")
-            if use_s3 and not s3_bucket_name:
-                raise ValueError("S3 bucket name must be provided when use_s3 is True")
+        if not organization_id:
+            raise ValueError("Tracer must be configured with an Organization ID")
+        if use_s3 and not s3_bucket_name:
+            raise ValueError("S3 bucket name must be provided when use_s3 is True")
 
-            self.api_key: str = api_key
-            self.project_name: str = project_name or str(uuid.uuid4())
-            self.organization_id: str = organization_id
-            self.rules: List[Rule] = rules or []  # Store rules at tracer level
-            self.traces: List[Trace] = []
-            self.initialized: bool = True
-            self.enable_monitoring: bool = enable_monitoring
-            self.enable_evaluations: bool = enable_evaluations
-            self.class_identifiers: Dict[
-                str, str
-            ] = {}  # Dictionary to store class identifiers
-            self.span_id_to_previous_span_id: Dict[str, str | None] = {}
-            self.trace_id_to_previous_trace: Dict[str, TraceClient | None] = {}
-            self.current_span_id: Optional[str] = None
-            self.current_trace: Optional[TraceClient] = None
-            self.trace_across_async_contexts: bool = trace_across_async_contexts
-            Tracer.trace_across_async_contexts = trace_across_async_contexts
+        self.api_key: str = api_key
+        self.project_name: str = project_name or str(uuid.uuid4())
+        self.organization_id: str = organization_id
+        self.rules: List[Rule] = rules or []  # Store rules at tracer level
+        self.traces: List[Trace] = []
+        self.enable_monitoring: bool = enable_monitoring
+        self.enable_evaluations: bool = enable_evaluations
+        self.class_identifiers: Dict[
+            str, str
+        ] = {}  # Dictionary to store class identifiers
+        self.span_id_to_previous_span_id: Dict[str, str | None] = {}
+        self.trace_id_to_previous_trace: Dict[str, TraceClient | None] = {}
+        self.current_span_id: Optional[str] = None
+        self.current_trace: Optional[TraceClient] = None
+        self.trace_across_async_contexts: bool = trace_across_async_contexts
+        Tracer.trace_across_async_contexts = trace_across_async_contexts
 
-            # Initialize S3 storage if enabled
-            self.use_s3 = use_s3
-            if use_s3:
-                from judgeval.common.s3_storage import S3Storage
+        # Initialize S3 storage if enabled
+        self.use_s3 = use_s3
+        if use_s3:
+            from judgeval.common.s3_storage import S3Storage
 
-                self.s3_storage = S3Storage(
-                    bucket_name=s3_bucket_name,
-                    aws_access_key_id=s3_aws_access_key_id,
-                    aws_secret_access_key=s3_aws_secret_access_key,
-                    region_name=s3_region_name,
-                )
-            self.offline_mode: bool = offline_mode
-            self.deep_tracing: bool = deep_tracing  # NEW: Store deep tracing setting
+            self.s3_storage = S3Storage(
+                bucket_name=s3_bucket_name,
+                aws_access_key_id=s3_aws_access_key_id,
+                aws_secret_access_key=s3_aws_secret_access_key,
+                region_name=s3_region_name,
+            )
+        self.offline_mode: bool = offline_mode
+        self.deep_tracing: bool = deep_tracing  # NEW: Store deep tracing setting
 
-            # Initialize background span service
-            self.enable_background_spans: bool = enable_background_spans
-            self.background_span_service: Optional[BackgroundSpanService] = None
-            if enable_background_spans and not offline_mode:
-                self.background_span_service = BackgroundSpanService(
-                    judgment_api_key=api_key,
-                    organization_id=organization_id,
-                    batch_size=span_batch_size,
-                    flush_interval=span_flush_interval,
-                    num_workers=span_num_workers,
-                )
-
-        elif hasattr(self, "project_name") and self.project_name != project_name:
-            warnings.warn(
-                f"Attempting to initialize Tracer with project_name='{project_name}' but it was already initialized with "
-                f"project_name='{self.project_name}'. Due to the singleton pattern, the original project_name will be used. "
-                "To use a different project name, ensure the first Tracer initialization uses the desired project name.",
-                RuntimeWarning,
+        # Initialize background span service
+        self.enable_background_spans: bool = enable_background_spans
+        self.background_span_service: Optional[BackgroundSpanService] = None
+        if enable_background_spans and not offline_mode:
+            self.background_span_service = BackgroundSpanService(
+                judgment_api_key=api_key,
+                organization_id=organization_id,
+                batch_size=span_batch_size,
+                flush_interval=span_flush_interval,
+                num_workers=span_num_workers,
             )
 
     def set_current_span(self, span_id: str) -> Optional[contextvars.Token[str | None]]:
@@ -2559,6 +2540,15 @@ class Tracer:
             self.background_span_service = None
 
 
+def _get_current_trace(
+    trace_across_async_contexts: bool = Tracer.trace_across_async_contexts,
+):
+    if trace_across_async_contexts:
+        return Tracer.current_trace
+    else:
+        return current_trace_var.get()
+
+
 def wrap(
     client: Any, trace_across_async_contexts: bool = Tracer.trace_across_async_contexts
 ) -> Any:
@@ -2574,12 +2564,6 @@ def wrap(
         original_stream,
         original_beta_parse,
     ) = _get_client_config(client)
-
-    def _get_current_trace():
-        if trace_across_async_contexts:
-            return Tracer.current_trace
-        else:
-            return current_trace_var.get()
 
     def _record_input_and_check_streaming(span, kwargs, is_responses=False):
         """Record input and check for streaming"""
@@ -2609,7 +2593,9 @@ def wrap(
         if is_streaming:
             output_entry = span.record_output("<pending stream>")
             wrapper_func = _async_stream_wrapper if is_async else _sync_stream_wrapper
-            return wrapper_func(response, client, output_entry)
+            return wrapper_func(
+                response, client, output_entry, trace_across_async_contexts
+            )
         else:
             format_func = (
                 _format_response_output_data if is_responses else _format_output_data
@@ -2619,7 +2605,7 @@ def wrap(
             span.record_usage(usage)
 
             # Queue the completed LLM span now that it has all data (input, output, usage)
-            current_trace = _get_current_trace()
+            current_trace = _get_current_trace(trace_across_async_contexts)
             if current_trace and current_trace.background_span_service:
                 # Get the current span from the trace client
                 current_span_id = current_trace.get_current_span()
@@ -2633,7 +2619,7 @@ def wrap(
 
     # --- Traced Async Functions ---
     async def traced_create_async(*args, **kwargs):
-        current_trace = _get_current_trace()
+        current_trace = _get_current_trace(trace_across_async_contexts)
         if not current_trace:
             return await original_create(*args, **kwargs)
 
@@ -2650,7 +2636,7 @@ def wrap(
                 raise e
 
     async def traced_beta_parse_async(*args, **kwargs):
-        current_trace = _get_current_trace()
+        current_trace = _get_current_trace(trace_across_async_contexts)
         if not current_trace:
             return await original_beta_parse(*args, **kwargs)
 
@@ -2668,7 +2654,7 @@ def wrap(
 
     # Async responses for OpenAI clients
     async def traced_response_create_async(*args, **kwargs):
-        current_trace = _get_current_trace()
+        current_trace = _get_current_trace(trace_across_async_contexts)
         if not current_trace:
             return await original_responses_create(*args, **kwargs)
 
@@ -2688,7 +2674,7 @@ def wrap(
 
     # Function replacing .stream() for async clients
     def traced_stream_async(*args, **kwargs):
-        current_trace = _get_current_trace()
+        current_trace = _get_current_trace(trace_across_async_contexts)
         if not current_trace or not original_stream:
             return original_stream(*args, **kwargs)
 
@@ -2700,11 +2686,12 @@ def wrap(
             trace_client=current_trace,
             stream_wrapper_func=_async_stream_wrapper,
             input_kwargs=kwargs,
+            trace_across_async_contexts=trace_across_async_contexts,
         )
 
     # --- Traced Sync Functions ---
     def traced_create_sync(*args, **kwargs):
-        current_trace = _get_current_trace()
+        current_trace = _get_current_trace(trace_across_async_contexts)
         if not current_trace:
             return original_create(*args, **kwargs)
 
@@ -2721,7 +2708,7 @@ def wrap(
                 raise e
 
     def traced_beta_parse_sync(*args, **kwargs):
-        current_trace = _get_current_trace()
+        current_trace = _get_current_trace(trace_across_async_contexts)
         if not current_trace:
             return original_beta_parse(*args, **kwargs)
 
@@ -2738,7 +2725,7 @@ def wrap(
                 raise e
 
     def traced_response_create_sync(*args, **kwargs):
-        current_trace = _get_current_trace()
+        current_trace = _get_current_trace(trace_across_async_contexts)
         if not current_trace:
             return original_responses_create(*args, **kwargs)
 
@@ -2758,7 +2745,7 @@ def wrap(
 
     # Function replacing sync .stream()
     def traced_stream_sync(*args, **kwargs):
-        current_trace = _get_current_trace()
+        current_trace = _get_current_trace(trace_across_async_contexts)
         if not current_trace or not original_stream:
             return original_stream(*args, **kwargs)
 
@@ -2770,6 +2757,7 @@ def wrap(
             trace_client=current_trace,
             stream_wrapper_func=_sync_stream_wrapper,
             input_kwargs=kwargs,
+            trace_across_async_contexts=trace_across_async_contexts,
         )
 
     # --- Assign Traced Methods to Client Instance ---
@@ -3158,7 +3146,10 @@ def _extract_usage_from_final_chunk(
 
 # --- Sync Stream Wrapper ---
 def _sync_stream_wrapper(
-    original_stream: Iterator, client: ApiClient, span: TraceSpan
+    original_stream: Iterator,
+    client: ApiClient,
+    span: TraceSpan,
+    trace_across_async_contexts: bool = Tracer.trace_across_async_contexts,
 ) -> Generator[Any, None, None]:
     """Wraps a synchronous stream iterator to capture content and update the trace."""
     content_parts = []  # Use a list instead of string concatenation
@@ -3183,13 +3174,10 @@ def _sync_stream_wrapper(
         span.usage = final_usage
 
         # Queue the completed LLM span now that streaming is done and all data is available
-        # Note: We need to get the TraceClient that owns this span to access the background service
-        # We can find this through the tracer singleton since spans are associated with traces
-        from judgeval.common.tracer import Tracer
 
-        tracer_instance = Tracer._instance
-        if tracer_instance and tracer_instance.background_span_service:
-            tracer_instance.background_span_service.queue_span(
+        current_trace = _get_current_trace(trace_across_async_contexts)
+        if current_trace and current_trace.background_span_service:
+            current_trace.background_span_service.queue_span(
                 span, span_state="completed"
             )
 
@@ -3199,7 +3187,10 @@ def _sync_stream_wrapper(
 
 # --- Async Stream Wrapper ---
 async def _async_stream_wrapper(
-    original_stream: AsyncIterator, client: ApiClient, span: TraceSpan
+    original_stream: AsyncIterator,
+    client: ApiClient,
+    span: TraceSpan,
+    trace_across_async_contexts: bool = Tracer.trace_across_async_contexts,
 ) -> AsyncGenerator[Any, None]:
     # [Existing logic - unchanged]
     content_parts = []  # Use a list instead of string concatenation
@@ -3292,11 +3283,9 @@ async def _async_stream_wrapper(
             span.duration = time.time() - start_ts
 
             # Queue the completed LLM span now that async streaming is done and all data is available
-            from judgeval.common.tracer import Tracer
-
-            tracer_instance = Tracer._instance
-            if tracer_instance and tracer_instance.background_span_service:
-                tracer_instance.background_span_service.queue_span(
+            current_trace = _get_current_trace(trace_across_async_contexts)
+            if current_trace and current_trace.background_span_service:
+                current_trace.background_span_service.queue_span(
                     span, span_state="completed"
                 )
         # else: # Handle error case if necessary, but remove debug print
@@ -3319,6 +3308,7 @@ class _BaseStreamManagerWrapper:
         trace_client,
         stream_wrapper_func,
         input_kwargs,
+        trace_across_async_contexts: bool = Tracer.trace_across_async_contexts,
     ):
         self._original_manager = original_manager
         self._client = client
@@ -3327,6 +3317,7 @@ class _BaseStreamManagerWrapper:
         self._stream_wrapper_func = stream_wrapper_func
         self._input_kwargs = input_kwargs
         self._parent_span_id_at_entry = None
+        self._trace_across_async_contexts = trace_across_async_contexts
 
     def _create_span(self):
         start_time = time.time()
@@ -3376,7 +3367,9 @@ class _TracedAsyncStreamManagerWrapper(
         # Call the original __aenter__ and expect it to be an async generator
         raw_iterator = await self._original_manager.__aenter__()
         span.output = "<pending stream>"
-        return self._stream_wrapper_func(raw_iterator, self._client, span)
+        return self._stream_wrapper_func(
+            raw_iterator, self._client, span, self._trace_across_async_contexts
+        )
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if hasattr(self, "_span_context_token"):
@@ -3401,7 +3394,9 @@ class _TracedSyncStreamManagerWrapper(
 
         raw_iterator = self._original_manager.__enter__()
         span.output = "<pending stream>"
-        return self._stream_wrapper_func(raw_iterator, self._client, span)
+        return self._stream_wrapper_func(
+            raw_iterator, self._client, span, self._trace_across_async_contexts
+        )
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if hasattr(self, "_span_context_token"):
