@@ -19,6 +19,7 @@ from judgeval.scorers import (
 )
 from judgeval.data.datasets.dataset import EvalDataset
 from judgeval.tracer import Tracer
+from judgeval.utils.file_utils import get_examples_from_yaml
 
 # Initialize a tracer instance for this test file
 tracer = Tracer()
@@ -67,10 +68,8 @@ class TestEvalOperations:
             examples=[example1, example2],
             scorers=[scorer, scorer2],
             model="Qwen/Qwen2.5-72B-Instruct-Turbo",
-            metadata={"batch": "test"},
             project_name=project_name,
             eval_run_name=eval_run_name,
-            log_results=True,
             override=True,
         )
 
@@ -115,7 +114,6 @@ class TestEvalOperations:
             examples=[example1],
             scorers=[scorer],
             model="Qwen/Qwen2.5-72B-Instruct-Turbo",
-            metadata={"batch": "test"},
             project_name=PROJECT_NAME,
             eval_run_name=EVAL_RUN_NAME,
             append=True,
@@ -229,7 +227,6 @@ class TestEvalOperations:
             examples=dataset.examples,
             scorers=[FaithfulnessScorer(threshold=0.5)],
             model="Qwen/Qwen2.5-72B-Instruct-Turbo",
-            metadata={"batch": "test"},
             project_name="test_project",
             eval_run_name="test_eval_run",
             override=True,
@@ -269,14 +266,13 @@ examples:
                 temp_yaml_file_path = tmpfile.name
             scorer = ToolOrderScorer(threshold=0.5)
             client.run_trace_evaluation(
-                test_file=temp_yaml_file_path,
+                examples=get_examples_from_yaml(temp_yaml_file_path),
                 function=simple_traced_function_for_yaml_eval,
                 tracer=tracer,
                 scorers=[scorer],
                 project_name=PROJECT_NAME_EVAL,
                 eval_run_name=EVAL_RUN_NAME,
                 override=True,
-                log_results=True,
             )
 
             results = client.pull_eval(
@@ -318,24 +314,21 @@ examples:
             examples=[example1],
             scorers=[scorer],
             model="Qwen/Qwen2.5-72B-Instruct-Turbo",
-            metadata={"batch": "test"},
             project_name=PROJECT_NAME,
             eval_run_name=EVAL_RUN_NAME,
-            log_results=True,
             override=False,
         )
 
-        # Second run with log_results=False should succeed
-        client.run_evaluation(
-            examples=[example1],
-            scorers=[scorer],
-            model="Qwen/Qwen2.5-72B-Instruct-Turbo",
-            metadata={"batch": "test"},
-            project_name=PROJECT_NAME,
-            eval_run_name=EVAL_RUN_NAME,
-            log_results=False,
-            override=False,
-        )
+        # This should fail because the eval run name already exists
+        with pytest.raises(ValueError, match="already exists"):
+            client.run_evaluation(
+                examples=[example1],
+                scorers=[scorer],
+                model="Qwen/Qwen2.5-72B-Instruct-Turbo",
+                project_name=PROJECT_NAME,
+                eval_run_name=EVAL_RUN_NAME,
+                override=False,
+            )
 
         # Third run with override=True should succeed
         try:
@@ -344,10 +337,8 @@ examples:
                 examples=[example1],
                 scorers=[scorer],
                 model="Qwen/Qwen2.5-72B-Instruct-Turbo",
-                metadata={"batch": "test"},
                 project_name=PROJECT_NAME,
                 eval_run_name=EVAL_RUN_NAME,
-                log_results=True,
                 override=True,
             )
         except ValueError as e:
@@ -360,9 +351,7 @@ examples:
                 examples=[example1],
                 scorers=[scorer],
                 model="Qwen/Qwen2.5-72B-Instruct-Turbo",
-                metadata={"batch": "test"},
                 project_name=PROJECT_NAME,
                 eval_run_name=EVAL_RUN_NAME,
-                log_results=True,
                 override=False,
             )
