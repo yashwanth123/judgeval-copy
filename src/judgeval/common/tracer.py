@@ -55,8 +55,6 @@ from judgeval.constants import (
     JUDGMENT_TRACES_ADD_ANNOTATION_API_URL,
     JUDGMENT_TRACES_SAVE_API_URL,
     JUDGMENT_TRACES_UPSERT_API_URL,
-    JUDGMENT_TRACES_USAGE_CHECK_API_URL,
-    JUDGMENT_TRACES_USAGE_UPDATE_API_URL,
     JUDGMENT_TRACES_FETCH_API_URL,
     JUDGMENT_TRACES_DELETE_API_URL,
     JUDGMENT_PROJECT_DELETE_API_URL,
@@ -247,41 +245,6 @@ class TraceManagerClient:
 
         return server_response
 
-    def check_usage_limits(self, count: int = 1):
-        """
-        Check if the organization can use the requested number of traces without exceeding limits.
-
-        Args:
-            count: Number of traces to check for (default: 1)
-
-        Returns:
-            dict: Server response with rate limit status and usage info
-
-        Raises:
-            ValueError: If rate limits would be exceeded or other errors occur
-        """
-        response = requests.post(
-            JUDGMENT_TRACES_USAGE_CHECK_API_URL,
-            json={"count": count},
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}",
-                "X-Organization-Id": self.organization_id,
-            },
-            verify=True,
-        )
-
-        if response.status_code == HTTPStatus.FORBIDDEN:
-            # Rate limits exceeded
-            error_data = response.json()
-            raise ValueError(
-                f"Rate limit exceeded: {error_data.get('detail', 'Monthly trace limit reached')}"
-            )
-        elif response.status_code != HTTPStatus.OK:
-            raise ValueError(f"Failed to check usage limits: {response.text}")
-
-        return response.json()
-
     def upsert_trace(
         self,
         trace_data: dict,
@@ -351,35 +314,6 @@ class TraceManagerClient:
             rprint(pretty_str)
 
         return server_response
-
-    def update_usage_counters(self, count: int = 1):
-        """
-        Update trace usage counters after successfully saving traces.
-
-        Args:
-            count: Number of traces to count (default: 1)
-
-        Returns:
-            dict: Server response with updated usage information
-
-        Raises:
-            ValueError: If the update fails
-        """
-        response = requests.post(
-            JUDGMENT_TRACES_USAGE_UPDATE_API_URL,
-            json={"count": count},
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.judgment_api_key}",
-                "X-Organization-Id": self.organization_id,
-            },
-            verify=True,
-        )
-
-        if response.status_code != HTTPStatus.OK:
-            raise ValueError(f"Failed to update usage counters: {response.text}")
-
-        return response.json()
 
     ## TODO: Should have a log endpoint, endpoint should also support batched payloads
     def save_annotation(self, annotation: TraceAnnotation):
@@ -536,7 +470,7 @@ class TraceClient:
         is_first_span = len(self.trace_spans) == 0
         if is_first_span:
             try:
-                trace_id, server_response = self.save_with_rate_limiting(
+                trace_id, server_response = self.save(
                     overwrite=self.overwrite, final_save=False
                 )
                 # Set start_time after first successful save
@@ -859,7 +793,7 @@ class TraceClient:
             return 0.0  # No duration if trace hasn't been saved yet
         return time.time() - self.start_time
 
-    def save(self, overwrite: bool = False) -> Tuple[str, dict]:
+    def save_trace(self, overwrite: bool = False) -> Tuple[str, dict]:
         """
         Save the current trace to the database.
         Returns a tuple of (trace_id, server_response) where server_response contains the UI URL and other metadata.
@@ -900,7 +834,7 @@ class TraceClient:
 
         return self.trace_id, server_response
 
-    def save_with_rate_limiting(
+    def save(
         self, overwrite: bool = False, final_save: bool = False
     ) -> Tuple[str, dict]:
         """
@@ -934,15 +868,6 @@ class TraceClient:
             "tags": self.tags,
         }
 
-        # Check usage limits first
-        try:
-            self.trace_manager_client.check_usage_limits(count=1)
-            # Usage check passed silently - no need to show detailed info
-        except ValueError as e:
-            # Rate limit exceeded
-            warnings.warn(f"Rate limit check failed for live tracing: {e}")
-            raise e
-
         # If usage check passes, upsert the trace
         server_response = self.trace_manager_client.upsert_trace(
             trace_data,
@@ -950,17 +875,6 @@ class TraceClient:
             show_link=not final_save,  # Show link only on initial save, not final save
             final_save=final_save,  # Pass final_save to control S3 saving
         )
-
-        # Update usage counters only on final save
-        if final_save:
-            try:
-                self.trace_manager_client.update_usage_counters(count=1)
-                # Usage updated silently - no need to show detailed usage info
-            except ValueError as e:
-                # Log warning but don't fail the trace save since the trace was already saved
-                warnings.warn(
-                    f"Usage counter update failed (trace was still saved): {e}"
-                )
 
         # Upload annotations
         # TODO: batch to the log endpoint
@@ -2215,10 +2129,8 @@ class Tracer:
                             "parent_name": current_trace.parent_name,
                         }
                         # Save the completed trace
-                        trace_id, server_response = (
-                            current_trace.save_with_rate_limiting(
-                                overwrite=overwrite, final_save=True
-                            )
+                        trace_id, server_response = current_trace.save(
+                            overwrite=overwrite, final_save=True
                         )
 
                         # Store the complete trace data instead of just server response
@@ -2342,10 +2254,8 @@ class Tracer:
                         # Flush background spans before saving the trace
 
                         # Save the completed trace
-                        trace_id, server_response = (
-                            current_trace.save_with_rate_limiting(
-                                overwrite=overwrite, final_save=True
-                            )
+                        trace_id, server_response = current_trace.save(
+                            overwrite=overwrite, final_save=True
                         )
 
                         # Store the complete trace data instead of just server response
