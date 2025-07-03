@@ -1,9 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 from judgeval.evaluation_run import EvaluationRun
 from judgeval.data.tool import Tool
 import json
+import sys
 from datetime import datetime, timezone
+
 
 class TraceUsage(BaseModel):
     prompt_tokens: Optional[int] = None
@@ -13,6 +15,7 @@ class TraceUsage(BaseModel):
     completion_tokens_cost_usd: Optional[float] = None
     total_cost_usd: Optional[float] = None
     model_name: Optional[str] = None
+
 
 class TraceSpan(BaseModel):
     span_id: str
@@ -41,11 +44,15 @@ class TraceSpan(BaseModel):
             "span_id": self.span_id,
             "trace_id": self.trace_id,
             "depth": self.depth,
-            "created_at": datetime.fromtimestamp(self.created_at, tz=timezone.utc).isoformat(),
+            "created_at": datetime.fromtimestamp(
+                self.created_at, tz=timezone.utc
+            ).isoformat(),
             "inputs": self._serialize_value(self.inputs),
             "output": self._serialize_value(self.output),
             "error": self._serialize_value(self.error),
-            "evaluation_runs": [run.model_dump() for run in self.evaluation_runs] if self.evaluation_runs else [],
+            "evaluation_runs": [run.model_dump() for run in self.evaluation_runs]
+            if self.evaluation_runs
+            else [],
             "parent_span_id": self.parent_span_id,
             "function": self.function,
             "duration": self.duration,
@@ -55,13 +62,15 @@ class TraceSpan(BaseModel):
             "agent_name": self.agent_name,
             "state_before": self.state_before,
             "state_after": self.state_after,
-            "additional_metadata": self._serialize_value(self.additional_metadata)
+            "additional_metadata": self._serialize_value(self.additional_metadata),
         }
-    
+
     def print_span(self):
         """Print the span with proper formatting and parent relationship information."""
         indent = "  " * self.depth
-        parent_info = f" (parent_id: {self.parent_span_id})" if self.parent_span_id else ""
+        parent_info = (
+            f" (parent_id: {self.parent_span_id})" if self.parent_span_id else ""
+        )
         print(f"{indent}→ {self.function} (id: {self.span_id}){parent_info}")
 
     def _is_json_serializable(self, obj: Any) -> bool:
@@ -80,38 +89,56 @@ class TraceSpan(BaseModel):
             return str(output)
         except (TypeError, OverflowError, ValueError):
             pass
-    
+
         try:
             return repr(output)
         except (TypeError, OverflowError, ValueError):
             pass
         return None
-        
+
     def _serialize_value(self, value: Any) -> Any:
         """Helper method to deep serialize a value safely supporting Pydantic Models / regular PyObjects."""
         if value is None:
             return None
-            
-        def serialize_value(value):
-            if isinstance(value, BaseModel):
-                return value.model_dump()
-            elif isinstance(value, dict):
-                # Recursively serialize dictionary values
-                return {k: serialize_value(v) for k, v in value.items()}
-            elif isinstance(value, (list, tuple)):
-                # Recursively serialize list/tuple items
-                return [serialize_value(item) for item in value]
-            else:
-                # Try direct JSON serialization first
-                try:
-                    json.dumps(value)
-                    return value
-                except (TypeError, OverflowError, ValueError):
-                    # Fallback to safe stringification
-                    return self.safe_stringify(value, self.function)
+
+        recursion_limit = sys.getrecursionlimit()
+        recursion_limit = int(recursion_limit * 0.75)
+
+        def serialize_value(value, current_depth=0):
+            try:
+                if current_depth > recursion_limit:
+                    return {"error": "max_depth_reached: " + type(value).__name__}
+
+                if isinstance(value, BaseModel):
+                    return value.model_dump()
+                elif isinstance(value, dict):
+                    # Recursively serialize dictionary values
+                    return {
+                        k: serialize_value(v, current_depth + 1)
+                        for k, v in value.items()
+                    }
+                elif isinstance(value, (list, tuple)):
+                    # Recursively serialize list/tuple items
+                    return [serialize_value(item, current_depth + 1) for item in value]
+                else:
+                    # Try direct JSON serialization first
+                    try:
+                        json.dumps(value)
+                        return value
+                    except (TypeError, OverflowError, ValueError):
+                        # Fallback to safe stringification
+                        return self.safe_stringify(value, self.function)
+                    except Exception:
+                        return {"error": "Unable to serialize"}
+            except Exception:
+                return {"error": "Unable to serialize"}
 
         # Start serialization with the top-level value
-        return serialize_value(value)
+        try:
+            return serialize_value(value, current_depth=0)
+        except Exception:
+            return {"error": "Unable to serialize"}
+
 
 class Trace(BaseModel):
     trace_id: str
@@ -121,6 +148,7 @@ class Trace(BaseModel):
     trace_spans: List[TraceSpan]
     overwrite: bool = False
     offline_mode: bool = False
-    rules: Optional[Dict[str, Any]] = None
+    rules: Dict[str, Any] = Field(default_factory=dict)
     has_notification: Optional[bool] = False
-    
+    customer_id: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)

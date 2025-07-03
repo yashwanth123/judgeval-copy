@@ -5,57 +5,60 @@
 
 <br>
 <div style="font-size: 1.5em;">
-  Open source tracing, evals, and metrics to debug, test, and monitor LLM agents.
+    Enable self-learning agents with traces, evals, and environment data.
 </div>
 
-## [Judgment Cloud](https://app.judgmentlabs.ai/register)  • [Self-Host](https://docs.judgmentlabs.ai/self-hosting/get_started) • [Demo](https://www.youtube.com/watch?v=1S4LixpVbcc) 
+## [Docs](https://docs.judgmentlabs.ai/)  •  [Judgment Cloud](https://app.judgmentlabs.ai/register)  • [Self-Host](https://docs.judgmentlabs.ai/self-hosting/get_started)
 
-[Docs](https://docs.judgmentlabs.ai/introduction) • [Bug Reports](https://github.com/JudgmentLabs/judgeval/issues) • [Changelog](https://docs.judgmentlabs.ai/changelog/2025-04-21)
+ [Demo](https://www.youtube.com/watch?v=1S4LixpVbcc) • [Bug Reports](https://github.com/JudgmentLabs/judgeval/issues) • [Changelog](https://docs.judgmentlabs.ai/changelog/2025-04-21)
 
-We're hiring! Join us in our mission to unleash optimized agents.
+We're hiring! Join us in our mission to enable self-learning agents by providing the data and signals needed for continuous improvement.
 
 [![X](https://img.shields.io/badge/-X/Twitter-000?logo=x&logoColor=white)](https://x.com/JudgmentLabs)
 [![LinkedIn](https://custom-icon-badges.demolab.com/badge/LinkedIn%20-0A66C2?logo=linkedin-white&logoColor=fff)](https://www.linkedin.com/company/judgmentlabs)
-[![Discord](https://img.shields.io/badge/-Discord-5865F2?logo=discord&logoColor=white)](https://discord.gg/ZCnSXYug)
+[![Discord](https://img.shields.io/badge/-Discord-5865F2?logo=discord&logoColor=white)](https://discord.gg/tGVFf8UBUY)
 
-<img src="assets/experiments_pagev2.png" alt="Judgment Platform Experiments Page" width="800" />
+<img src="assets/product_shot.png" alt="Judgment Platform" width="800" />
 
 </div>
 
+Judgeval offers **open-source tooling** for tracing, evaluating, and monitoring LLM agents. **Provides comprehensive data from agent-environment interactions** for continuous learning and self-improvement—**enabling the future of autonomous agents**.
 
-Judgeval offers **robust open-source tooling** for tracing, evaluating, and monitoring LLM agents. It helps AI teams effectively **test and monitor** agents in development and production, **closing the agent feedback loop**. 
+## 🎬 See Judgeval in Action
 
-Judgeval can be set up **(cloud-hosted or self-hosted) in 5 minutes**!
-> 🎁 Generous monthly [free tier](https://judgmentlabs.ai/pricing) (10k traces, 1k evals) - No credit card required!
+**[Multi-Agent System](https://github.com/JudgmentLabs/judgment-cookbook/tree/main/cookbooks/agents/multi-agent) with complete observability:** (1) A multi-agent system spawns agents to research topics on the internet. (2) With just **3 lines of code**, Judgeval traces every input/output + environment response across all agent tool calls for debugging. (3) After completion, (4) export all interaction data to enable further environment-specific learning and optimization.
 
-Judgeval is created and maintained by [Judgment Labs](https://judgmentlabs.ai/).
+<table style="width: 100%; max-width: 800px; table-layout: fixed;">
+<tr>
+<td align="center" style="padding: 8px; width: 50%;">
+  <img src="assets/agent.gif" alt="Agent Demo" style="width: 100%; max-width: 350px; height: auto;" />
+  <br><strong>🤖 Agents Running</strong>
+</td>
+<td align="center" style="padding: 8px; width: 50%;">
+  <img src="assets/trace.gif" alt="Trace Demo" style="width: 100%; max-width: 350px; height: auto;" />
+  <br><strong>📊 Real-time Tracing</strong>
+</td>
+</tr>
+<tr>
+<td align="center" style="padding: 8px; width: 50%;">
+  <img src="assets/document.gif" alt="Agent Completed Demo" style="width: 100%; max-width: 350px; height: auto;" />
+  <br><strong>✅ Agents Completed Running</strong>
+</td>
+<td align="center" style="padding: 8px; width: 50%;">
+  <img src="assets/data.gif" alt="Data Export Demo" style="width: 100%; max-width: 350px; height: auto;" />
+  <br><strong>📤 Exporting Agent Environment Data</strong>
+</td>
+</tr>
+
+</table>
 
 ## 📋 Table of Contents
-- [✨ Features](#-features)
 - [🛠️ Installation](#️-installation)
 - [🏁 Quickstarts](#-quickstarts)
-  - [🛰️ Tracing](#️-tracing)
-  - [📝 Offline Evaluations](#-offline-evaluations)
-  - [📡 Online Evaluations](#-online-evaluations)
+- [✨ Features](#-features)
 - [🏢 Self-Hosting](#-self-hosting)
-  - [Key Features](#key-features)
-  - [Getting Started](#getting-started)
 - [📚 Cookbooks](#-cookbooks)
 - [💻 Development with Cursor](#-development-with-cursor)
-- [⭐ Star Us on GitHub](#-star-us-on-github)
-- [❤️ Contributors](#️-contributors)
-
-<!-- Created by https://github.com/ekalinin/github-markdown-toc -->
-
-
-## ✨ Features
-
-|  |  |
-|:---|:---:|
-| <h3>🔍 Tracing</h3>Automatic agent tracing integrated with common frameworks (LangGraph, OpenAI, Anthropic): **tracking inputs/outputs, agent tool calls, latency, and cost** at every step.<br><br>Online evals can be applied to traces to measure quality on production data in real-time.<br><br>Export trace data to the Judgment Platform or your own S3 buckets, {Parquet, JSON, YAML} files, or data warehouse.<br><br>**Useful for:**<br>• 🐛 Debugging agent runs <br>• 👤 Tracking user activity <br>• 🔬 Pinpointing performance bottlenecks| <p align="center"><img src="assets/trace_screenshot.png" alt="Tracing visualization" width="1200"/></p> |
-| <h3>🧪 Evals</h3>Evals are the key to regression testing for agents. Judgeval provides 15+ research-backed metrics including tool call accuracy, hallucinations, instruction adherence, and retrieval context recall.<br><br>Judgeval supports LLM-as-a-judge, manual labeling, and custom evaluators that connect with our metric-tracking infrastructure. <br><br>**Useful for:**<br>• ⚠️ Unit-testing <br>• 🔬 Experimental prompt testing<br>• 🛡️ Online guardrails | <p align="center"><img src="assets/experiments_page.png" alt="Evaluation metrics" width="800"/></p> |
-| <h3>📡 Monitoring</h3>Track all your agent metrics in production. **Catch production regressions early.**<br><br>Configure alerts to trigger automated actions when metric thresholds are exceeded (add agent trace to review queue/dataset, Slack notification, etc.).<br><br> **Useful for:** <br>• 📉 Identifying degradation early <br>• 📈 Visualizing performance trends across agent versions and time | <p align="center"><img src="assets/monitoring_screenshot.png" alt="Monitoring Dashboard" width="1200"/></p> |
-| <h3>📊 Datasets</h3>Export trace data or import external testcases to datasets for scaled unit testing and structured experiments. Move datasets to/from Parquet, S3, etc. <br><br>Run evals on datasets as unit tests or to A/B test different agent configurations. <br><br> **Useful for:**<br>• 🗃️ Filtered agent runtime data for fine tuning<br>• 🔄 Scaled analysis for A/B tests | <p align="center"><img src="assets/datasets_preview_screenshot.png" alt="Dataset management" width="1200"/></p> |
 
 ## 🛠️ Installation
 
@@ -65,7 +68,7 @@ Get started with Judgeval by installing our SDK using pip:
 pip install judgeval
 ```
 
-Ensure you have your `JUDGMENT_API_KEY` and `JUDGMENT_ORG_ID` environment variables set to connect to the [Judgment platform](https://app.judgmentlabs.ai/).
+Ensure you have your `JUDGMENT_API_KEY` and `JUDGMENT_ORG_ID` environment variables set to connect to the [Judgment Platform](https://app.judgmentlabs.ai/).
 
 ```bash
 export JUDGMENT_API_KEY=...
@@ -78,106 +81,50 @@ export JUDGMENT_ORG_ID=...
 
 ### 🛰️ Tracing
 
-Create a file named `traces.py` with the following code:
+Create a file named `agent.py` with the following code:
 
 ```python
-from judgeval.common.tracer import Tracer, wrap
+from judgeval.tracer import Tracer, wrap
 from openai import OpenAI
 
-client = wrap(OpenAI())
+client = wrap(OpenAI())  # tracks all LLM calls
 judgment = Tracer(project_name="my_project")
 
 @judgment.observe(span_type="tool")
-def my_tool():
-    return "What's the capital of the U.S.?"
+def format_question(question: str) -> str:
+    # dummy tool
+    return f"Question : {question}"
 
 @judgment.observe(span_type="function")
-def main():
-    task_input = my_tool()
-    res = client.chat.completions.create(
+def run_agent(prompt: str) -> str:
+    task = format_question(prompt)
+    response = client.chat.completions.create(
         model="gpt-4.1",
-        messages=[{"role": "user", "content": f"{task_input}"}]
+        messages=[{"role": "user", "content": task}]
     )
-    return res.choices[0].message.content
-
-main()
+    return response.choices[0].message.content
+    
+run_agent("What is the capital of the United States?")
 ```
 You'll see your trace exported to the Judgment Platform:
 
 <p align="center"><img src="assets/trace_demo.png" alt="Judgment Platform Trace Example" width="800" /></p>
 
 
-[Click here](https://docs.judgmentlabs.ai/getting-started#create-your-first-trace) for a more detailed explanation.
+[Click here](https://docs.judgmentlabs.ai/tracing/introduction) for a more detailed explanation.
 
-### 📝 Offline Evaluations
 
-Create a file named `evaluate.py` with the following code:
+<!-- Created by https://github.com/ekalinin/github-markdown-toc -->
 
-```python evaluate.py
-from judgeval import JudgmentClient
-from judgeval.data import Example
-from judgeval.scorers import FaithfulnessScorer
 
-client = JudgmentClient()
+## ✨ Features
 
-example = Example(
-    input="What if these shoes don't fit?",
-    actual_output="We offer a 30-day full refund at no extra cost.",
-    retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
-)
-
-scorer = FaithfulnessScorer(threshold=0.5)  # Hallucination detector
-results = client.run_evaluation(
-    examples=[example],
-    scorers=[scorer],
-    model="gpt-4.1",
-)
-print(results)
-```
-
-[Click here](https://docs.judgmentlabs.ai/getting-started#create-your-first-experiment) for a more detailed explanation.
-
-### 📡 Online Evaluations
-
-Attach performance monitoring on traces to measure the quality of your systems in production.
-
-Using the same `traces.py` file we created earlier, modify `main` function:
-
-```python
-from judgeval.common.tracer import Tracer, wrap
-from judgeval.scorers import AnswerRelevancyScorer
-from openai import OpenAI
-
-client = wrap(OpenAI())
-judgment = Tracer(project_name="my_project")
-
-@judgment.observe(span_type="tool")
-def my_tool():
-    return "Hello world!"
-
-@judgment.observe(span_type="function")
-def main():
-    task_input = my_tool()
-    res = client.chat.completions.create(
-        model="gpt-4.1",
-        messages=[{"role": "user", "content": f"{task_input}"}]
-    ).choices[0].message.content
-
-    judgment.async_evaluate(
-        scorers=[AnswerRelevancyScorer(threshold=0.5)],
-        input=task_input,
-        actual_output=res,
-        model="gpt-4.1"
-    )
-    print("Online evaluation submitted.")
-    return res
-
-main()
-```
-
-You should see an evaluation attached to your trace on the Judgment Platform.
-
-[Click here](https://docs.judgmentlabs.ai/getting-started#create-your-first-online-evaluation) for a more detailed explanation.
+|  |  |
+|:---|:---:|
+| <h3>🔍 Tracing</h3>Automatic agent tracing integrated with common frameworks (LangGraph, OpenAI, Anthropic): **tracking inputs/outputs, agent tool calls, latency, and cost** at every step.<br><br>Online evals can be applied to traces to measure quality on production data in real-time. Export data per individual trace for detailed analysis.<br><br>**Useful for:**<br>• 🐛 Debugging agent runs <br>• 📋 Collecting agent environment data <br>• 🔬 Pinpointing performance bottlenecks| <p align="center"><img src="assets/trace_screenshot.png" alt="Tracing visualization" width="1200"/></p> |
+| <h3>🧪 Evals</h3>Evals are the key to regression testing for agents. Judgeval provides 15+ research-backed metrics including tool call accuracy, hallucinations, instruction adherence, and retrieval context recall.<br><br>Judgeval supports LLM-as-a-judge, manual labeling, and custom evaluators that connect with our metric-tracking infrastructure. <br><br>**Useful for:**<br>• ⚠️ Unit-testing <br>• 🔬 Experimental prompt testing<br>• 🛡️ Online guardrails | <p align="center"><img src="assets/experiments_page.png" alt="Evaluation metrics" width="800"/></p> |
+| <h3>📡 Monitoring</h3>Track all your agent metrics in production. **Catch production regressions early.**<br><br>Configure alerts to trigger automated actions when metric thresholds are exceeded (add agent trace to review queue/dataset, Slack notification, etc.).<br><br> **Useful for:** <br>• 📉 Identifying degradation early <br>• 📈 Visualizing performance trends across agent versions and time | <p align="center"><img src="assets/error_analysis_dashboard.png" alt="Monitoring Dashboard" width="1200"/></p> |
+| <h3>📊 Datasets</h3>Export comprehensive agent-environment interaction data or import external testcases to datasets for scaled analysis and optimization. Move datasets to/from Parquet, S3, etc. <br><br>Run evals on datasets as unit tests or to A/B test different agent configurations, enabling continuous learning from production interactions. <br><br> **Useful for:**<br>• 🗃️ Agent environment interaction data for optimization<br>• 🔄 Scaled analysis for A/B tests | <p align="center"><img src="assets/datasets_preview_screenshot.png" alt="Dataset management" width="1200"/></p> |
 
 ## 🏢 Self-Hosting
 
@@ -195,14 +142,9 @@ Run Judgment on your own infrastructure: we provide comprehensive self-hosting c
 
 ## 📚 Cookbooks
 
-Have your own? We're happy to feature it if you create a PR or message us on [Discord](https://discord.gg/taAufyhf).
+Have your own? We're happy to feature it if you create a PR or message us on [Discord](https://discord.gg/tGVFf8UBUY).
 
-You can access our repo of cookbooks [here](https://github.com/JudgmentLabs/judgment-cookbook). Here are some highlights:
-
-### Sample Agents
-
-#### [Multi-Agent System](https://github.com/JudgmentLabs/judgment-cookbook/tree/main/cookbooks/agents/multi-agent)
-A multi-agent system augmented with tool calls designed for general purpose tasks like financial research and math. Traced and evaluated on Faithfulness (factual adherence to retrieval context).
+You can access our repo of cookbooks [here](https://github.com/JudgmentLabs/judgment-cookbook).
 
 ## 💻 Development with Cursor
 When building agents and LLM workflows in Cursor, providing proper context to your coding assistant helps ensure seamless integration with Judgment. This rule file supplies the essential context your coding assistant needs for successful implementation.
@@ -1214,10 +1156,10 @@ Judgeval is created and maintained by @Judgment Labs.
 
 |  |  |
 |:---|:---:|
-| <h3>🔍 Tracing</h3>Automatic agent tracing integrated with common frameworks (LangGraph, OpenAI, Anthropic): **tracking inputs/outputs, latency, and cost** at every step.<br><br>Online evals can be applied to traces to measure quality on production data in real-time.<br><br>Export trace data to the Judgment Platform or your own S3 buckets, {Parquet, JSON, YAML} files, or data warehouse.<br><br>**Useful for:**<br>• 🐛 Debugging agent runs <br>• 👤 Tracking user activity <br>• 🔬 Pinpointing performance bottlenecks| <p align="center"><img src="assets/trace_screenshot.png" alt="Tracing visualization" width="1200"/></p> |
+| <h3>🔍 Tracing</h3>Automatic agent tracing integrated with common frameworks (LangGraph, OpenAI, Anthropic): **tracking inputs/outputs, agent tool calls, latency, and cost** at every step.<br><br>Online evals can be applied to traces to measure quality on production data in real-time.<br><br>**Useful for:**<br>• 🐛 Debugging agent runs <br>• 📋 Collecting agent environment data <br>• 🔬 Pinpointing performance bottlenecks| <p align="center"><img src="assets/trace_screenshot.png" alt="Tracing visualization" width="1200"/></p> |
 | <h3>🧪 Evals</h3>15+ research-backed metrics including tool call accuracy, hallucinations, instruction adherence, and retrieval context recall.<br><br>Build custom evaluators that connect with our metric-tracking infrastructure. <br><br>**Useful for:**<br>• ⚠️ Unit-testing <br>• 🔬 Experimental prompt testing<br>• 🛡️ Online guardrails <br><br> | <p align="center"><img src="assets/experiments_page.png" alt="Evaluation metrics" width="800"/></p> |
 | <h3>📡 Monitoring</h3>Real-time performance tracking of your agents in production environments. **Track all your metrics in one place.**<br><br>Set up **Slack/email alerts** for critical metrics and receive notifications when thresholds are exceeded.<br><br> **Useful for:** <br>•📉 Identifying degradation early <br>•📈 Visualizing performance trends across versions and time | <p align="center"><img src="assets/monitoring_screenshot.png" alt="Monitoring Dashboard" width="1200"/></p> |
-| <h3>📊 Datasets</h3>Export trace data or import external testcases to datasets hosted on Judgment's Platform. Move datasets to/from Parquet, S3, etc. <br><br>Run evals on datasets as unit tests or to A/B test different agent configurations. <br><br> **Useful for:**<br>• 🔄 Scaled analysis for A/B tests <br>• 🗃️ Filtered collections of agent runtime data| <p align="center"><img src="assets/datasets_preview_screenshot.png" alt="Dataset management" width="1200"/></p> |
+| <h3>📊 Datasets</h3>Export trace data or import external testcases to datasets for scaled unit testing and structured experiments. Move datasets to/from Parquet, S3, etc. <br><br>Run evals on datasets as unit tests or to A/B test different agent configurations. <br><br> **Useful for:**<br>• 🗃️ Filtered agent runtime data for fine tuning<br>• 🔄 Scaled analysis for A/B tests | <p align="center"><img src="assets/datasets_preview_screenshot.png" alt="Dataset management" width="1200"/></p> |
 | <h3>💡 Insights</h3>Cluster on your data to reveal common use cases and failure modes.<br><br>Trace failures to their exact source with Judgment's Osiris agent, which localizes errors to specific components for precise fixes.<br><br> **Useful for:**<br>•🔮 Surfacing common inputs that lead to error<br>•🤖 Investigating agent/user behavior for optimization <br>| <p align="center"><img src="assets/dataset_clustering_screenshot_dm.png" alt="Insights dashboard" width="1200"/></p> |
 
 ## 🛠️ Installation
@@ -1242,26 +1184,27 @@ Track your agent execution with full observability with just a few lines of code
 Create a file named `traces.py` with the following code:
 
 ```python
-from judgeval.common.tracer import Tracer, wrap
+from judgeval.tracer import Tracer, wrap
 from openai import OpenAI
 
-client = wrap(OpenAI())
+client = wrap(OpenAI())  # tracks all LLM calls
 judgment = Tracer(project_name="my_project")
 
 @judgment.observe(span_type="tool")
-def my_tool():
-    return "What's the capital of the U.S.?"
+def format_question(question: str) -> str:
+    # dummy tool
+    return f"Question : {question}"
 
 @judgment.observe(span_type="function")
-def main():
-    task_input = my_tool()
-    res = client.chat.completions.create(
+def run_agent(prompt: str) -> str:
+    task = format_question(prompt)
+    response = client.chat.completions.create(
         model="gpt-4.1",
-        messages=[{"role": "user", "content": f"{task_input}"}]
+        messages=[{"role": "user", "content": task}]
     )
-    return res.choices[0].message.content
+    return response.choices[0].message.content
 
-main()
+run_agent("What is the capital of the United States?")
 ```
 
 @Click here for a more detailed explanation.
@@ -1389,13 +1332,11 @@ There are many ways to contribute to Judgeval:
 @![Contributors](https://github.com/JudgmentLabs/judgeval/graphs/contributors)
 
 ````
-
 </details>
 
 ## ⭐ Star Us on GitHub
 
-If you find Judgeval useful, please consider giving us a star on GitHub! Your support helps us grow our community and continue improving the product.
-
+If you find Judgeval useful, please consider giving us a star on GitHub! Your support helps us grow our community and continue improving the repository.
 
 ## ❤️ Contributors
 
@@ -1408,3 +1349,6 @@ There are many ways to contribute to Judgeval:
 <!-- Contributors collage -->
 [![Contributors](https://contributors-img.web.app/image?repo=JudgmentLabs/judgeval)](https://github.com/JudgmentLabs/judgeval/graphs/contributors)
 
+---
+
+Judgeval is created and maintained by [Judgment Labs](https://judgmentlabs.ai/).

@@ -10,6 +10,7 @@ import logging
 from dotenv import load_dotenv
 
 from judgeval.judgment_client import JudgmentClient
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ ORGANIZATION_ID = os.getenv("JUDGMENT_ORG_ID")
 
 if not API_KEY:
     pytest.skip("JUDGMENT_API_KEY not set", allow_module_level=True)
+
 
 @pytest.fixture(scope="session")
 def client() -> JudgmentClient:
@@ -59,18 +61,23 @@ def client() -> JudgmentClient:
     client.delete_project(project_name="TestGoogleResponseAPI")
     client.delete_project(project_name="TraceEvalProjectFromYAMLTest")
     client.delete_project(project_name="test_s3_trace_saving")
-    client.delete_project(project_name="test-langgraph-project-sync")
-    client.delete_project(project_name="test-langgraph-project-async")
+    client.delete_project(project_name="test-sync-langgraph-project")
+    client.delete_project(project_name="test-async-langgraph-project")
 
 
 @pytest.fixture
 def random_name() -> str:
     """Generate a random name for test resources."""
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    return "".join(random.choices(string.ascii_letters + string.digits, k=12))
+
 
 def pytest_configure(config):
     """Add markers for test categories."""
-    config.addinivalue_line("markers", "basic: mark test as testing basic functionality")
-    config.addinivalue_line("markers", "advanced: mark test as testing advanced features")
+    config.addinivalue_line(
+        "markers", "basic: mark test as testing basic functionality"
+    )
+    config.addinivalue_line(
+        "markers", "advanced: mark test as testing advanced features"
+    )
     config.addinivalue_line("markers", "custom: mark test as testing custom components")
-    config.addinivalue_line("markers", "traces: mark test as testing trace operations") 
+    config.addinivalue_line("markers", "traces: mark test as testing trace operations")
