@@ -111,7 +111,7 @@ You'll see your trace exported to the Judgment Platform:
 <p align="center"><img src="assets/trace_demo.png" alt="Judgment Platform Trace Example" width="800" /></p>
 
 
-[Click here](https://docs.judgmentlabs.ai/tracing/introduction) for a more detailed explanation.
+[Click here](https://docs.judgmentlabs.ai/documentation/tracing/introduction) for a more detailed explanation.
 
 
 <!-- Created by https://github.com/ekalinin/github-markdown-toc -->
