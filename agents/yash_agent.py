@@ -1,12 +1,10 @@
-project_name: "demo_project"
-eval_name: "yash_eval_test"
-model: "gpt-4.1"
+class YashAgent:
+    def __init__(self):
+        pass
 
-examples:
-  - input: "What is 2 + 2?"
-    actual_output: "4"
-    expected_output: "4"
+    def act(self, task_input):
+        print("[YashAgent] Received input:", task_input)
+        return "4"
 
-scorers:
-  - score_type: "answer_correctness"
-    threshold: 1.0
+    def reset(self):
+        pass
