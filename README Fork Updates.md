@@ -1,54 +1,65 @@
+Here’s a clean, GitHub-friendly README layout including what you asked for:
 
-✅ Basic README.md Content You Can Use:
+---
 
-Judgeval Custom Scorer Project Setup
+# Judgeval Custom Evaluation Example
 
-1. Cloning and Setup
+This project demonstrates customizing the Judgeval evaluation framework by adding:
 
-Clone the repository.
+* A new local scorer: `LengthPenaltyScorer`
+* A custom YAML evaluation config: `multi_step_eval.yaml`
+* Integration setup using `run_from_config.py`
 
-Install dependencies:
+## ✅ What We Edited and Added
 
-pip install -r requirements.txt
+| File Path                                       | Purpose                                                                  |
+| :---------------------------------------------- | :----------------------------------------------------------------------- |
+| `src/judgeval/run_from_config.py`               | Runner script that loads YAML config and triggers `run_eval`.            |
+| `src/judgeval/scorers/length_penalty_scorer.py` | Custom scorer that penalizes long outputs.                               |
+| `src/judgeval/run_evaluation.py`                | Patched to handle `None` values in local scorers and merge logic safely. |
+| `evals/multi_step_eval.yaml`                    | Example config file using `LengthPenaltyScorer`.                         |
 
-Setup API keys:
+---
 
-export JUDGMENT_API_KEY=your_api_key_here
-export JUDGMENT_ORG_ID=your_org_id_here
+## ✅ How to Use
 
+### 1️⃣ Install Judgeval and Dependencies
 
-2. Custom Scorer Implementation
+```bash
+pip install judgeval
+```
 
-Added src/judgeval/scorers/length_penalty_scorer.py.
+### 2️⃣ Set Up Environment Variables
 
-Example usage in YAML:
+Make sure to replace these with your own values from [https://app.judgeval.ai](https://app.judgeval.ai):
 
-project_name: multi_step_project
-eval_name: multi_step_eval
-model: gpt-4o
-examples:
-  - input: "Some input text"
-    actual_output: "Some actual output text"
-scorers:
-  - score_type: length_penalty
-    threshold: 0.9
+```bash
+export JUDGMENT_API_KEY=your-key-here
+export JUDGMENT_ORG_ID=your-org-id-here
+```
 
+Or inline:
 
-3. Running Evaluations
+```bash
+JUDGMENT_API_KEY="your-key" JUDGMENT_ORG_ID="your-org" python src/judgeval/run_from_config.py evals/multi_step_eval.yaml
+```
 
-Use src/judgeval/run_from_config.py to trigger:
+### 3️⃣ Run Evaluation
 
+```bash
 python src/judgeval/run_from_config.py evals/multi_step_eval.yaml
+```
 
+You’ll see console output and a UI link if everything works.
 
-4. Notes
+---
 
-I fixed several import issues and circular dependency bugs.
+## ✅ Notes
 
-Important edited files: run_evaluation.py, length_penalty_scorer.py, run_from_config.py.
+* If you see errors like `'NoneType' object has no attribute 'model_copy'`, check:
 
+  * `merge_results()` in `run_evaluation.py` should filter out None objects safely.
+* For circular imports:
 
-5. Contribution
-
-Fork and continue improving custom scorers.
-
+  * Make sure `ScorerData` and `Example` are imported from their exact file locations, not via `__init__.py`.
+* Judgeval version: tested up to `0.0.52`.
