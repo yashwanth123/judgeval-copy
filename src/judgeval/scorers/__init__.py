@@ -1,3 +1,5 @@
+from judgeval.scorers.length_penalty_scorer import LengthPenaltyScorer
+from judgeval.data.example import ExampleParams
 from judgeval.scorers.api_scorer import APIJudgmentScorer
 from judgeval.scorers.judgeval_scorer import JudgevalScorer
 from judgeval.scorers.prompt_scorer import PromptScorer
