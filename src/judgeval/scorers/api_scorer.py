@@ -7,7 +7,7 @@ Scores `Example`s using ready-made Judgment evaluators.
 from pydantic import BaseModel, field_validator
 from typing import List
 from judgeval.common.logger import debug, info, error
-from judgeval.data import ExampleParams
+from judgeval.data.example import ExampleParams
 from judgeval.constants import APIScorer, UNBOUNDED_SCORERS
 
 
