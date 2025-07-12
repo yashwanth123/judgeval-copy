@@ -6,7 +6,7 @@ This project demonstrates customizing the Judgeval evaluation framework by addin
 * A custom YAML evaluation config: `multi_step_eval.yaml`
 * Integration setup using `run_from_config.py`
 
-## ✅ What We Edited and Added
+## ✅ What Edited and Added
 
 | File Path                                       | Purpose                                                                  |
 | :---------------------------------------------- | :----------------------------------------------------------------------- |
