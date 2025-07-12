@@ -1,0 +1,17 @@
+project_name: "multi_step_project"
+eval_name: "multi_step_test"
+model: "gpt-4.1"
+
+examples:
+  - input: "Plan a 3-day trip itinerary for New York including food and sightseeing."
+    actual_output: |
+      Day 1: Central Park, Shake Shack...
+      Day 2: MoMA, Katz's Deli...
+      Day 3: Brooklyn Bridge, Peter Luger Steakhouse...
+    expected_output: null
+
+scorers:
+  - score_type: "faithfulness"
+    threshold: 0.8
+  - score_type: "length_penalty"
+    threshold: 0.9
