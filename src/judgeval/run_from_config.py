@@ -1,28 +1,28 @@
-import os
-os.environ["JUDGMENT_API_KEY"] = "your key"
-os.environ["JUDGMENT_ORG_ID"] = "your id" 
+from judgeval.scorers.length_penalty_scorer import LengthPenaltyScorer  # Add this import
+
+# If using manual Python scripting, add the scorer like this:
 
 from judgeval import JudgmentClient
 from judgeval.data import Example
-from judgeval.scorers import FaithfulnessScorer
-
-# Set env vars directly in the script for now:
 
 client = JudgmentClient()
 
 example = Example(
-    input="What if these shoes don't fit?",
-    actual_output="We offer a 30-day full refund at no extra cost.",
-    retrieval_context=["All customers are eligible for a 30 day full refund at no extra cost."],
+    input="Plan a 3-day trip itinerary for New York including food and sightseeing.",
+    actual_output="Day 1: Central Park... Day 2: MoMA... Day 3: Brooklyn...",
+    retrieval_context=[],
 )
 
-scorer = FaithfulnessScorer(threshold=0.5)
+scorers = [
+    LengthPenaltyScorer(threshold=0.9),
+    # Add any default ones like FaithfulnessScorer if needed
+]
 
 results = client.run_evaluation(
     examples=[example],
-    scorers=[scorer],
-    model="gpt-4o",
-    project_name="yashwanth-sandbox"
+    scorers=scorers,
+    model="gpt-4.1",
+    project_name="multi_step_project"
 )
 
 print(results)
