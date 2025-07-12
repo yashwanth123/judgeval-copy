@@ -28,8 +28,7 @@ NOTE: When implementing build_measure_prompt and build_schema:
 from abc import abstractmethod
 from typing import List, Optional, Tuple, Any
 from pydantic import BaseModel, Field
-
-from judgeval.data import Example
+from judgeval.data.example import Example
 from judgeval.data.example import ExampleParams
 from judgeval.scorers import JudgevalScorer
 from judgeval.scorers.utils import (
