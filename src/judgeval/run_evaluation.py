@@ -910,6 +910,16 @@ def run_eval(
     override: bool = False,
     async_execution: bool = False,
 ) -> Union[List[ScoringResult], asyncio.Task, SpinnerWrappedTask]:
+    # ADD THIS IMMEDIATELY INSIDE FUNCTION BODY:
+    # Aggregate the ScorerData from the API and local evaluations
+    debug("Merging API and local results")
+    local_results: List[ScoringResult] = []
+    api_results: List[ScoringResult] = []
+    local_results = [res for res in local_results if res is not None]
+    api_results = [res for res in api_results if res is not None]
+    merged_results: List[ScoringResult] = merge_results(api_results, local_results)
+
+
     """
     Executes an evaluation of `Example`s using one or more `Scorer`s
 
