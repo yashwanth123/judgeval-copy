@@ -1,7 +1,3 @@
-Here’s a clean, GitHub-friendly README layout including what you asked for:
-
----
-
 # Judgeval Custom Evaluation Example
 
 This project demonstrates customizing the Judgeval evaluation framework by adding:
